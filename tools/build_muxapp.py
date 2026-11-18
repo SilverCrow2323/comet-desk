@@ -35,7 +35,7 @@ PNG_DIMENSIONS = {
     "assets/branding/comet-desk-logo.png": (160, 54),
 }
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
-LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/79bdfc7707fd0785828e7a3f1146e775a6f312/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
+LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/cb11b977364dc88c82259fa259434bad682c6f81/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
 
 
 def sha256_file(path: Path) -> str:
