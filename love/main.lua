@@ -75,7 +75,8 @@ local function drawHeader()
     text("MUX COMPANION  //  BUILD 0.1.0-dev", 24, 77, fonts.tiny, colors.muted)
     rounded(482, 22, 132, 42, colors.panel, colors.line)
     text("RG35XX H TARGET", 495, 28, fonts.small, colors.cyan)
-    text("LIVE PROBE PENDING", 495, 45, fonts.tiny, colors.amber)
+    local probeStatus = device.handheld ~= "Unknown" and "LIVE PROBE OK" or "PROBE PARTIAL"
+    text(probeStatus, 495, 45, fonts.tiny, device.handheld ~= "Unknown" and colors.green or colors.amber)
 end
 
 local function drawNavigation()
