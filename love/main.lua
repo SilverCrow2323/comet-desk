@@ -16,6 +16,9 @@ local activePage = 1
 local notice = "SYSTEM READY // PROTOTYPE MODE"
 local noticeTimer = 0
 local fonts = {}
+local probe = nil
+local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
+local probeTimer = 0
 local colors = {
     bg = { 0.035, 0.047, 0.075 },
     panel = { 0.065, 0.086, 0.125 },
@@ -92,21 +95,56 @@ local function drawNavigation()
     text("A  SELECT     B  BACK", 34, 383, fonts.tiny, colors.muted)
 end
 
+local function short(value, limit)
+    value = tostring(value or "Unknown")
+    if #value > limit then return value:sub(1, limit - 3) .. "..." end
+    return value
+end
+
 local function drawOverview()
     local page = pages[activePage]
     text(page.subtitle, 235, 127, fonts.small, colors.muted)
-    rounded(230, 157, 390, 112, colors.panel, colors.line)
-    text("QUICK STATUS", 248, 174, fonts.small, colors.cyan)
-    text("Host OS", 248, 205, fonts.small, colors.muted)
-    text("muOS // detection pending", 370, 205, fonts.small, colors.white)
-    text("Target", 248, 229, fonts.small, colors.muted)
-    text("No storage selected", 370, 229, fonts.small, colors.white)
+    rounded(230, 157, 390, 148, colors.panel, colors.line)
+    text("LIVE DEVICE SNAPSHOT", 248, 174, fonts.small, colors.cyan)
+    text("Handheld", 248, 202, fonts.small, colors.muted)
+    text(short(device.handheld, 31), 370, 202, fonts.small, colors.white)
+    text("SoC / architecture", 248, 226, fonts.small, colors.muted)
+    text(short(device.soc .. " / " .. device.architecture, 34), 370, 226, fonts.tiny, colors.white)
+    text("Firmware", 248, 250, fonts.small, colors.muted)
+    text(short(device.firmware, 31), 370, 250, fonts.small, colors.white)
+    text("RAM", 248, 274, fonts.small, colors.muted)
+    text(device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown", 370, 274, fonts.small, colors.white)
 
-    rounded(230, 282, 390, 128, colors.panel, colors.line)
-    text("FIELD NOTES", 248, 299, fonts.small, colors.violet)
-    text("Comet Desk is the quick-access layer.", 248, 327, fonts.medium, colors.white)
-    text("Void Desk is the workshop that taught it.", 248, 352, fonts.small, colors.muted)
-    text("No writes. No hidden changes. Not yet.", 248, 376, fonts.small, colors.amber)
+    rounded(230, 318, 390, 92, colors.panel, colors.line)
+    text("STORAGE PRESENCE", 248, 332, fonts.small, colors.violet)
+    local tf1 = device.storage and device.storage.tf1 or nil
+    local tf2 = device.storage and device.storage.tf2 or nil
+    text("TF1  " .. (tf1 and tf1.status or "UNKNOWN"), 248, 358, fonts.small, tf1 and tf1.status == "MOUNTED" and colors.green or colors.amber)
+    text("TF2  " .. (tf2 and tf2.status or "UNKNOWN"), 420, 358, fonts.small, tf2 and tf2.status == "MOUNTED" and colors.green or colors.muted)
+    text("Read-only probe // no storage writes", 248, 385, fonts.tiny, colors.muted)
+end
+
+local function drawDiagnostics()
+    text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
+    rounded(230, 157, 390, 253, colors.panel, colors.line)
+    text("DEVICE IDENTITY", 248, 174, fonts.small, colors.cyan)
+    local rows = {
+        { "Handheld", device.handheld },
+        { "SoC", device.soc },
+        { "Architecture", device.architecture },
+        { "RAM", device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown" },
+        { "Firmware", device.firmware },
+    }
+    for i, item in ipairs(rows) do
+        local y = 202 + (i - 1) * 29
+        text(item[1], 248, y, fonts.small, colors.muted)
+        text(short(item[2], 34), 370, y, fonts.small, colors.white)
+    end
+    text("STORAGE MOUNTS", 248, 351, fonts.small, colors.violet)
+    local tf1 = device.storage and device.storage.tf1 or {}
+    local tf2 = device.storage and device.storage.tf2 or {}
+    text("TF1  " .. (tf1.status or "UNKNOWN") .. "  " .. short(tf1.filesystem, 10), 248, 375, fonts.tiny, colors.white)
+    text("TF2  " .. (tf2.status or "UNKNOWN") .. "  " .. short(tf2.filesystem, 10), 248, 392, fonts.tiny, colors.white)
 end
 
 local function drawModule()
@@ -138,10 +176,22 @@ function love.load()
     fonts.large = love.graphics.newFont(21)
     fonts.title = love.graphics.newFont(32)
     love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
+    local ok, module = pcall(require, "device_probe")
+    if ok then probe = module end
+    if probe then
+        local success, snapshot = pcall(probe.read)
+        if success and snapshot then device = snapshot end
+    end
 end
 
 function love.update(dt)
     if noticeTimer > 0 then noticeTimer = math.max(0, noticeTimer - dt) end
+    probeTimer = probeTimer + dt
+    if probe and probeTimer >= 10 then
+        probeTimer = 0
+        local success, snapshot = pcall(probe.read)
+        if success and snapshot then device = snapshot end
+    end
 end
 
 function love.draw()
@@ -153,7 +203,9 @@ function love.draw()
     drawBackground()
     drawHeader()
     drawNavigation()
-    if activePage == 1 then drawOverview() else drawModule() end
+    if activePage == 1 then drawOverview()
+    elseif activePage == 5 then drawDiagnostics()
+    else drawModule() end
     drawFooter()
     love.graphics.pop()
 end
