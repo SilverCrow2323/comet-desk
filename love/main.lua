@@ -28,6 +28,7 @@ local gamepadHeld = {}
 local keyboardHeld = { start = false, select = false }
 local exitRequested = false
 local selectedSlot = "tf1"
+local installedSlot = nil
 local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "XFCE environment not installed", location = "" }
 local downloadPoll = 0
 
@@ -232,13 +233,21 @@ local function drawSetup()
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         stateColor = colors.violet
     end
-    text(imageDownload.state, 408, 244, fonts.medium, stateColor)
+    local statusLabel = imageDownload.state
+    if imageDownload.state == "READY" and installedSlot and installedSlot ~= selectedSlot then
+        statusLabel = "INSTALLED ON " .. installedSlot:upper()
+        stateColor = colors.amber
+    end
+    text(statusLabel, 408, 244, fonts.medium, stateColor)
     text(short(imageDownload.message, 29), 408, 271, fonts.tiny, colors.white)
     drawProgress(408, 294, 175, 12, imageDownload.percent, stateColor)
     text(string.format("%d%%  COMPLETE", imageDownload.percent), 408, 316, fonts.tiny, colors.muted)
-    if imageDownload.state == "READY" then
+    if imageDownload.state == "READY" and installedSlot == selectedSlot then
         text("A  LAUNCH XFCE", 408, 349, fonts.small, colors.green)
         text("B  RETURN TO COMET", 408, 370, fonts.tiny, colors.muted)
+    elseif imageDownload.state == "READY" and installedSlot then
+        text("A  INSTALL ON " .. selectedSlot:upper(), 408, 349, fonts.small, colors.cyan)
+        text("Current image: " .. installedSlot:upper(), 408, 370, fonts.tiny, colors.muted)
     elseif imageDownload.state == "INSTALLING_XFCE" or imageDownload.state == "DOWNLOADING_ROOTFS"
         or imageDownload.state == "DOWNLOADING_TEMPLATE" or imageDownload.state == "EXPANDING_IMAGE"
         or imageDownload.state == "PREPARING_ROOTFS" or imageDownload.state == "EXTRACTING_ROOTFS" then
@@ -404,6 +413,11 @@ local function readImageDownloadStatus()
     imageDownload.percent = tonumber(percent) or 0
     imageDownload.message = message
     imageDownload.location = location or ""
+    if location and location:find("/mnt/mmc/", 1, true) then
+        installedSlot = "tf1"
+    elseif location and location:find("/mnt/sdcard/", 1, true) then
+        installedSlot = "tf2"
+    end
     if state == "READY" and imageDownload._notice ~= "READY" then
         setNotice("XFCE ENVIRONMENT READY // A TO LAUNCH")
     elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING" then
@@ -547,7 +561,7 @@ local function startDesktopEnvironment()
         setNotice(selectedSlot:upper() .. " NOT WRITABLE OR SPACE UNKNOWN")
         return
     end
-    if imageDownload.state == "READY" then
+    if imageDownload.state == "READY" and installedSlot == selectedSlot then
         local request = appRoot .. "/data/desktop-session.request"
         local temporary = request .. ".tmp"
         local stream = io.open(temporary, "w")
