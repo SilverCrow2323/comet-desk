@@ -16,22 +16,12 @@ local activePage = 1
 local notice = "SYSTEM READY // PROTOTYPE MODE"
 local noticeTimer = 0
 local fonts = {}
+local visuals = { background = nil, icons = {} }
 local probe = nil
 local diagnosticReport = nil
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
 local probeTimer = 0
-local colors = {
-    bg = { 0.035, 0.047, 0.075 },
-    panel = { 0.065, 0.086, 0.125 },
-    panel2 = { 0.085, 0.112, 0.16 },
-    line = { 0.16, 0.25, 0.34 },
-    cyan = { 0.22, 0.88, 0.94 },
-    violet = { 0.62, 0.43, 0.98 },
-    white = { 0.91, 0.95, 0.98 },
-    muted = { 0.48, 0.59, 0.69 },
-    amber = { 1.0, 0.72, 0.32 },
-    green = { 0.35, 0.9, 0.68 },
-}
+local colors = require("theme").colors
 
 local function setNotice(message)
     notice = message
@@ -60,7 +50,11 @@ end
 
 local function drawBackground()
     love.graphics.clear(colors.bg[1], colors.bg[2], colors.bg[3], 1)
-    love.graphics.setColor(0.07, 0.12, 0.18, 0.45)
+    if visuals.background then
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(visuals.background, 0, 0)
+    end
+    love.graphics.setColor(0.07, 0.12, 0.18, 0.32)
     for x = 0, W, 32 do love.graphics.line(x, 0, x, H) end
     for y = 0, H, 32 do love.graphics.line(0, y, W, y) end
     setColor(colors.cyan)
@@ -70,10 +64,14 @@ local function drawBackground()
 end
 
 local function drawHeader()
-    text("QWASAR  /  FIELD SYSTEMS", 24, 17, fonts.small, colors.muted)
-    text("COMET", 24, 36, fonts.title, colors.white)
-    text("DESK", 133, 42, fonts.medium, colors.cyan)
-    text("MUX COMPANION  //  BUILD 0.1.0-dev", 24, 77, fonts.tiny, colors.muted)
+    if visuals.icons.app then
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.draw(visuals.icons.app, 22, 34, 0, 0.40, 0.40)
+    end
+    text("QWASAR  /  FIELD SYSTEMS", 68, 17, fonts.small, colors.muted)
+    text("COMET", 68, 36, fonts.title, colors.white)
+    text("DESK", 177, 42, fonts.medium, colors.cyan)
+    text("MUX COMPANION  //  BUILD 0.1.0-dev", 68, 77, fonts.tiny, colors.muted)
     rounded(482, 22, 132, 42, colors.panel, colors.line)
     text("RG35XX H TARGET", 495, 28, fonts.small, colors.cyan)
     local probeStatus = device.handheld ~= "Unknown" and "LIVE PROBE OK" or "PROBE PARTIAL"
@@ -91,7 +89,13 @@ local function drawNavigation()
             love.graphics.setColor(colors.cyan)
             love.graphics.rectangle("fill", 28, y + 5, 3, 18, 2, 2)
         end
-        text(string.format("%02d", i), 40, y + 4, fonts.small, active and colors.cyan or colors.muted)
+        local pageIcon = visuals.icons[page.id]
+        if pageIcon then
+            love.graphics.setColor(1, 1, 1, active and 1 or 0.66)
+            love.graphics.draw(pageIcon, 38, y + 2, 0, 0.30, 0.30)
+        else
+            text(string.format("%02d", i), 40, y + 4, fonts.small, active and colors.cyan or colors.muted)
+        end
         text(page.title, 69, y + 4, fonts.small, active and colors.white or colors.muted)
     end
     text("A  SELECT     B  BACK", 34, 383, fonts.tiny, colors.muted)
@@ -190,12 +194,27 @@ local function drawFooter()
 end
 
 function love.load()
-    love.graphics.setDefaultFilter("nearest", "nearest")
-    fonts.tiny = love.graphics.newFont(10)
-    fonts.small = love.graphics.newFont(12)
-    fonts.medium = love.graphics.newFont(15)
-    fonts.large = love.graphics.newFont(21)
-    fonts.title = love.graphics.newFont(32)
+    love.graphics.setDefaultFilter("linear", "linear")
+    local function loadFont(path, size, fallback)
+        local ok, font = pcall(love.graphics.newFont, path, size)
+        if ok then return font end
+        return love.graphics.newFont(fallback or size)
+    end
+    fonts.tiny = loadFont("assets/fonts/PT-Mono.ttf", 10, 10)
+    fonts.small = loadFont("assets/fonts/Inter-Medium.otf", 12, 12)
+    fonts.medium = loadFont("assets/fonts/Inter-Bold.otf", 15, 15)
+    fonts.large = loadFont("assets/fonts/Inter-Bold.otf", 21, 21)
+    fonts.title = loadFont("assets/fonts/Inter-Bold.otf", 32, 32)
+    local function loadImage(path)
+        local ok, image = pcall(love.graphics.newImage, path)
+        if ok then return image end
+        return nil
+    end
+    visuals.background = loadImage("assets/backgrounds/comet-dashboard-640x480.png")
+    visuals.icons.app = loadImage("assets/icons/comet-desk-app.png")
+    for _, name in ipairs({ "overview", "setup", "sessions", "tools", "diagnostics" }) do
+        visuals.icons[name] = loadImage("assets/icons/" .. name .. ".png")
+    end
     love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     local ok, module = pcall(require, "device_probe")
     if ok then probe = module end
