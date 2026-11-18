@@ -35,7 +35,8 @@
 - [x] Implement a minimal, reproducible .muxapp builder.
 - [x] Validate archive layout, executable permissions and AArch64 runtime dependencies.
 - [x] Add CI checks and per-run installable package artifacts.
-- [ ] Test on real hardware before publishing a stable release.
+- [x] Produce and verify the first CI `.muxapp` candidate, including archive integrity, AArch64 ELF payloads, executable launcher, PNG dimensions and SHA-256 sidecar.
+- [ ] Install and test on real hardware before publishing a stable release.
 
 ## Release rule
 
