@@ -17,6 +17,7 @@ local notice = "SYSTEM READY // PROTOTYPE MODE"
 local noticeTimer = 0
 local fonts = {}
 local probe = nil
+local diagnosticReport = nil
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
 local probeTimer = 0
 local colors = {
@@ -164,6 +165,7 @@ local function drawDiagnostics()
     local tf2 = device.storage and device.storage.tf2 or {}
     text(storageLine("TF1", tf1) .. "  [" .. short(tf1.filesystem, 8) .. "]", 248, 375, fonts.tiny, colors.white)
     text(storageLine("TF2", tf2) .. "  [" .. short(tf2.filesystem, 8) .. "]", 248, 392, fonts.tiny, colors.white)
+    text("Y / E  EXPORT PRIVACY-SAFE REPORT", 248, 402, fonts.tiny, colors.cyan)
 end
 
 local function drawModule()
@@ -197,6 +199,8 @@ function love.load()
     love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     local ok, module = pcall(require, "device_probe")
     if ok then probe = module end
+    local reportOK, reportModule = pcall(require, "diagnostics_report")
+    if reportOK then diagnosticReport = reportModule end
     if probe then
         local success, snapshot = pcall(probe.read)
         if success and snapshot then device = snapshot end
@@ -229,6 +233,30 @@ function love.draw()
     love.graphics.pop()
 end
 
+local function exportDiagnostics()
+    if not diagnosticReport then
+        setNotice("REPORT MODULE UNAVAILABLE")
+        return
+    end
+    local destination = os.getenv("COMET_DESK_APP_DIR")
+    if destination and destination ~= "" then
+        destination = destination .. "/data"
+    else
+        local created = love.filesystem.createDirectory("diagnostics")
+        if not created then
+            setNotice("REPORT DIRECTORY UNAVAILABLE")
+            return
+        end
+        destination = love.filesystem.getSaveDirectory() .. "/diagnostics"
+    end
+    local path, err = diagnosticReport.write(device, destination)
+    if path then
+        setNotice("REPORT SAVED // " .. path:match("([^/]+)$"))
+    else
+        setNotice("REPORT FAILED // " .. short(err, 42))
+    end
+end
+
 local function activate()
     activePage = selected
     if activePage == 1 then
@@ -245,6 +273,8 @@ function love.keypressed(key)
         selected = (selected % #pages) + 1
     elseif key == "return" or key == "space" or key == "z" then
         activate()
+    elseif key == "e" or key == "y" then
+        exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
         activePage = 1
         selected = 1
@@ -259,6 +289,8 @@ function love.gamepadpressed(_, button)
         love.keypressed("down")
     elseif button == "a" or button == "start" then
         activate()
+    elseif button == "y" then
+        exportDiagnostics()
     elseif button == "b" or button == "back" then
         love.keypressed("escape")
     end
