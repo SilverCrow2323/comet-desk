@@ -26,7 +26,7 @@ REQUIRED = (
     "assets/backgrounds/comet-dashboard-640x480.png",
     "assets/icons/comet-desk-atlas.png",
     "assets/branding/comet-desk-logo.png",
-    "service/desktop_image_download.py",
+    "service/desktop_environment.py",
 )
 AARCH64_MACHINE = 183
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
