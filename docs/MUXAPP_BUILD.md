@@ -19,11 +19,11 @@ CometDesk/
 └── data/
 ```
 
-The AArch64 LÖVE runtime is fetched from a pinned Void Desk commit and checked as 64-bit little-endian AArch64 ELF. The LÖVE shared library additionally has a pinned Git blob checksum. The package validator rejects missing runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
+The AArch64 LÖVE runtime is fetched from a pinned Void Desk commit and checked as 64-bit little-endian AArch64 ELF. The LÖVE shared library additionally has a pinned Git blob checksum. The package includes the read-only Lua device probe and validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
 
 The launcher follows the muOS Andromeda application runner contract: it sources `/opt/muos/script/var/func.sh`, calls `SETUP_APP`, and uses the runtime application path `/run/muos/storage/application/CometDesk`. It does not hard-code SD1/SD2 mount roots.
 
-## Build locally
+## Get the CI package\n\nEvery push, pull request and manual workflow run builds a package after the Lua and Python checks pass. Open the repository's **Actions** tab, select the **Project checks and device package** run, then download the `CometDesk-muOS-Andromeda-RG35XX-H` artifact. It contains the `.muxapp` and matching SHA-256 sidecar.\n\n## Build locally
 
 Requires Python 3.10+ and network access to the pinned runtime source:
 
