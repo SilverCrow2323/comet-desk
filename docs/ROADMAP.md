@@ -20,16 +20,17 @@
 - [x] Report filesystem read-only state when available.
 - [x] Add an opt-in, privacy-scoped diagnostics report export with Lua formatting tests.
 
-## Phase 2 — Void Desk OS image setup
+## Phase 2 — Integrated XFCE environment
 - [x] Select TF1 / TF2 from live detected mount candidates and reject missing/read-only targets.
-- [x] Read live free space before image staging.
-- [x] Look up only the dedicated `voiddesk-os-v*` release asset (never a Void Desk MUX app).
-- [x] Stage the compressed Debian Trixie ARM64 + labwc full-disk image under `MUOS/CometDesk/OS-Staging/VoidDeskOS/`.
-- [x] Verify published SHA-256 and exact size before atomic publication.
-- [ ] Publish the actual Void Desk OS H700 disk image.
-- [ ] Integrate install/boot hand-off with the verified H700 MultiBoot contract.
-- [ ] Add rollback and interrupted-install recovery.
-- [ ] Validate cold boot, device input, panel, audio, Wi-Fi, Bluetooth and return to muOS.
+- [x] Check free space and reject symlinked storage paths.
+- [x] Pin the existing Void Desk H700 XFCE ext4 image seed by size and Git blob checksum.
+- [x] Download Ubuntu Base 24.04.3 ARM64 and verify its published size and SHA-256.
+- [x] Expand the ext4 image and extract the root filesystem into it.
+- [x] Install Xorg, XFCE and handheld input/audio packages inside the guest image.
+- [x] Mount the desktop image, run its session directly and resume Comet Desk on return.
+- [x] Track and verify loop device and bind-mount cleanup.
+- [ ] Validate the integrated setup and session lifecycle on the RG35XX H.
+- [ ] Add recovery UI for interrupted setup and unclean shutdown.
 
 ## Phase 3 — Session manager
 - [ ] Discover installed desktop sessions.
