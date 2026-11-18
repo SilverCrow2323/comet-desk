@@ -29,7 +29,7 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Module | Purpose | Current state |
 |---|---|---|
 | Overview | Device/app landing screen | UI prototype |
-| Desktop Setup | Guided desktop deployment | Planned; locked pending safety checks |
+| Desktop Setup | Download verified Void Desk muOS package to selected TF1 / TF2 ARCHIVE | Implemented; Archive Manager installation remains a separate user step |
 | Session Manager | View and launch installed sessions | Planned |
 | System Tools | Storage and service utilities | Planned |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
