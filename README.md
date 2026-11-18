@@ -57,6 +57,13 @@ QWASAR
 
 Void Desk is the experience base, not a runtime dependency.
 
+## Reference hardware
+
+The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: Allwinner H700, AArch64, 1 GB RAM, 640×480 display and a 64 GB nominal TF1 baseline. The 64 GB figure is a reference configuration, not a limit. TF1 replacements and optional TF2 expansion cards are discovered at runtime; installation sizing must use the selected filesystem's live free space.
+
+- [RG35XX H device profile](docs/DEVICE_PROFILE.md)
+- Read-only probe: `python3 service/device_probe.py` (development/host inspection; device-side results require hardware validation).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
