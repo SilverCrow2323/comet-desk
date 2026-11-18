@@ -30,12 +30,10 @@ def test_verified_download_rejects_wrong_size_and_checksum(tmp_path):
         desktop.download_verified(
             "https://example.invalid/asset.bin", target,
             expected_size=len(payload), expected_sha256="0" * 64,
-        ) if False else (_raise_for_stream_test())
+            opener=lambda *_args, **_kwargs: FakeResponse(payload),
+        )
+    assert not target.exists()
     assert not (tmp_path / "asset.bin.part").exists()
-
-
-def _raise_for_stream_test():
-    raise desktop.SetupError("SHA-256 verification failed")
 
 
 def test_mount_parser_decodes_escaped_mount_path(tmp_path):
@@ -51,7 +49,7 @@ def test_staging_path_is_confined_to_selected_root(tmp_path):
     root.mkdir()
     stage = desktop.safe_staging_directory(root)
     assert stage.is_relative_to(root)
-    assert stage.parts[-3:] == ("CometDesk", "Desktop")[-3:]
+    assert stage.parts[-3:] == ("MUOS", "CometDesk", "Desktop")
 
 
 def test_guest_profile_constants_match_voiddesk_xfce_contract():
