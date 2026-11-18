@@ -146,7 +146,8 @@ def download(slot: str, app_dir: Path, mounts_file: str = "/proc/mounts",
     archive_dir.mkdir(mode=0o755, exist_ok=True)
     if not archive_dir.is_dir() or not os.access(str(archive_dir), os.W_OK):
         raise RuntimeError("ARCHIVE is not writable")
-    storage_stats = os.statvfs(str(archive_dir))\n    free_bytes = storage_stats.f_bavail * storage_stats.f_frsize
+    storage_stats = os.statvfs(str(archive_dir))
+    free_bytes = storage_stats.f_bavail * storage_stats.f_frsize
     if free_bytes < ASSET_SIZE + 2 * 1024 * 1024:
         raise RuntimeError("not enough free space in ARCHIVE")
 
