@@ -35,6 +35,14 @@ The launcher follows the muOS Andromeda application runner contract: it sources 
 Every push, pull request and manual workflow run builds a package after the Lua and Python checks pass. Open the repository's **Actions** tab, select the **Project checks and device package** run, then download the `CometDesk-muOS-Andromeda-RG35XX-H` artifact. It contains the `.muxapp` and matching SHA-256 sidecar.
 
 
+## Desktop Setup download
+
+The Desktop Setup page downloads the published Void Desk **v10.2.0** muOS package into the selected, detected TF1 or TF2 `ARCHIVE/` folder. This is a verified package handoff, not an automatic desktop installation: the user completes installation with **Applications → Archive Manager**.
+
+The helper is pinned to the official [v10.2.0 release asset](https://github.com/SilverCrow2323/Void-Desk-Project/releases/tag/v10.2.0), checks the selected mount is present and writable, validates the exact 3,305,314-byte size and SHA-256, and only then publishes the partial download using an atomic rename. A different existing file is left untouched. No boot files, partitions or muOS settings are changed.
+
+Controls: **A / Enter** starts the download; **Left / Right** selects TF1 / TF2; **M** opens the Comet quick overlay; **START + SELECT** exits Comet Desk. The M overlay currently belongs to the Comet Desk frontend; a global overlay inside a separately running XFCE session is not yet connected.
+
 ## Visual assets
 
 The app uses the same palette and navigation icons documented in [Visual identity](VISUAL_IDENTITY.md). Artwork is palette-limited and scaled for the 640×480 H700 target. The background is decorative only: all status text and controls remain live UI elements drawn by the app.
