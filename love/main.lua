@@ -234,6 +234,10 @@ function love.draw()
 end
 
 local function exportDiagnostics()
+    if activePage ~= 5 then
+        setNotice("OPEN DIAGNOSTICS TO EXPORT")
+        return
+    end
     if not diagnosticReport then
         setNotice("REPORT MODULE UNAVAILABLE")
         return
