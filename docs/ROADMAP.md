@@ -3,6 +3,9 @@
 ## Phase 0 — Foundation
 - [x] Create the standalone QWASAR project repository.
 - [x] Establish the LÖVE/Lua UI shell.
+- [x] Define a shared QWASAR visual identity for app and documentation.
+- [x] Add optimized PNG wordmark, icon atlas and 640×480-target background artwork.
+- [x] Add documentation cover, visual system graphic and screenshot evidence rules.
 - [x] Add controller and keyboard navigation.
 - [x] Define safety and architecture boundaries.
 - [ ] Validate the prototype on the RG35XX H.
