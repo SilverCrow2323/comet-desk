@@ -86,3 +86,14 @@ Archive Manager installs the `CometDesk/` folder under `MUOS/application/`. Keep
 - Physical RG35XX H run: actual device, firmware, controls and framebuffer behaviour.
 
 Only the last level counts as device validation.
+
+
+## Curved navigation and Uplink
+
+The main navigation is a curved five-card viewport over a recessed rail. L1/R1 moves the unwrapped carousel target; cards travel along the curve with eased interpolation, the selected card grows and takes its own accent colour, and the page body enters with a directional slide/fade. The selected page title and position indicators sit above the rail. The six hubs are Overview, Desktop Setup, Session Manager, Uplink, System Tools and Diagnostics.
+
+Uplink reads live muOS state without blocking the LÖVE frame loop. The Python helper reports Wi-Fi association/IP, hotspot/AP state, Bluetooth power and paired-device count, plus the Andromeda Local DNS, Web Dashboard, SSH/SFTP, Virtual Terminal and Syncthing services. These are status indicators; Comet does not change muOS network configuration.
+
+Rt:Tailscale-M is optional. Comet can download the pinned official `RtTailscale-M-0.2.0.muxapp` release directly, verify its 40,324,056-byte size and SHA-256, safely extract the single `RtTailscale/` tree into the muOS application directory, run its `rt install` / `rt ensure` service manager and read status through `rt summary` + `ts status --json`. The RT service manager remains the sole owner of `tailscaled`; Comet never starts a second daemon or copies node identity data. First login and account approval remain an explicit user action in Rt:Tailscale-M.
+
+The RT release is pinned to v0.2.0, SHA-256 `55580f97902e45c7924b901138fa2cb8f6f125d7ba2b49def8f93f735558cad7`. Installation requires network access and sufficient free space on TF1 or TF2. Existing RT installs are never overwritten.
