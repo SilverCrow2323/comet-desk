@@ -27,7 +27,7 @@ REQUIRED = (
     "assets/icons/comet-desk-atlas.png",
 )
 AARCH64_MACHINE = 183
-PNG_SIGNATURE = b"\\x89PNG\\r\\n\\x1a\\n"
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 PNG_DIMENSIONS = {
     "assets/backgrounds/comet-dashboard-640x480.png": (320, 240),
     "assets/icons/comet-desk-atlas.png": (288, 48),
