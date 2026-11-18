@@ -28,7 +28,7 @@ local gamepadHeld = {}
 local keyboardHeld = { start = false, select = false }
 local exitRequested = false
 local selectedSlot = "tf1"
-local imageDownload = { state = "NOT_CHECKED", percent = 0, message = "Void Desk OS image release not checked", location = "" }
+local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "XFCE environment not installed", location = "" }
 local downloadPoll = 0
 
 local function setNotice(message)
@@ -193,9 +193,9 @@ end
 local function drawSetup()
     text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
     rounded(230, 157, 390, 253, colors.panel, colors.line)
-    text("VOID DESK OS // DEBIAN TRIXIE ARM64", 248, 174, fonts.small, colors.cyan)
-    text("labwc default  //  XFCE optional", 248, 197, fonts.medium, colors.white)
-    text("H700-optimized kernel target // MultiBoot hand-off", 248, 222, fonts.tiny, colors.muted)
+    text("VOID DESK // ARM64 XFCE ENVIRONMENT", 248, 174, fonts.small, colors.cyan)
+    text("Ubuntu Base 24.04  //  XFCE session", 248, 197, fonts.medium, colors.white)
+    text("Built and launched by Comet Desk // muOS kernel", 248, 222, fonts.tiny, colors.muted)
     text("IMAGE DESTINATION", 248, 247, fonts.tiny, colors.violet)
 
     local function targetCard(slot, x, label)
@@ -214,21 +214,23 @@ local function drawSetup()
     targetCard("tf2", 424, "TF2  /  RIGHT")
 
     local stateColor = colors.cyan
-    if imageDownload.state == "DONE" then stateColor = colors.green
-    elseif imageDownload.state == "FAILED" or imageDownload.state == "NOT_PUBLISHED" then
+    if imageDownload.state == "READY" then stateColor = colors.green
+    elseif imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED" then
         stateColor = colors.amber
-    elseif imageDownload.state == "DOWNLOADING" or imageDownload.state == "CHECKING_RELEASE" then
+    elseif imageDownload.state ~= "NOT_INSTALLED" then
         stateColor = colors.violet
     end
-    text("OS IMAGE STATUS  //  " .. imageDownload.state, 248, 329, fonts.tiny, stateColor)
+    text("XFCE ENVIRONMENT  //  " .. imageDownload.state, 248, 329, fonts.tiny, stateColor)
     text(short(imageDownload.message, 48), 248, 346, fonts.tiny, colors.white)
     drawProgress(248, 365, 354, 12, imageDownload.percent, stateColor)
-    if imageDownload.state == "DONE" then
-        text("IMAGE STAGED // MULTIBOOT HAND-OFF PENDING", 248, 387, fonts.tiny, colors.green)
-    elseif imageDownload.state == "NOT_PUBLISHED" then
-        text("VOID DESK OS IMAGE RELEASE NOT PUBLISHED", 248, 387, fonts.tiny, colors.amber)
+    if imageDownload.state == "READY" then
+        text("A / ENTER  LAUNCH DESKTOP     B  BACK TO COMET", 248, 387, fonts.tiny, colors.green)
+    elseif imageDownload.state == "INSTALLING_XFCE" or imageDownload.state == "DOWNLOADING_ROOTFS"
+        or imageDownload.state == "DOWNLOADING_TEMPLATE" or imageDownload.state == "EXPANDING_IMAGE"
+        or imageDownload.state == "PREPARING_ROOTFS" or imageDownload.state == "EXTRACTING_ROOTFS" then
+        text("BUILDING XFCE // KEEP POWER CONNECTED", 248, 387, fonts.tiny, colors.violet)
     else
-        text("A / ENTER  GET OS IMAGE     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
+        text("A / ENTER  INSTALL XFCE     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
     end
 end
 
@@ -367,7 +369,7 @@ end
 
 local function readImageDownloadStatus()
     if appRoot == "" then return end
-    local statusFile = io.open(appRoot .. "/data/desktop-image-download.status", "r")
+    local statusFile = io.open(appRoot .. "/data/desktop-environment.status", "r")
     if not statusFile then return end
     local line = statusFile:read("*l")
     statusFile:close()
@@ -377,12 +379,14 @@ local function readImageDownloadStatus()
     imageDownload.percent = tonumber(percent) or 0
     imageDownload.message = message
     imageDownload.location = location or ""
-    if state == "DONE" and imageDownload._notice ~= "DONE" then
-        setNotice("VOID DESK OS IMAGE VERIFIED // HAND-OFF PENDING")
-    elseif state == "NOT_PUBLISHED" and imageDownload._notice ~= "NOT_PUBLISHED" then
-        setNotice("VOID DESK OS IMAGE NOT PUBLISHED YET")
+    if state == "READY" and imageDownload._notice ~= "READY" then
+        setNotice("XFCE ENVIRONMENT READY // A TO LAUNCH")
+    elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING" then
+        setNotice("VOID DESK XFCE SESSION RUNNING")
     elseif state == "FAILED" and imageDownload._notice ~= "FAILED" then
-        setNotice("OS IMAGE DOWNLOAD FAILED // CHECK MESSAGE")
+        setNotice("DESKTOP SETUP FAILED // CHECK MESSAGE")
+    elseif state == "CLEANUP_REQUIRED" then
+        setNotice("DESKTOP MOUNT CLEANUP NEEDS ATTENTION")
     end
     imageDownload._notice = state
 end
@@ -478,13 +482,6 @@ local function cyclePage(direction)
     setNotice("TAB // " .. pages[activePage].title)
 end
 
-local function cyclePage(direction)
-    selected = ((selected - 1 + direction) % #pages) + 1
-    activePage = selected
-    pageChangedAt = ambientTime
-    setNotice("TAB // " .. pages[activePage].title)
-end
-
 local function activate()
     activePage = selected
     pageChangedAt = ambientTime
@@ -501,14 +498,19 @@ local function shellQuote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
-local function startDesktopImageDownload()
-    if imageDownload.state == "STARTING" or imageDownload.state == "CHECKING_RELEASE"
-        or imageDownload.state == "DOWNLOADING" then
-        setNotice("OS IMAGE CHECK OR DOWNLOAD ALREADY RUNNING")
+local function startDesktopEnvironment()
+    if imageDownload.state == "STARTING" or imageDownload.state == "RUNNING"
+        or imageDownload.state == "DOWNLOADING_TEMPLATE"
+        or imageDownload.state == "DOWNLOADING_ROOTFS"
+        or imageDownload.state == "EXPANDING_IMAGE"
+        or imageDownload.state == "PREPARING_ROOTFS"
+        or imageDownload.state == "EXTRACTING_ROOTFS"
+        or imageDownload.state == "INSTALLING_XFCE" then
+        setNotice("DESKTOP SETUP IS ALREADY RUNNING")
         return
     end
     if appRoot == "" then
-        setNotice("OS DOWNLOAD REQUIRES THE MUOS APP RUNNER")
+        setNotice("COMET DESK APP RUNNER PATH UNAVAILABLE")
         return
     end
     local item = storageItem(selectedSlot)
@@ -516,27 +518,43 @@ local function startDesktopImageDownload()
         setNotice(selectedSlot:upper() .. " NOT DETECTED")
         return
     end
-    if not item.stats or item.stats.read_only then
+    if not item.stats or item.stats.read_only or not item.stats.free_bytes then
         setNotice(selectedSlot:upper() .. " NOT WRITABLE OR SPACE UNKNOWN")
         return
     end
-    local pythonCheck = os.execute("command -v python3 >/dev/null 2>&1")
-    if pythonCheck ~= 0 and pythonCheck ~= true then
-        setNotice("PYTHON 3 NOT AVAILABLE ON HOST")
+    if imageDownload.state == "READY" then
+        local request = appRoot .. "/data/desktop-session.request"
+        local temporary = request .. ".tmp"
+        local stream = io.open(temporary, "w")
+        if not stream then
+            setNotice("COULD NOT CREATE DESKTOP SESSION REQUEST")
+            return
+        end
+        stream:write(selectedSlot, "\n")
+        stream:close()
+        if not os.rename(temporary, request) then
+            os.remove(temporary)
+            setNotice("COULD NOT QUEUE DESKTOP SESSION")
+            return
+        end
+        setNotice("COMET DESK HANDING OFF TO ITS XFCE SESSION")
+        love.event.quit()
         return
     end
-    local script = appRoot .. "/service/desktop_image_download.py"
+    local script = appRoot .. "/service/desktop_environment.py"
     local command = "cd " .. shellQuote(appRoot) .. " && python3 "
-        .. shellQuote(script) .. " --slot " .. selectedSlot
-        .. " >/dev/null 2>&1 &"
+        .. shellQuote(script) .. " setup --slot " .. selectedSlot
+        .. " --app-dir " .. shellQuote(appRoot)
+        .. " >> " .. shellQuote(appRoot .. "/data/desktop-environment.log")
+        .. " 2>&1 &"
     local result = os.execute(command)
     if result == 0 or result == true then
         imageDownload.state = "STARTING"
         imageDownload.percent = 0
-        imageDownload.message = "Looking for the published Debian ARM64 OS image"
-        setNotice("VOID DESK OS IMAGE CHECK // " .. selectedSlot:upper())
+        imageDownload.message = "Comet Desk is preparing its own XFCE image"
+        setNotice("XFCE SETUP STARTED // " .. selectedSlot:upper())
     else
-        setNotice("COULD NOT START OS IMAGE HELPER")
+        setNotice("COULD NOT START INTERNAL DESKTOP SETUP")
     end
 end
 
@@ -578,7 +596,7 @@ function love.keypressed(key)
     elseif key == "right" or key == "d" then
         if activePage == 2 then selectedSlot = "tf2" end
     elseif key == "return" or key == "space" or key == "z" then
-        if activePage == 2 then startDesktopImageDownload() else activate() end
+        if activePage == 2 then startDesktopEnvironment() else activate() end
     elseif key == "e" or key == "y" then
         exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
@@ -631,7 +649,7 @@ function love.gamepadpressed(joystick, button)
     elseif button == "dpright" and activePage == 2 then
         selectedSlot = "tf2"
     elseif button == "a" then
-        if activePage == 2 then startDesktopImageDownload() else activate() end
+        if activePage == 2 then startDesktopEnvironment() else activate() end
     elseif button == "y" then
         exportDiagnostics()
     elseif button == "b" or button == "back" then
