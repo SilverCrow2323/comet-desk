@@ -24,9 +24,9 @@ The builder rejects unsafe archive paths, symlinks, missing application/runtime 
 
 - `love/main.lua`: navigation shell, Overview and Diagnostics rendering.
 - `love/conf.lua`: LÖVE application metadata and 640×480 baseline.
-- `love/device_probe.lua`: read-only model, SoC, architecture, RAM, firmware-marker and TF1/TF2 mount probe.
+- `love/device_probe.lua`: read-only model, SoC, architecture, RAM, firmware-marker and TF1/TF2 mount probe, including read-only statvfs capacity/free-space data when available.
 - The Overview and Diagnostics screens display the live probe snapshot.
-- Storage capacity/free-space reporting is intentionally omitted until a native, verified filesystem-statistics adapter is added.
+- Storage capacity/free-space and read-only state use LuaJIT FFI statvfs calls against already detected mounts; unavailable stats remain explicitly unavailable.
 - No privileged installer or filesystem mutation is wired into the UI.
 
 ## Device profiles
