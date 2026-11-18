@@ -382,8 +382,11 @@ local function drawUplink()
         38, 346, fonts.tiny, colors.white)
     text("TAILSCALE // " .. (ts.installed and (ts.backend or "INSTALLED") or "NOT INSTALLED"),
         38, 373, fonts.small, ts.online and colors.green or colors.muted)
+    local tailAction = not ts.installed and "A  INSTALL RT:TAILSCALE-M"
+        or (not ts.online and "A  START / REPAIR RT SERVICE" or "A  REFRESH RT STATUS")
     text(ts.installed and (tostring(ts.peers or 0) .. " PEERS  ·  " .. (ts.ip or "NO TAILNET IP"))
-        or "A  INSTALL RT:TAILSCALE-M", 38, 394, fonts.tiny, ts.installed and colors.white or tint)
+        or tailAction, 38, 394, fonts.tiny, ts.installed and colors.white or tint)
+    if ts.installed and not ts.online then text(tailAction, 38, 410, fonts.tiny, tint) end
     text(ts.installed and "Y  REFRESH" or "Y  REFRESH", 506, 394, fonts.tiny, colors.muted)
     if uplinkStatus.error then text(short(uplinkStatus.error, 72), 38, 410, fonts.tiny, colors.amber) end
 end
