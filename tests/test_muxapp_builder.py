@@ -32,7 +32,6 @@ def _valid_entries():
         "CometDesk/love/theme.lua": b"return {}\n",
         "CometDesk/assets/backgrounds/comet-dashboard-640x480.png": b"PNG",
         "CometDesk/assets/icons/comet-desk-atlas.png": b"PNG",
-        "CometDesk/assets/ui/industrial-grid.png": b"PNG",
         "CometDesk/lib/love": _elf(),
         "CometDesk/lib/liblove-11.5.so": _elf(),
         "CometDesk/lib/libluajit-5.1.so.2": _elf(),
