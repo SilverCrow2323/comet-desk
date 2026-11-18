@@ -96,18 +96,25 @@ def _run(command: list[str], *, log: BinaryIO | None = None,
         raise SetupError("{} exited with status {}".format(command[0], result.returncode))
 
 
+def mount_table_from_text(contents: str) -> list[tuple[str, str, str]]:
+    import re
+    rows = []
+    for line in contents.splitlines():
+        fields = line.split()
+        if len(fields) >= 4:
+            mountpoint = re.sub(
+                r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)),
+                fields[1],
+            )
+            rows.append((fields[0], mountpoint, fields[3]))
+    return rows
+
+
 def mount_table(path: str = "/proc/mounts") -> list[tuple[str, str, str]]:
     try:
-        rows = []
-        for line in Path(path).read_text(encoding="utf-8", errors="replace").splitlines():
-            fields = line.split()
-            if len(fields) >= 4:
-                mountpoint = __import__("re").sub(
-                    r"\\([0-7]{3})", lambda match: chr(int(match.group(1), 8)),
-                    fields[1],
-                )
-                rows.append((fields[0], mountpoint, fields[3]))
-        return rows
+        return mount_table_from_text(
+            Path(path).read_text(encoding="utf-8", errors="replace")
+        )
     except OSError as exc:
         raise SetupError("cannot read mount table: " + str(exc)) from exc
 
@@ -161,7 +168,8 @@ def download_verified(url: str, destination: Path, *, expected_size: int | None,
                       expected_sha256: str | None = None,
                       expected_git_blob_sha1: str | None = None,
                       status: tuple[Path, str, int, str] | None = None,
-                      max_bytes: int = 128 * 1024 * 1024) -> Path:
+                      max_bytes: int = 128 * 1024 * 1024,
+                      opener=urllib.request.urlopen) -> Path:
     part = destination.with_name(destination.name + ".part")
     destination.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
@@ -174,7 +182,7 @@ def download_verified(url: str, destination: Path, *, expected_size: int | None,
                       "Accept": "application/octet-stream"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=60) as response, part.open("wb") as output:
+        with opener(request, timeout=60) as response, part.open("wb") as output:
             if getattr(response, "status", 200) != 200:
                 raise SetupError("download server returned HTTP {}".format(
                     getattr(response, "status", "unknown")
@@ -455,6 +463,14 @@ def setup(slot: str, app_dir: Path) -> Path:
     mountpoint = app_dir / "data" / "desktop-mnt"
     log_path = app_dir / "data" / "desktop-environment.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    if image.is_file() and marker.is_file():
+        try:
+            saved = json.loads(marker.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            saved = {}
+        if saved.get("profile") == "ubuntu-24.04-arm64-xfce":
+            write_status(app_dir, "READY", 100, "XFCE image already installed", str(image))
+            return image
 
     write_status(app_dir, "DOWNLOADING_TEMPLATE", 2, "Fetching the pinned H700 XFCE image seed")
     if not seed.exists() or seed.stat().st_size != IMAGE_SEED_SIZE:
