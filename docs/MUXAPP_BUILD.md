@@ -11,7 +11,8 @@ CometDesk/
 ├── mux_launch.sh
 ├── love/
 │   ├── main.lua
-│   └── conf.lua
+│   ├── conf.lua
+│   └── device_probe.lua
 ├── lib/
 │   ├── love
 │   ├── liblove-11.5.so
@@ -19,7 +20,7 @@ CometDesk/
 └── data/
 ```
 
-The AArch64 LÖVE runtime is fetched from a pinned Void Desk commit and checked as 64-bit little-endian AArch64 ELF. The LÖVE shared library additionally has a pinned Git blob checksum. The package includes the read-only Lua device probe and validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
+The AArch64 LÖVE runtime is fetched from a pinned Void Desk commit and checked as 64-bit little-endian AArch64 ELF. The LÖVE shared library additionally has a pinned Git blob checksum. The package includes the read-only Lua device probe; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
 
 The launcher follows the muOS Andromeda application runner contract: it sources `/opt/muos/script/var/func.sh`, calls `SETUP_APP`, and uses the runtime application path `/run/muos/storage/application/CometDesk`. It does not hard-code SD1/SD2 mount roots.
 
