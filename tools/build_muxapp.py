@@ -8,6 +8,7 @@ import os
 import shutil
 import stat
 import tempfile
+import urllib.error
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
@@ -129,6 +130,8 @@ def build(output: Path) -> Path:
             target = package / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
+            if relative == "mux_launch.sh":
+                target.chmod(0o755)
         fetch_runtime(package)
         (package / "data").mkdir(exist_ok=True)
         output.parent.mkdir(parents=True, exist_ok=True)
