@@ -1,15 +1,13 @@
 #!/bin/sh
 # HELP: Comet Desk - lightweight QWASAR companion
-# ICON: comet_desk
 # GRID: Comet Desk
 
 # muOS Andromeda application lifecycle wrapper.
 . /opt/muos/script/var/func.sh
 
-APP_BIN="love"
-SETUP_APP "$APP_BIN" ""
-
 APP_DIR="/run/muos/storage/application/CometDesk"
+APP_BIN="$APP_DIR/lib/love"
+SETUP_APP "$APP_BIN" ""
 LOG_DIR="$APP_DIR/data"
 LOG_FILE="$LOG_DIR/comet-desk.log"
 
