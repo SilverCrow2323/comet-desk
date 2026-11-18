@@ -8,7 +8,7 @@
 - [x] Add documentation cover, visual system graphic and screenshot evidence rules.
 - [x] Add controller and keyboard navigation.
 - [x] Define safety and architecture boundaries.
-- [ ] Validate the prototype on the RG35XX H.
+- [x] Add animated Comet boot splash, ambient motion and page-focus transitions.\n- [x] Add M-key quick overlay and START + SELECT exit chord.\n- [ ] Validate the prototype on the RG35XX H.
 
 ## Phase 1 — Device intelligence
 - [x] Add a read-only device probe (Lua on-device; Python reference probe for host tests).
@@ -24,7 +24,7 @@
 - [ ] Stage payloads without changing the active system.
 - [ ] Verify checksums and required files.
 - [ ] Add rollback and interrupted-install recovery.
-- [ ] Enable installation only after device-side tests.
+- [ ] Add managed desktop-image provisioning and session launch only after device-side tests.
 
 ## Phase 3 — Session manager
 - [ ] Discover installed desktop sessions.
