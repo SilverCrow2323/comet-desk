@@ -37,8 +37,7 @@ def test_status_writer_publishes_complete_atomic_record(tmp_path):
 
 
 def test_rt_install_discovery_requires_both_managed_entrypoints(tmp_path):
-    app = tmp_path / "application"
-    rt = app / "RtTailscale"
+    rt = tmp_path / "RtTailscale"
     rt.mkdir(parents=True)
     (rt / "rt").write_text("#!/bin/sh\n")
     assert uplink.find_rt(tmp_path) is None
