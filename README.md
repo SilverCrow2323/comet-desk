@@ -26,7 +26,7 @@ Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It br
 | Desktop Setup | Guided desktop deployment | Planned; locked pending safety checks |
 | Session Manager | View and launch installed sessions | Planned |
 | System Tools | Storage and service utilities | Planned |
-| Diagnostics | Read-only system and compatibility checks | Planned |
+| Diagnostics | Live read-only device snapshot | Initial probe implemented; hardware validation pending |
 
 ## Safety principles
 
@@ -62,7 +62,7 @@ Void Desk is the experience base, not a runtime dependency.
 The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: Allwinner H700, AArch64, 1 GB RAM, 640×480 display and a 64 GB nominal TF1 baseline. The 64 GB figure is a reference configuration, not a limit. TF1 replacements and optional TF2 expansion cards are discovered at runtime; installation sizing must use the selected filesystem's live free space.
 
 - [RG35XX H device profile](docs/DEVICE_PROFILE.md)
-- Read-only probe: `python3 service/device_probe.py` (development/host inspection; device-side results require hardware validation).
+- Device-side read-only probe: `love/device_probe.lua` (bundled in the MUX App).\n- Python reference probe: `python3 service/device_probe.py` (host-side development checks).
 
 ## Documentation
 
