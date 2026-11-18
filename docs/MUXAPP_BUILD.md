@@ -16,7 +16,7 @@ CometDesk/
 │   ├── device_probe.lua
 │   └── diagnostics_report.lua
 ├── service/
-│   └── desktop_download.py
+│   └── desktop_image_download.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
@@ -39,11 +39,13 @@ Every push, pull request and manual workflow run builds a package after the Lua 
 
 ## Desktop Setup download
 
-The Desktop Setup page downloads the published Void Desk **v10.2.0** muOS package into the selected, detected TF1 or TF2 `ARCHIVE/` folder. This is a verified package handoff, not an automatic desktop installation: the user completes installation with **Applications → Archive Manager**.
+The Desktop Setup page looks for the **Void Desk OS** full-disk image release: Debian Trixie ARM64, labwc as the primary compositor, XFCE optional, and an H700-specific boot stack. It does not download the Void Desk MUX application.
 
-The helper is pinned to the official [v10.2.0 release asset](https://github.com/SilverCrow2323/Void-Desk-Project/releases/tag/v10.2.0), checks the selected mount is present and writable, validates the exact 3,305,314-byte size and SHA-256, and only then publishes the partial download using an atomic rename. A different existing file is left untouched. No boot files, partitions or muOS settings are changed.
+The downloader accepts only the `voiddesk-os-v*` release family and the exact asset `VoidDeskOS-RG35XX-H-Debian-Trixie-labwc.img.xz`. It checks the chosen TF1/TF2 mount, write access, free space, exact release asset metadata and SHA-256 before atomically publishing the image and checksum under `MUOS/CometDesk/OS-Staging/VoidDeskOS/`. If no matching OS image release exists, the UI explicitly reports **NOT PUBLISHED**; it will not fall back to a MUX package or source archive.
 
-Controls: **A / Enter** starts the download; **Left / Right** selects TF1 / TF2; **M** opens the Comet quick overlay; **START + SELECT** exits Comet Desk. The M overlay currently belongs to the Comet Desk frontend; a global overlay inside a separately running XFCE session is not yet connected.
+This is image staging only. Comet Desk does not flash raw devices, repartition cards, alter muOS boot files, or launch an unverified image. The actual boot hand-off is reserved for the documented H700 MultiBoot integration contract.
+
+Controls: **L1 / R1** cycle tabs, **A / Enter** selects or starts the OS image download, **Left / Right** chooses TF1/TF2 on Desktop Setup, **M** opens the Comet quick overlay, and **START + SELECT** exits Comet Desk. The M overlay currently belongs to the Comet Desk frontend; it is not yet a global XFCE overlay.
 
 ## Visual assets
 
