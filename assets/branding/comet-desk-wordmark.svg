@@ -6,9 +6,9 @@
 <path d="M91 27 L123 83 L103 83 L116 146 L68 91 L88 91 Z" fill="#FFB852" stroke="none"/>
 <path d="M24 164 H168" stroke="#38E0F0" stroke-width="2" opacity=".65"/>
 </g>
-<g font-family="DejaVu Sans,Arial,sans-serif" font-weight="700">
+<g font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-weight="700">
 <text x="196" y="87" font-size="64" fill="#E8F2FA" letter-spacing="2">COMET</text>
 <text x="198" y="143" font-size="42" fill="#38E0F0" letter-spacing="5">DESK</text>
 </g>
-<text x="202" y="174" font-family="DejaVu Sans Mono,monospace" font-size="13" fill="#7A97B0" letter-spacing="2">QWASAR / FIELD SYSTEMS</text>
+<text x="202" y="174" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="13" fill="#7A97B0" letter-spacing="2">QWASAR / FIELD SYSTEMS</text>
 </svg>
