@@ -193,9 +193,9 @@ end
 local function drawSetup()
     text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
     rounded(230, 157, 390, 253, colors.panel, colors.line)
-    text("VOID DESK // DESKTOP INSTALLER", 248, 174, fonts.small, colors.cyan)
+    text("VOID DESK // SETUP MANAGER  [ STEP 1 / 2 ]", 248, 174, fonts.small, colors.cyan)
     text("Stable release  v10.2.0", 248, 197, fonts.medium, colors.white)
-    text("Download the official muOS package into ARCHIVE.", 248, 222, fonts.tiny, colors.muted)
+    text("Download its official MUX package into ARCHIVE.", 248, 222, fonts.tiny, colors.muted)
     text("DESTINATION SLOT", 248, 247, fonts.tiny, colors.violet)
 
     local function targetCard(slot, x, label)
@@ -221,7 +221,7 @@ local function drawSetup()
     text(short(download.message, 48), 248, 346, fonts.tiny, colors.white)
     drawProgress(248, 365, 354, 12, download.percent, stateColor)
     if download.state == "DONE" then
-        text("NEXT: Applications  >  Archive Manager", 248, 387, fonts.tiny, colors.green)
+        text("NEXT: Archive Manager > Void Desk > Desktop XFCE", 248, 387, fonts.tiny, colors.green)
     else
         text("A / ENTER  DOWNLOAD     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
     end
