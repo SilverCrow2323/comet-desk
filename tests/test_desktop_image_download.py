@@ -5,6 +5,7 @@ import io
 
 import pytest
 
+import service.desktop_image_download as downloader
 from service.desktop_image_download import (
     IMAGE_NAME,
     OS_TAG_PREFIX,
@@ -84,8 +85,9 @@ def test_stream_download_keeps_partial_until_verified(tmp_path):
 
 def test_stream_download_rejects_bad_checksum_and_removes_partial(tmp_path):
     target = tmp_path / IMAGE_NAME
+    payload = b"not the image"
     with pytest.raises(ValueError, match="SHA-256"):
-        stream_download(io.BytesIO(b"not the image"), target, 12, "0" * 64,
+        stream_download(io.BytesIO(payload), target, len(payload), "0" * 64,
                         tmp_path / "status.txt")
     assert not (tmp_path / (IMAGE_NAME + ".part")).exists()
 
