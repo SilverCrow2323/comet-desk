@@ -38,7 +38,7 @@ def process_running(pattern):
 
 
 def find_rt(app_dir: Path):
-    candidates = [app_dir / "external" / "rt-tailscale-m" / "app" / "RtTailscale", *APP_DIRS]
+    candidates = [app_dir / "RtTailscale", app_dir / "external" / "rt-tailscale-m" / "app" / "RtTailscale", *APP_DIRS]
     for candidate in candidates:
         if (candidate / "rt").is_file() and (candidate / "ts").is_file():
             return candidate
