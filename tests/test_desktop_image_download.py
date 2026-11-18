@@ -62,8 +62,8 @@ def test_mounted_slot_requires_exact_mount_and_writable_option(tmp_path, monkeyp
     monkeypatch.setitem(downloader.SLOTS, "tf2", tf2)
     mounts = tmp_path / "mounts"
     mounts.write_text(
-        "{} exfat exfat rw,nosuid,nodev 0 0\\n".format(tf1)
-        + "{} exfat exfat ro,nosuid,nodev 0 0\\n".format(tf2),
+        "/dev/mmcblk0p1 {} exfat rw,nosuid,nodev 0 0\n".format(tf1)
+        + "/dev/mmcblk1p1 {} exfat ro,nosuid,nodev 0 0\n".format(tf2),
         encoding="utf-8",
     )
     assert mounted_slot("tf1", str(mounts)) == (True, False)
