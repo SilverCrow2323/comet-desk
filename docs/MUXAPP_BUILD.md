@@ -14,7 +14,9 @@ CometDesk/
 │   ├── conf.lua
 │   ├── theme.lua
 │   ├── device_probe.lua
-│   └── diagnostics_report.lua\n├── service/\n│   └── desktop_download.py
+│   └── diagnostics_report.lua
+├── service/
+│   └── desktop_download.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
