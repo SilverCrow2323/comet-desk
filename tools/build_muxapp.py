@@ -26,6 +26,7 @@ REQUIRED = (
 )
 AARCH64_MACHINE = 183
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
+LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/79bdfc7707fd0785828e7a3f1146e775a6f312/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
 
 
 def sha256_file(path: Path) -> str:
@@ -49,7 +50,8 @@ def fetch_runtime(destination: Path) -> None:
     for relative, source in RUNTIME_FILES.items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        request = urllib.request.Request(base + source, headers={"User-Agent": "CometDesk-builder"})
+        url = LOVE_RUNTIME_SOURCE_URL if relative == "lib/liblove-11.5.so" else base + source
+        request = urllib.request.Request(url, headers={"User-Agent": "CometDesk-builder"})
         with urllib.request.urlopen(request, timeout=90) as response:
             payload = response.read(64 * 1024 * 1024)
         if len(payload) < 64:
