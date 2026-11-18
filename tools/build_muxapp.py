@@ -36,7 +36,7 @@ def sha256_file(path: Path) -> str:
 
 
 def git_blob_sha(data: bytes) -> str:
-    return hashlib.sha1(f"blob {len(data)}\\0".encode("ascii") + data).hexdigest()
+    return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
 
 
 def fetch_runtime(destination: Path) -> None:
@@ -55,7 +55,7 @@ def fetch_runtime(destination: Path) -> None:
             raise RuntimeError(f"runtime file is unexpectedly small: {relative}")
         if relative == "lib/liblove-11.5.so" and git_blob_sha(payload) != LOVE_BLOB_SHA1:
             raise RuntimeError("pinned LÖVE shared library failed its Git blob checksum")
-        if payload[:4] != b"\\x7fELF" or payload[4] != 2 or payload[5] != 1:
+        if payload[:4] != b"\x7fELF" or payload[4] != 2 or payload[5] != 1:
             raise RuntimeError(f"{relative} is not a 64-bit little-endian ELF")
         machine = int.from_bytes(payload[18:20], "little")
         if machine != AARCH64_MACHINE:
