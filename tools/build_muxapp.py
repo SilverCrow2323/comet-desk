@@ -105,7 +105,7 @@ def validate_archive(path: Path) -> list[str]:
                     errors.append(f"runtime file missing: {required}")
                     continue
                 data = archive.read(name)
-                if data[:4] != b"\\x7fELF" or data[4] != 2 or data[5] != 1:
+                if data[:4] != b"\x7fELF" or data[4] != 2 or data[5] != 1:
                     errors.append(f"invalid AArch64 ELF: {required}")
                 elif int.from_bytes(data[18:20], "little") != AARCH64_MACHINE:
                     errors.append(f"wrong ELF machine: {required}")
