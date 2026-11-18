@@ -5,7 +5,7 @@
 
 **A fast, focused desktop companion for muOS — part of the QWASAR ecosystem.**
 
-Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It brings desktop setup, session management and device diagnostics into one controller-friendly interface without replacing muOS.
+Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It stages the separate Void Desk OS Debian ARM64 disk image for H700 devices, alongside device diagnostics and session-management work, without replacing muOS.
 
 > **Project status:** Early test candidate. The first self-contained RG35XX H muOS `.muxapp` has been built by CI and its archive, AArch64 runtime payloads and SHA-256 checksum have been verified. Physical-device validation is the next gate.
 
@@ -59,8 +59,9 @@ Every device-test milestone is distributed as an installable `.muxapp`. The pack
 
 ```text
 QWASAR
-├── Void Desk     — broader desktop environment and integration work
-└── Comet Desk    — lightweight muOS MUX companion
+├── Void Desk OS  — Debian Trixie ARM64 + labwc H700 system image
+├── Void Desk     — proprietary desktop shell and H700 integration
+└── Comet Desk    — muOS MUX companion and OS image staging client
 ```
 
 Void Desk OS is a separate full-system image, not a MUX application. Comet Desk looks only for the dedicated OS disk-image release asset; it never downloads the Void Desk application package as a desktop image.
