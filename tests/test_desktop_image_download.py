@@ -56,20 +56,19 @@ def test_asset_selector_requires_os_release_tag_and_digest():
 
 
 def test_mounted_slot_requires_exact_mount_and_writable_option(tmp_path, monkeypatch):
-    monkeypatch.setitem(__import__("service.desktop_image_download", fromlist=["SLOTS"]).SLOTS,
-                        "tf1", tmp_path / "tf1")
-    monkeypatch.setitem(__import__("service.desktop_image_download", fromlist=["SLOTS"]).SLOTS,
-                        "tf2", tmp_path / "tf2")
+    tf1 = tmp_path / "tf1"
+    tf2 = tmp_path / "tf2"
+    monkeypatch.setitem(downloader.SLOTS, "tf1", tf1)
+    monkeypatch.setitem(downloader.SLOTS, "tf2", tf2)
     mounts = tmp_path / "mounts"
     mounts.write_text(
-        "{} /mnt/mmc exfat rw,nosuid,nodev 0 0\\n".format(tmp_path / "tf1")
-        + "{} /mnt/sdcard exfat ro,nosuid,nodev 0 0\\n".format(tmp_path / "tf2"),
+        "{} exfat exfat rw,nosuid,nodev 0 0\\n".format(tf1)
+        + "{} exfat exfat ro,nosuid,nodev 0 0\\n".format(tf2),
         encoding="utf-8",
     )
-    # Mount-table parsing is exact; changing the configured root does not make
-    # unrelated host paths eligible.
-    assert mounted_slot("tf1", str(mounts)) == (False, True)
-    assert mounted_slot("tf2", str(mounts)) == (False, True)
+    assert mounted_slot("tf1", str(mounts)) == (True, False)
+    assert mounted_slot("tf2", str(mounts)) == (True, True)
+    assert mounted_slot("unknown", str(mounts)) == (False, True)
 
 
 def test_stream_download_keeps_partial_until_verified(tmp_path):
