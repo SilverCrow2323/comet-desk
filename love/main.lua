@@ -116,7 +116,8 @@ local function storageLine(label, item)
     end
     local stats = item.stats
     if not stats then return label .. "  MOUNTED // SPACE N/A" end
-    return string.format("%s  %s FREE / %s", label, formatBytes(stats.free_bytes), formatBytes(stats.total_bytes))
+    local access = stats.read_only and "RO" or "RW"
+    return string.format("%s  %s FREE / %s  %s", label, formatBytes(stats.free_bytes), formatBytes(stats.total_bytes), access)
 end
 
 local function drawOverview()
