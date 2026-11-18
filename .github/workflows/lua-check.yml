@@ -17,7 +17,8 @@ jobs:
       - name: Validate LÖVE Lua sources
         run: |
           luac5.1 -p love/main.lua
-          luac5.1 -p love/conf.lua\n          luac5.1 -p love/device_probe.lua
+          luac5.1 -p love/conf.lua
+          luac5.1 -p love/device_probe.lua
           sh -n mux_launch.sh
 
   python:
