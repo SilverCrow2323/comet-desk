@@ -28,6 +28,7 @@ def _valid_entries():
         "CometDesk/love/main.lua": b"function love.draw() end\n",
         "CometDesk/love/conf.lua": b"function love.conf(t) end\n",
         "CometDesk/love/device_probe.lua": b"return {}\n",
+        "CometDesk/love/diagnostics_report.lua": b"return {}\n",
         "CometDesk/lib/love": _elf(),
         "CometDesk/lib/liblove-11.5.so": _elf(),
         "CometDesk/lib/libluajit-5.1.so.2": _elf(),
