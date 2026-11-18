@@ -16,8 +16,8 @@ def _archive(path: Path, entries: dict[str, bytes], executable=()):
 
 def _elf():
     data = bytearray(64)
-    data[:4] = b"\\x7fELF"
-    data[4:6] = b"\\x02\\x01"
+    data[:4] = b"\x7fELF"
+    data[4:6] = b"\x02\x01"
     data[18:20] = (183).to_bytes(2, "little")
     return bytes(data)
 
