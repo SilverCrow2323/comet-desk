@@ -1,5 +1,8 @@
 # COMET DESK
 
+![Comet Desk — Industrial Cyberpunk identity](docs/assets/comet-desk-cover.svg)
+
+
 **A fast, focused desktop companion for muOS — part of the QWASAR ecosystem.**
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It brings desktop setup, session management and device diagnostics into one controller-friendly interface without replacing muOS.
@@ -7,6 +10,9 @@ Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It br
 > **Project status:** Early prototype. The self-contained RG35XX H muOS MUX build pipeline is configured; its first artifact and physical device validation are still pending.
 
 ## What it is
+
+The app and documentation share one visual identity: industrial megastructure artwork, a restrained cyan/violet/amber palette, angular navigation marks and compact controller-first layouts. See the [visual identity guide](docs/VISUAL_IDENTITY.md) and [screenshot evidence policy](docs/SCREENSHOTS.md).
+
 
 - A compact, standalone MUX app in the QWASAR family.
 - Built with LÖVE 11.5 and Lua, informed by practical work on [Void Desk](https://github.com/SilverCrow2323/Void-Desk-Project).
@@ -70,5 +76,8 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Safety model](docs/SAFETY.md)
+- [Visual identity](docs/VISUAL_IDENTITY.md)
+- [Screenshot evidence guide](docs/SCREENSHOTS.md)
+- [Asset inventory](assets/README.md)
 
 All user-facing interface text and project documentation are written in English.
