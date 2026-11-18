@@ -135,6 +135,9 @@ def install_rt():
     if target is None:
         raise RuntimeError("No writable muOS application directory found on TF1 or TF2")
     destination = target / "RtTailscale"
+    required_free = RT_SIZE * 2 + 16 * 1024 * 1024
+    if shutil.disk_usage(target).free < required_free:
+        raise RuntimeError("Not enough free space to stage and install Rt:Tailscale-M")
     if destination.exists():
         raise RuntimeError("Rt:Tailscale-M already exists; refresh status instead of overwriting it")
     with tempfile.TemporaryDirectory(prefix=".comet-rt-", dir=target) as temporary:
@@ -186,6 +189,14 @@ def main():
     try:
         if action == "install":
             install_rt()
+        elif action == "start":
+            rt = find_rt(app_dir)
+            if rt is None:
+                raise RuntimeError("Rt:Tailscale-M is not installed")
+            code, out, err = run([str(rt / "rt"), "install"], timeout=120)
+            if code != 0:
+                raise RuntimeError(err or out or "Rt:Tailscale-M repair failed")
+            run([str(rt / "rt"), "ensure"], timeout=30)
         data = network_snapshot(app_dir)
         write_status(output, data)
     except Exception as exc:
