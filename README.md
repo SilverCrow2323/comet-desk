@@ -60,12 +60,12 @@ Every device-test milestone is distributed as an installable `.muxapp`. The pack
 
 ```text
 QWASAR
-├── Void Desk OS  — Debian Trixie ARM64 + labwc H700 system image
-├── Void Desk     — proprietary desktop shell and H700 integration
-└── Comet Desk    — muOS MUX companion and OS image staging client
+├── Void Desk      — desktop reference implementation and shared H700 research
+├── Rt:Tailscale-M — optional muOS-managed Tailscale service stack
+└── Comet Desk     — standalone muOS MUX app, XFCE session manager and Uplink
 ```
 
-Comet Desk owns the full XFCE workflow: it downloads the pinned Void Desk XFCE image seed and Ubuntu Base ARM64 root filesystem, verifies both, prepares the ext4 desktop image, installs XFCE packages, mounts and launches the session, then relaunches its own UI on return. It does not launch Void Desk, Archive Manager or another MUX installer, and it does not replace muOS or alter its boot chain.
+Comet Desk owns the XFCE workflow and its curved, controller-first navigation. Uplink reads muOS Andromeda network and Web Service state and can install the optional Rt:Tailscale-M package directly, without requiring the user to open Archive Manager. The RT service manager remains the sole owner of the Tailscale daemon.
 
 ## Reference hardware
 
