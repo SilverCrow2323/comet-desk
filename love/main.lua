@@ -4,14 +4,17 @@
 
 local W, H = 640, 480
 local pages = {
-    { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama." },
-    { id = "setup", title = "DESKTOP SETUP", subtitle = "Void Desk XFCE — ARM64 desktop, managed by Comet Desk." },
-    { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions." },
-    { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services." },
-    { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime." },
+    { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama.", icon = "◈", accent = {0.22, 0.88, 0.94} },
+    { id = "setup", title = "DESKTOP SETUP", subtitle = "Prepare and launch your XFCE environment.", icon = "▣", accent = {0.62, 0.43, 0.98} },
+    { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions.", icon = "▤", accent = {1.0, 0.72, 0.32} },
+    { id = "uplink", title = "UPLINK", subtitle = "Network, wireless radios and remote services.", icon = "◎", accent = {0.24, 0.72, 1.0} },
+    { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
+    { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime.", icon = "⌁", accent = {0.96, 0.30, 0.70} },
 }
 
 local selected, activePage = 1, 1
+local carouselPosition = 1
+local pageChangedDirection = 1
 local notice, noticeTimer = "SYSTEM READY // COMET DESK", 0
 local fonts = {}
 local visuals = { background = nil, atlas = nil, quads = {} }
@@ -31,6 +34,8 @@ local selectedSlot = "tf1"
 local installedSlot = nil
 local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "XFCE environment not installed", location = "" }
 local downloadPoll = 0
+local uplinkStatus = { wifi = {}, bluetooth = {}, hotspot = {}, services = {}, tailscale = {} }
+local uplinkPoll = 0
 
 local function setNotice(message)
     notice = message
@@ -108,29 +113,59 @@ local function drawHeader()
 end
 
 
-local function drawNavigation()
-    rounded(20, 91, 600, 52, colors.panel, colors.line)
-    local labels = { "OVERVIEW", "DESKTOP", "SESSIONS", "TOOLS", "DIAGNOSTICS" }
-    for i, page in ipairs(pages) do
-        local x = 26 + (i - 1) * 118
-        local active = (i == selected)
-        if active then
-            local pulse = 0.62 + 0.18 * (0.5 + 0.5 * math.sin(ambientTime * 3.2))
-            rounded(x, 97, 112, 40, colors.panel2,
-                { colors.cyan[1], colors.cyan[2], colors.cyan[3], pulse })
-            setColor(colors.cyan)
-            love.graphics.rectangle("fill", x + 10, 133, 92, 2, 1, 1)
-        end
-        local pageIcon = visuals.quads[page.id]
-        if visuals.atlas and pageIcon then
-            love.graphics.setColor(1, 1, 1, active and 1 or 0.60)
-            love.graphics.draw(visuals.atlas, pageIcon, x + 9, 106, 0, 0.42, 0.42)
-        end
-        text(labels[i], x + 34, 110, fonts.tiny,
-            active and colors.white or colors.muted)
-    end
+local function pageAccent(index)
+    return pages[index or activePage].accent
 end
 
+local function curveY(x)
+    local d = (x - W * 0.5) / (W * 0.5)
+    return 122 + 15 * d * d
+end
+
+local function drawNavigation()
+    local active = pageAccent(selected)
+    local points = {}
+    for x = 12, W - 12, 4 do points[#points + 1] = x; points[#points + 1] = curveY(x) end
+    love.graphics.setColor(0.015, 0.025, 0.043, 0.96)
+    love.graphics.setLineWidth(22); love.graphics.line(points)
+    love.graphics.setColor(0.16, 0.23, 0.32, 0.95)
+    love.graphics.setLineWidth(1.5); love.graphics.line(points)
+    love.graphics.setColor(active[1], active[2], active[3], 0.34)
+    love.graphics.setLineWidth(2.2); love.graphics.line(points)
+    for offset = -2, 2 do
+        local raw = carouselPosition + offset
+        local index = ((math.floor(raw + 0.5) - 1) % #pages) + 1
+        local fraction = raw - math.floor(raw)
+        local x = W * 0.5 + offset * 108 - fraction * 108
+        if x > -65 and x < W + 65 then
+            local page = pages[index]
+            local distance = math.abs(x - W * 0.5) / 216
+            local y = curveY(x) - 17
+            local isActive = math.abs(x - W * 0.5) < 48
+            local scale = isActive and 1 or (0.84 - distance * 0.06)
+            local w, h = 92 * scale, 43 * scale
+            local px, py = x - w / 2, y - h / 2
+            local tint = page.accent
+            local alpha = isActive and 1 or math.max(0.42, 0.84 - distance * 0.16)
+            rounded(px, py, w, h, isActive and colors.panel2 or colors.panel,
+                {tint[1], tint[2], tint[3], (isActive and 0.95 or 0.35) * alpha})
+            if isActive then
+                love.graphics.setColor(tint[1], tint[2], tint[3], 0.16 + 0.08 * math.sin(ambientTime * 4))
+                love.graphics.rectangle("fill", px + 3, py + h - 4, w - 6, 2, 1, 1)
+            end
+            text(page.icon, px + 9, py + 10, fonts.medium, {tint[1], tint[2], tint[3], alpha})
+            local label = page.id == "setup" and "DESKTOP" or page.title:gsub("SESSION MANAGER", "SESSIONS"):gsub("SYSTEM TOOLS", "TOOLS")
+            text(label, px + 30, py + 15, fonts.tiny, {colors.white[1], colors.white[2], colors.white[3], alpha})
+        end
+    end
+    text(pages[activePage].title, 22, 82, fonts.medium, active)
+    text(string.format("%02d  /  %02d", activePage, #pages), 555, 84, fonts.tiny, colors.muted)
+    for i = 1, #pages do
+        local x = 294 + (i - 1) * 11
+        love.graphics.setColor(active[1], active[2], active[3], i == selected and 1 or 0.22)
+        love.graphics.circle("fill", x, 165, i == selected and 3 or 1.5)
+    end
+end
 
 local function short(value, limit)
     value = tostring(value or "Unknown")
@@ -263,6 +298,38 @@ local function drawSetup()
 end
 
 
+local function drawUplink()
+    local tint = pages[activePage].accent
+    text(pages[activePage].subtitle, 24, 180, fonts.small, colors.muted)
+    rounded(20, 205, 600, 210, colors.panel, {tint[1], tint[2], tint[3], 0.7})
+    text("WIRELESS // REMOTE ACCESS", 38, 220, fonts.small, tint)
+    local wifi, bt, hot, ts = uplinkStatus.wifi or {}, uplinkStatus.bluetooth or {}, uplinkStatus.hotspot or {}, uplinkStatus.tailscale or {}
+    local function stateColor(on) return on and colors.green or colors.muted end
+    rounded(38, 248, 174, 66, colors.panel2, colors.line)
+    text("WI-FI", 50, 258, fonts.tiny, colors.muted)
+    text(wifi.connected and short(wifi.ssid or "CONNECTED", 19) or "OFFLINE", 50, 276, fonts.medium, stateColor(wifi.connected))
+    text(wifi.ip or "NO ADDRESS", 50, 298, fonts.tiny, colors.muted)
+    rounded(223, 248, 174, 66, colors.panel2, colors.line)
+    text("HOTSPOT", 235, 258, fonts.tiny, colors.muted)
+    text(hot.active and short(hot.ssid or "ACTIVE", 18) or "INACTIVE", 235, 276, fonts.medium, stateColor(hot.active))
+    text(hot.interface or "NO AP INTERFACE", 235, 298, fonts.tiny, colors.muted)
+    rounded(408, 248, 174, 66, colors.panel2, colors.line)
+    text("BLUETOOTH", 420, 258, fonts.tiny, colors.muted)
+    text(bt.powered and "POWERED ON" or "POWERED OFF", 420, 276, fonts.medium, stateColor(bt.powered))
+    text(tostring(bt.devices or 0) .. " PAIRED / SEEN", 420, 298, fonts.tiny, colors.muted)
+    text("MUOS WEB SERVICES", 38, 329, fonts.tiny, tint)
+    local sv = uplinkStatus.services or {}
+    text("DNS " .. (sv.dns and "●" or "○") .. "   DASH " .. (sv.dashboard and "●" or "○")
+        .. "   SSH " .. (sv.ssh and "●" or "○") .. "   SFTP " .. (sv.sftp and "●" or "○")
+        .. "   TERM " .. (sv.terminal and "●" or "○") .. "   SYNC " .. (sv.syncthing and "●" or "○"),
+        38, 346, fonts.tiny, colors.white)
+    text("TAILSCALE // " .. (ts.installed and (ts.backend or "INSTALLED") or "NOT INSTALLED"),
+        38, 373, fonts.small, ts.online and colors.green or colors.muted)
+    text(ts.installed and (tostring(ts.peers or 0) .. " PEERS  ·  " .. (ts.ip or "NO TAILNET IP"))
+        or "A  INSTALL RT:TAILSCALE-M", 38, 394, fonts.tiny, ts.installed and colors.white or tint)
+    text("Y  REFRESH", 506, 394, fonts.tiny, colors.muted)
+end
+
 local function drawDiagnostics()
     text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
     rounded(20, 183, 600, 232, colors.panel, colors.line)
@@ -334,7 +401,7 @@ local function drawFooter()
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
     text(label, 24, 441, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
-    text("v0.2.0", 574, 441, fonts.tiny, colors.muted)
+    text("v0.4.0", 574, 441, fonts.tiny, colors.muted)
 end
 
 local function drawQuickPanel()
@@ -432,6 +499,10 @@ end
 
 function love.update(dt)
     ambientTime = ambientTime + dt
+    local delta = selected - carouselPosition
+    if delta > #pages / 2 then delta = delta - #pages end
+    if delta < -#pages / 2 then delta = delta + #pages end
+    carouselPosition = carouselPosition + delta * math.min(1, dt * 9.5)
     if not boot.done then
         boot.elapsed = math.min(boot.duration, boot.elapsed + dt)
         if boot.elapsed >= boot.duration then
@@ -473,12 +544,16 @@ function love.draw()
     drawBackground()
     drawHeader()
     drawNavigation()
-    local transition = math.min(1, math.max(0, (ambientTime - pageChangedAt) / 0.22))
+    local transition = math.min(1, math.max(0, (ambientTime - pageChangedAt) / 0.34))
     love.graphics.push()
-    love.graphics.translate((1 - transition) * 13, 0)
+    love.graphics.translate((1 - transition) * 26 * pageChangedDirection, (1 - transition) * 5)
+    local accent = pageAccent(activePage)
+    love.graphics.setColor(accent[1], accent[2], accent[3], 0.82)
+    love.graphics.rectangle("fill", 20, 202, 3, 212, 1, 1)
     if activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
-    elseif activePage == 5 then drawDiagnostics()
+    elseif activePage == 4 then drawUplink()
+    elseif activePage == 6 then drawDiagnostics()
     else drawModule() end
     love.graphics.pop()
     drawFooter()
@@ -487,7 +562,7 @@ function love.draw()
 end
 
 local function exportDiagnostics()
-    if activePage ~= 5 then
+    if activePage ~= 6 then
         setNotice("OPEN DIAGNOSTICS TO EXPORT")
         return
     end
@@ -517,6 +592,7 @@ end
 local function cyclePage(direction)
     selected = ((selected - 1 + direction) % #pages) + 1
     activePage = selected
+    pageChangedDirection = direction
     pageChangedAt = ambientTime
     setNotice("TAB // " .. pages[activePage].title)
 end
