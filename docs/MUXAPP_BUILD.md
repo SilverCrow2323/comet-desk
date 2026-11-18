@@ -46,7 +46,7 @@ The builder also writes a SHA-256 sidecar. Do not rename the archive without ren
 2. Open **Applications → Archive Manager**.
 3. Select the Comet Desk package and let Archive Manager finish extraction.
 4. Open **Applications → Comet Desk**.
-5. If launch fails, retrieve `MUOS/application/CometDesk/data/comet-desk.log` and report the exact muOS release.
+5. If launch fails, retrieve `CometDesk/data/comet-desk.log` from the configured application storage (SD1 or SD2) and report the exact muOS release.
 
 Archive Manager installs the `CometDesk/` folder under `MUOS/application/`. Keep the original archive and its SHA-256 sidecar for reproducible test records.
 
