@@ -14,10 +14,10 @@
 <g fill="none" stroke="#FFB852" stroke-width="3" opacity=".85"><path d="M900 720V430h50v-80h48"/><path d="M1130 720V390h55v-60h95"/></g>
 <rect x="42" y="42" width="1196" height="636" fill="none" stroke="#38E0F0" stroke-opacity=".55" stroke-width="2"/>
 <path d="M42 120H510M42 610H280" stroke="#38E0F0" stroke-width="4"/>
-<text x="78" y="91" fill="#7A97B0" font-family="DejaVu Sans Mono,monospace" font-size="22" letter-spacing="4">QWASAR / FIELD SYSTEMS</text>
-<text x="78" y="320" fill="#E8F2FA" font-family="DejaVu Sans,Arial,sans-serif" font-size="112" font-weight="700" letter-spacing="5">COMET</text>
-<text x="82" y="425" fill="#38E0F0" font-family="DejaVu Sans,Arial,sans-serif" font-size="82" font-weight="700" letter-spacing="8">DESK</text>
-<text x="86" y="505" fill="#E8F2FA" font-family="DejaVu Sans Mono,monospace" font-size="28" letter-spacing="2">MUOS MUX COMPANION</text>
-<text x="86" y="548" fill="#7A97B0" font-family="DejaVu Sans Mono,monospace" font-size="18">DEVICE INTELLIGENCE / DESKTOP WORKFLOWS</text>
-<text x="86" y="638" fill="#FFB852" font-family="DejaVu Sans Mono,monospace" font-size="18">INDUSTRIAL CYBERPUNK // BUILD 0.1</text>
+<text x="78" y="91" fill="#7A97B0" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="22" letter-spacing="4">QWASAR / FIELD SYSTEMS</text>
+<text x="78" y="320" fill="#E8F2FA" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="112" font-weight="700" letter-spacing="5">COMET</text>
+<text x="82" y="425" fill="#38E0F0" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="82" font-weight="700" letter-spacing="8">DESK</text>
+<text x="86" y="505" fill="#E8F2FA" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="28" letter-spacing="2">MUOS MUX COMPANION</text>
+<text x="86" y="548" fill="#7A97B0" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">DEVICE INTELLIGENCE / DESKTOP WORKFLOWS</text>
+<text x="86" y="638" fill="#FFB852" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">INDUSTRIAL CYBERPUNK // BUILD 0.1</text>
 </svg>
