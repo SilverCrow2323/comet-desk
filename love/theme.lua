@@ -16,9 +16,9 @@ M.colors = {
 }
 
 M.fonts = {
-    display = "assets/fonts/Inter-Bold.otf",
-    interface = "assets/fonts/Inter-Medium.otf",
-    telemetry = "assets/fonts/PT-Mono.ttf",
+    display = "builtin",
+    interface = "builtin",
+    telemetry = "builtin",
 }
 
 return M
