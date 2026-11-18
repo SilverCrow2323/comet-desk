@@ -196,7 +196,7 @@ local function drawSetup()
     text("VOID DESK OS // DEBIAN TRIXIE ARM64", 248, 174, fonts.small, colors.cyan)
     text("labwc default  //  XFCE optional", 248, 197, fonts.medium, colors.white)
     text("H700-optimized kernel target // MultiBoot hand-off", 248, 222, fonts.tiny, colors.muted)
-    text("DESTINATION SLOT", 248, 247, fonts.tiny, colors.violet)
+    text("IMAGE DESTINATION", 248, 247, fonts.tiny, colors.violet)
 
     local function targetCard(slot, x, label)
         local item = storageItem(slot)
@@ -214,16 +214,21 @@ local function drawSetup()
     targetCard("tf2", 424, "TF2  /  RIGHT")
 
     local stateColor = colors.cyan
-    if download.state == "DONE" then stateColor = colors.green
-    elseif download.state == "FAILED" then stateColor = colors.amber
-    elseif download.state == "DOWNLOADING" or download.state == "CHECKING" then stateColor = colors.violet end
-    text("DOWNLOAD STATUS  //  " .. download.state, 248, 329, fonts.tiny, stateColor)
-    text(short(download.message, 48), 248, 346, fonts.tiny, colors.white)
-    drawProgress(248, 365, 354, 12, download.percent, stateColor)
-    if download.state == "DONE" then
-        text("NEXT: Archive Manager > Void Desk > Desktop XFCE", 248, 387, fonts.tiny, colors.green)
+    if imageDownload.state == "DONE" then stateColor = colors.green
+    elseif imageDownload.state == "FAILED" or imageDownload.state == "NOT_PUBLISHED" then
+        stateColor = colors.amber
+    elseif imageDownload.state == "DOWNLOADING" or imageDownload.state == "CHECKING_RELEASE" then
+        stateColor = colors.violet
+    end
+    text("OS IMAGE STATUS  //  " .. imageDownload.state, 248, 329, fonts.tiny, stateColor)
+    text(short(imageDownload.message, 48), 248, 346, fonts.tiny, colors.white)
+    drawProgress(248, 365, 354, 12, imageDownload.percent, stateColor)
+    if imageDownload.state == "DONE" then
+        text("IMAGE STAGED // MULTIBOOT HAND-OFF PENDING", 248, 387, fonts.tiny, colors.green)
+    elseif imageDownload.state == "NOT_PUBLISHED" then
+        text("VOID DESK OS IMAGE RELEASE NOT PUBLISHED", 248, 387, fonts.tiny, colors.amber)
     else
-        text("A / ENTER  DOWNLOAD     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
+        text("A / ENTER  GET OS IMAGE     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
     end
 end
 
@@ -360,7 +365,7 @@ function love.load()
     end
 end
 
-local function readDownloadStatus()
+local function readImageDownloadStatus()
     if appRoot == "" then return end
     local statusFile = io.open(appRoot .. "/data/desktop-image-download.status", "r")
     if not statusFile then return end
@@ -368,16 +373,18 @@ local function readDownloadStatus()
     statusFile:close()
     local state, percent, message, location = line and line:match("^([^|]+)|(%d+)|([^|]*)|(.*)$")
     if not state then return end
-    download.state = state
-    download.percent = tonumber(percent) or 0
-    download.message = message
-    download.location = location or ""
-    if state == "DONE" and download._notice ~= "DONE" then
-        setNotice("DESKTOP PACKAGE VERIFIED // ARCHIVE MANAGER NEXT")
-    elseif state == "FAILED" and download._notice ~= "FAILED" then
-        setNotice("DOWNLOAD FAILED // CHECK MESSAGE")
+    imageDownload.state = state
+    imageDownload.percent = tonumber(percent) or 0
+    imageDownload.message = message
+    imageDownload.location = location or ""
+    if state == "DONE" and imageDownload._notice ~= "DONE" then
+        setNotice("VOID DESK OS IMAGE VERIFIED // HAND-OFF PENDING")
+    elseif state == "NOT_PUBLISHED" and imageDownload._notice ~= "NOT_PUBLISHED" then
+        setNotice("VOID DESK OS IMAGE NOT PUBLISHED YET")
+    elseif state == "FAILED" and imageDownload._notice ~= "FAILED" then
+        setNotice("OS IMAGE DOWNLOAD FAILED // CHECK MESSAGE")
     end
-    download._notice = state
+    imageDownload._notice = state
 end
 
 function love.update(dt)
@@ -396,7 +403,7 @@ function love.update(dt)
     downloadPoll = downloadPoll + dt
     if downloadPoll >= 0.25 then
         downloadPoll = 0
-        readDownloadStatus()
+        readImageDownloadStatus()
     end
 
     probeTimer = probeTimer + dt
@@ -471,13 +478,20 @@ local function cyclePage(direction)
     setNotice("TAB // " .. pages[activePage].title)
 end
 
+local function cyclePage(direction)
+    selected = ((selected - 1 + direction) % #pages) + 1
+    activePage = selected
+    pageChangedAt = ambientTime
+    setNotice("TAB // " .. pages[activePage].title)
+end
+
 local function activate()
     activePage = selected
     pageChangedAt = ambientTime
     if activePage == 1 then
         setNotice("OVERVIEW // READ-ONLY")
     elseif activePage == 2 then
-        setNotice("DESKTOP SETUP // VERIFIED DOWNLOAD")
+        setNotice("VOID DESK OS // DEBIAN ARM64 + LABWC")
     else
         setNotice(pages[activePage].title .. " // COMING SOON")
     end
@@ -488,13 +502,13 @@ local function shellQuote(value)
 end
 
 local function startDesktopImageDownload()
-    if download.state == "STARTING" or download.state == "CHECKING"
-        or download.state == "DOWNLOADING" then
-        setNotice("DOWNLOAD ALREADY RUNNING")
+    if imageDownload.state == "STARTING" or imageDownload.state == "CHECKING_RELEASE"
+        or imageDownload.state == "DOWNLOADING" then
+        setNotice("OS IMAGE CHECK OR DOWNLOAD ALREADY RUNNING")
         return
     end
     if appRoot == "" then
-        setNotice("DOWNLOAD REQUIRES THE MUOS APP RUNNER")
+        setNotice("OS DOWNLOAD REQUIRES THE MUOS APP RUNNER")
         return
     end
     local item = storageItem(selectedSlot)
@@ -517,12 +531,12 @@ local function startDesktopImageDownload()
         .. " >/dev/null 2>&1 &"
     local result = os.execute(command)
     if result == 0 or result == true then
-        download.state = "STARTING"
-        download.percent = 0
-        download.message = "Starting checksum-verified download"
-        setNotice("DOWNLOAD STARTED // " .. selectedSlot:upper() .. "/ARCHIVE")
+        imageDownload.state = "STARTING"
+        imageDownload.percent = 0
+        imageDownload.message = "Looking for the published Debian ARM64 OS image"
+        setNotice("VOID DESK OS IMAGE CHECK // " .. selectedSlot:upper())
     else
-        setNotice("COULD NOT START DOWNLOAD HELPER")
+        setNotice("COULD NOT START OS IMAGE HELPER")
     end
 end
 
@@ -546,6 +560,8 @@ function love.keypressed(key)
         return
     end
     if key == "f9" then keyboardHeld.start = true; maybeExitKeyboard(); return end
+    if key == "pageup" then cyclePage(-1); return end
+    if key == "pagedown" then cyclePage(1); return end
     if key == "f8" then keyboardHeld.select = true; maybeExitKeyboard(); return end
     if key == "m" then toggleQuickPanel(); return end
     if quickPanelOpen then
@@ -602,10 +618,14 @@ function love.gamepadpressed(joystick, button)
         return
     end
 
-    if button == "dpup" or button == "leftshoulder" then
+    if button == "dpup" then
         love.keypressed("up")
-    elseif button == "dpdown" or button == "rightshoulder" then
+    elseif button == "dpdown" then
         love.keypressed("down")
+    elseif button == "leftshoulder" then
+        cyclePage(-1)
+    elseif button == "rightshoulder" then
+        cyclePage(1)
     elseif button == "dpleft" and activePage == 2 then
         selectedSlot = "tf1"
     elseif button == "dpright" and activePage == 2 then
