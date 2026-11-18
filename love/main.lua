@@ -5,7 +5,7 @@
 local W, H = 640, 480
 local pages = {
     { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama." },
-    { id = "setup", title = "DESKTOP SETUP", subtitle = "Void Desk OS — Debian ARM64 + labwc for H700." },
+    { id = "setup", title = "DESKTOP SETUP", subtitle = "Void Desk XFCE — ARM64 desktop, managed by Comet Desk." },
     { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions." },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services." },
     { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime." },
@@ -88,47 +88,48 @@ local function drawBackground()
 end
 
 local function drawHeader()
+    -- Compact identity rail: logo, build metadata and live H700 target status.
     if visuals.atlas and visuals.quads.app then
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(visuals.atlas, visuals.quads.app, 22, 34, 0, 0.65, 0.65)
+        love.graphics.draw(visuals.atlas, visuals.quads.app, 22, 26, 0, 0.76, 0.76)
     end
-    text("QWASAR  /  FIELD SYSTEMS", 68, 17, fonts.small, colors.muted)
-    text("COMET", 68, 36, fonts.title, colors.white)
-    text("DESK", 177, 42, fonts.medium, colors.cyan)
-    text("MUX COMPANION  //  BUILD 0.2.0-dev", 68, 77, fonts.tiny, colors.muted)
-    rounded(482, 22, 132, 42, colors.panel, colors.line)
-    text("RG35XX H TARGET", 495, 28, fonts.small, colors.cyan)
-    local probeStatus = device.handheld ~= "Unknown" and "LIVE PROBE OK" or "PROBE PARTIAL"
-    text(probeStatus, 495, 45, fonts.tiny,
+    text("QWASAR  /  FIELD SYSTEMS", 66, 12, fonts.tiny, colors.muted)
+    text("COMET", 66, 29, fonts.title, colors.white)
+    text("DESK", 174, 38, fonts.medium, colors.cyan)
+    text("MUX CONTROL DECK  //  v0.3.0-dev", 67, 70, fonts.tiny, colors.muted)
+
+    rounded(438, 17, 182, 56, colors.panel, colors.line)
+    text("RG35XX H  //  H700", 451, 25, fonts.small, colors.cyan)
+    local probeStatus = device.handheld ~= "Unknown" and "DEVICE LINK  ONLINE" or "DEVICE LINK  LIMITED"
+    text(probeStatus, 451, 44, fonts.tiny,
         device.handheld ~= "Unknown" and colors.green or colors.amber)
+    text("L1 / R1  CHANGE SECTION", 451, 59, fonts.tiny, colors.muted)
 end
 
+
 local function drawNavigation()
-    rounded(20, 108, 190, 302, colors.panel, colors.line)
-    text("NAVIGATION", 34, 122, fonts.small, colors.muted)
+    rounded(20, 91, 600, 52, colors.panel, colors.line)
+    local labels = { "OVERVIEW", "DESKTOP", "SESSIONS", "TOOLS", "DIAGNOSTICS" }
     for i, page in ipairs(pages) do
-        local y = 151 + (i - 1) * 47
+        local x = 26 + (i - 1) * 118
         local active = (i == selected)
         if active then
-            local pulse = 0.58 + 0.20 * (0.5 + 0.5 * math.sin(ambientTime * 3.2))
-            rounded(28, y - 5, 174, 39, colors.panel2,
+            local pulse = 0.62 + 0.18 * (0.5 + 0.5 * math.sin(ambientTime * 3.2))
+            rounded(x, 97, 112, 40, colors.panel2,
                 { colors.cyan[1], colors.cyan[2], colors.cyan[3], pulse })
-            love.graphics.setColor(colors.cyan)
-            love.graphics.rectangle("fill", 28, y + 5, 3, 18, 2, 2)
+            setColor(colors.cyan)
+            love.graphics.rectangle("fill", x + 10, 133, 92, 2, 1, 1)
         end
         local pageIcon = visuals.quads[page.id]
         if visuals.atlas and pageIcon then
-            love.graphics.setColor(1, 1, 1, active and 1 or 0.66)
-            love.graphics.draw(visuals.atlas, pageIcon, 38, y + 2, 0, 0.38, 0.38)
-        else
-            text(string.format("%02d", i), 40, y + 4, fonts.small,
-                active and colors.cyan or colors.muted)
+            love.graphics.setColor(1, 1, 1, active and 1 or 0.60)
+            love.graphics.draw(visuals.atlas, pageIcon, x + 9, 106, 0, 0.42, 0.42)
         end
-        text(page.title, 69, y + 4, fonts.small,
+        text(labels[i], x + 34, 110, fonts.tiny,
             active and colors.white or colors.muted)
     end
-    text("L1 / R1  SWITCH TAB     A  SELECT     B  BACK", 34, 383, fonts.tiny, colors.muted)
 end
+
 
 local function short(value, limit)
     value = tostring(value or "Unknown")
@@ -166,53 +167,64 @@ local function storageLine(label, item)
 end
 
 local function drawOverview()
-    local page = pages[activePage]
-    text(page.subtitle, 235, 127, fonts.small, colors.muted)
-    rounded(230, 157, 390, 148, colors.panel, colors.line)
-    text("LIVE DEVICE SNAPSHOT", 248, 174, fonts.small, colors.cyan)
-    text("Handheld", 248, 202, fonts.small, colors.muted)
-    text(short(device.handheld, 31), 370, 202, fonts.small, colors.white)
-    text("SoC / architecture", 248, 226, fonts.small, colors.muted)
-    text(short(device.soc .. " / " .. device.architecture, 34), 370, 226, fonts.tiny, colors.white)
-    text("Firmware", 248, 250, fonts.small, colors.muted)
-    text(short(device.firmware, 31), 370, 250, fonts.small, colors.white)
-    text("RAM", 248, 274, fonts.small, colors.muted)
-    text(device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown",
-        370, 274, fonts.small, colors.white)
+    text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
 
-    rounded(230, 318, 390, 92, colors.panel, colors.line)
-    text("STORAGE PRESENCE", 248, 332, fonts.small, colors.violet)
+    rounded(20, 183, 365, 147, colors.panel, colors.line)
+    text("LIVE DEVICE SNAPSHOT", 38, 198, fonts.small, colors.cyan)
+    text("HANDHELD", 38, 229, fonts.tiny, colors.muted)
+    text(short(device.handheld, 28), 164, 226, fonts.small, colors.white)
+    text("SOC / ARCH", 38, 253, fonts.tiny, colors.muted)
+    text(short(device.soc .. " / " .. device.architecture, 32), 164, 250, fonts.small, colors.white)
+    text("FIRMWARE", 38, 277, fonts.tiny, colors.muted)
+    text(short(device.firmware, 30), 164, 274, fonts.small, colors.white)
+    text("MEMORY", 38, 301, fonts.tiny, colors.muted)
+    text(device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown",
+        164, 298, fonts.small, colors.white)
+
+    rounded(395, 183, 225, 147, colors.panel, colors.line)
+    text("COMET STATUS", 413, 198, fonts.small, colors.violet)
+    text("APP / RUNTIME", 413, 229, fonts.tiny, colors.muted)
+    text("LÖVE 11.5  //  ARM64", 413, 246, fonts.small, colors.white)
+    text("DESKTOP ENGINE", 413, 276, fonts.tiny, colors.muted)
+    text("XFCE  //  XORG", 413, 293, fonts.small, colors.green)
+
+    rounded(20, 343, 600, 72, colors.panel, colors.line)
+    text("STORAGE  //  LIVE MOUNT STATE", 38, 355, fonts.small, colors.cyan)
     local tf1, tf2 = storageItem("tf1"), storageItem("tf2")
-    text(storageLine("TF1", tf1), 248, 356, fonts.tiny,
+    text(storageLine("TF1", tf1), 38, 379, fonts.tiny,
         tf1 and tf1.status == "MOUNTED" and colors.green or colors.amber)
-    text(storageLine("TF2", tf2), 248, 374, fonts.tiny,
+    text(storageLine("TF2", tf2), 335, 379, fonts.tiny,
         tf2 and tf2.status == "MOUNTED" and colors.green or colors.muted)
-    text("Free space from statvfs // read-only", 248, 392, fonts.tiny, colors.muted)
 end
 
-local function drawSetup()
-    text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
-    rounded(230, 157, 390, 253, colors.panel, colors.line)
-    text("VOID DESK // ARM64 XFCE ENVIRONMENT", 248, 174, fonts.small, colors.cyan)
-    text("Ubuntu Base 24.04  //  XFCE session", 248, 197, fonts.medium, colors.white)
-    text("Built and launched by Comet Desk // muOS kernel", 248, 222, fonts.tiny, colors.muted)
-    text("IMAGE DESTINATION", 248, 247, fonts.tiny, colors.violet)
 
+local function drawSetup()
+    text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
+    rounded(20, 183, 600, 232, colors.panel, colors.line)
+
+    text("VOID DESK  /  XFCE ENVIRONMENT", 38, 199, fonts.small, colors.cyan)
+    text("Ubuntu Base 24.04 ARM64", 38, 222, fonts.medium, colors.white)
+    text("XFCE + Xorg tuned for the RG35XX H framebuffer", 38, 246, fonts.tiny, colors.muted)
+    text("Comet downloads, prepares, mounts and launches this environment.", 38, 263, fonts.tiny, colors.muted)
+
+    text("INSTALL TARGET", 38, 292, fonts.tiny, colors.violet)
     local function targetCard(slot, x, label)
         local item = storageItem(slot)
         local usable = storageUsable(slot)
         local active = selectedSlot == slot
-        rounded(x, 266, 166, 49, active and colors.panel2 or colors.bg,
+        rounded(x, 309, 162, 52, active and colors.panel2 or colors.bg,
             active and colors.cyan or colors.line)
-        text(label, x + 12, 273, fonts.small, active and colors.white or colors.muted)
+        text(label, x + 12, 316, fonts.small, active and colors.white or colors.muted)
         local state = item and item.status == "MOUNTED" and item.stats
             and (item.stats.read_only and "READ ONLY" or formatBytes(item.stats.free_bytes) .. " FREE")
             or "NOT DETECTED"
-        text(state, x + 12, 292, fonts.tiny, usable and colors.green or colors.amber)
+        text(state, x + 12, 338, fonts.tiny, usable and colors.green or colors.amber)
     end
-    targetCard("tf1", 248, "TF1  /  LEFT")
-    targetCard("tf2", 424, "TF2  /  RIGHT")
+    targetCard("tf1", 38, "TF1  /  LEFT")
+    targetCard("tf2", 210, "TF2  /  RIGHT")
 
+    rounded(391, 197, 211, 201, colors.panel2, colors.line)
+    text("DESKTOP CONTROL", 408, 213, fonts.small, colors.violet)
     local stateColor = colors.cyan
     if imageDownload.state == "READY" then stateColor = colors.green
     elseif imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED" then
@@ -220,56 +232,69 @@ local function drawSetup()
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         stateColor = colors.violet
     end
-    text("XFCE ENVIRONMENT  //  " .. imageDownload.state, 248, 329, fonts.tiny, stateColor)
-    text(short(imageDownload.message, 48), 248, 346, fonts.tiny, colors.white)
-    drawProgress(248, 365, 354, 12, imageDownload.percent, stateColor)
+    text(imageDownload.state, 408, 244, fonts.medium, stateColor)
+    text(short(imageDownload.message, 29), 408, 271, fonts.tiny, colors.white)
+    drawProgress(408, 294, 175, 12, imageDownload.percent, stateColor)
+    text(string.format("%d%%  COMPLETE", imageDownload.percent), 408, 316, fonts.tiny, colors.muted)
     if imageDownload.state == "READY" then
-        text("A / ENTER  LAUNCH DESKTOP     B  BACK TO COMET", 248, 387, fonts.tiny, colors.green)
+        text("A  LAUNCH XFCE", 408, 349, fonts.small, colors.green)
+        text("B  RETURN TO COMET", 408, 370, fonts.tiny, colors.muted)
     elseif imageDownload.state == "INSTALLING_XFCE" or imageDownload.state == "DOWNLOADING_ROOTFS"
         or imageDownload.state == "DOWNLOADING_TEMPLATE" or imageDownload.state == "EXPANDING_IMAGE"
         or imageDownload.state == "PREPARING_ROOTFS" or imageDownload.state == "EXTRACTING_ROOTFS" then
-        text("BUILDING XFCE // KEEP POWER CONNECTED", 248, 387, fonts.tiny, colors.violet)
+        text("BUILDING  //  KEEP POWER ON", 408, 349, fonts.tiny, colors.violet)
+        text("Comet is working in the background", 408, 370, fonts.tiny, colors.muted)
+    elseif imageDownload.state == "FAILED" then
+        text("CHECK DESKTOP LOG", 408, 349, fonts.tiny, colors.amber)
+        text("Retry with A after review", 408, 370, fonts.tiny, colors.muted)
     else
-        text("A / ENTER  INSTALL XFCE     LEFT / RIGHT  TARGET", 248, 387, fonts.tiny, colors.cyan)
+        text("A  INSTALL XFCE", 408, 349, fonts.small, colors.cyan)
+        text("LEFT / RIGHT  SELECT CARD", 408, 370, fonts.tiny, colors.muted)
     end
 end
 
+
 local function drawDiagnostics()
-    text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
-    rounded(230, 157, 390, 253, colors.panel, colors.line)
-    text("DEVICE IDENTITY", 248, 174, fonts.small, colors.cyan)
+    text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
+    rounded(20, 183, 600, 232, colors.panel, colors.line)
+    text("DEVICE IDENTITY", 38, 199, fonts.small, colors.cyan)
     local rows = {
-        { "Handheld", device.handheld },
-        { "SoC", device.soc },
-        { "Architecture", device.architecture },
+        { "HANDHELD", device.handheld },
+        { "SOC", device.soc },
+        { "ARCHITECTURE", device.architecture },
         { "RAM", device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown" },
-        { "Firmware", device.firmware },
+        { "FIRMWARE", device.firmware },
     }
     for i, item in ipairs(rows) do
-        local y = 202 + (i - 1) * 29
-        text(item[1], 248, y, fonts.small, colors.muted)
-        text(short(item[2], 34), 370, y, fonts.small, colors.white)
+        local y = 226 + (i - 1) * 24
+        text(item[1], 38, y, fonts.tiny, colors.muted)
+        text(short(item[2], 34), 190, y - 2, fonts.small, colors.white)
     end
-    text("STORAGE MOUNTS", 248, 351, fonts.small, colors.violet)
+    setColor(colors.line)
+    love.graphics.line(38, 352, 602, 352)
+    text("STORAGE MOUNTS", 38, 365, fonts.small, colors.violet)
     local tf1, tf2 = storageItem("tf1") or {}, storageItem("tf2") or {}
-    text(storageLine("TF1", tf1) .. "  [" .. short(tf1.filesystem, 8) .. "]",
-        248, 375, fonts.tiny, colors.white)
-    text(storageLine("TF2", tf2) .. "  [" .. short(tf2.filesystem, 8) .. "]",
-        248, 392, fonts.tiny, colors.white)
-    text("Y / E  EXPORT PRIVACY-SAFE REPORT", 248, 402, fonts.tiny, colors.cyan)
+    text(storageLine("TF1", tf1) .. "  [" .. short(tf1.filesystem, 7) .. "]",
+        38, 388, fonts.tiny, colors.white)
+    text(storageLine("TF2", tf2) .. "  [" .. short(tf2.filesystem, 7) .. "]",
+        330, 388, fonts.tiny, colors.white)
+    text("Y / E  EXPORT PRIVACY-SAFE REPORT", 414, 402, fonts.tiny, colors.cyan)
 end
+
 
 local function drawModule()
     local page = pages[activePage]
-    text(page.subtitle, 235, 127, fonts.small, colors.muted)
-    rounded(230, 157, 390, 172, colors.panel, colors.line)
-    text(page.title, 250, 178, fonts.medium, colors.white)
-    text("MODULE STATUS", 250, 220, fonts.tiny, colors.muted)
-    text("NOT IMPLEMENTED", 250, 243, fonts.large, colors.amber)
-    text("This panel is a roadmap entry, not a fake control.", 250, 282, fonts.tiny, colors.muted)
-    rounded(230, 343, 390, 67, colors.panel2, colors.line)
-    text("Available in a later verified build.", 250, 367, fonts.small, colors.cyan)
+    text(page.subtitle, 24, 158, fonts.small, colors.muted)
+    rounded(20, 183, 600, 232, colors.panel, colors.line)
+    text(page.title, 42, 207, fonts.medium, colors.cyan)
+    text("MODULE STATUS", 42, 248, fonts.tiny, colors.muted)
+    text("NOT IMPLEMENTED", 42, 272, fonts.large, colors.amber)
+    text("This section is a roadmap entry, not a decorative fake control.", 42, 310, fonts.small, colors.white)
+    text("Comet Desk will expose only actions that are wired to a verified backend.", 42, 335, fonts.tiny, colors.muted)
+    rounded(42, 365, 556, 30, colors.panel2, colors.line)
+    text("FEATURE SLOT  //  AVAILABLE IN A LATER VERIFIED BUILD", 58, 374, fonts.tiny, colors.violet)
 end
+
 
 local function drawBoot()
     drawBackground()
