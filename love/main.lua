@@ -5,7 +5,7 @@
 local W, H = 640, 480
 local pages = {
     { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama." },
-    { id = "setup", title = "DESKTOP SETUP", subtitle = "Download a verified desktop manager package." },
+    { id = "setup", title = "DESKTOP SETUP", subtitle = "Void Desk OS — Debian ARM64 + labwc for H700." },
     { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions." },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services." },
     { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime." },
@@ -28,7 +28,7 @@ local gamepadHeld = {}
 local keyboardHeld = { start = false, select = false }
 local exitRequested = false
 local selectedSlot = "tf1"
-local download = { state = "IDLE", percent = 0, message = "Ready to download", location = "" }
+local imageDownload = { state = "NOT_CHECKED", percent = 0, message = "Void Desk OS image release not checked", location = "" }
 local downloadPoll = 0
 
 local function setNotice(message)
@@ -127,7 +127,7 @@ local function drawNavigation()
         text(page.title, 69, y + 4, fonts.small,
             active and colors.white or colors.muted)
     end
-    text("A  SELECT     B  BACK", 34, 383, fonts.tiny, colors.muted)
+    text("L1 / R1  SWITCH TAB     A  SELECT     B  BACK", 34, 383, fonts.tiny, colors.muted)
 end
 
 local function short(value, limit)
@@ -193,9 +193,9 @@ end
 local function drawSetup()
     text(pages[activePage].subtitle, 235, 127, fonts.small, colors.muted)
     rounded(230, 157, 390, 253, colors.panel, colors.line)
-    text("VOID DESK // SETUP MANAGER  [ STEP 1 / 2 ]", 248, 174, fonts.small, colors.cyan)
-    text("Stable release  v10.2.0", 248, 197, fonts.medium, colors.white)
-    text("Download its official MUX package into ARCHIVE.", 248, 222, fonts.tiny, colors.muted)
+    text("VOID DESK OS // DEBIAN TRIXIE ARM64", 248, 174, fonts.small, colors.cyan)
+    text("labwc default  //  XFCE optional", 248, 197, fonts.medium, colors.white)
+    text("H700-optimized kernel target // MultiBoot hand-off", 248, 222, fonts.tiny, colors.muted)
     text("DESTINATION SLOT", 248, 247, fonts.tiny, colors.violet)
 
     local function targetCard(slot, x, label)
@@ -306,9 +306,9 @@ local function drawQuickPanel()
         { colors.cyan[1], colors.cyan[2], colors.cyan[3], 0.75 * reveal })
     text("COMET  //  QUICK OVERLAY", x + 24, y + 22, fonts.medium, colors.cyan)
     text("CONTROL DECK", x + 24, y + 53, fonts.large, colors.white)
-    text("DESKTOP PACKAGE  //  " .. download.state, x + 24, y + 104, fonts.small, colors.violet)
-    text(short(download.message, 54), x + 24, y + 127, fonts.tiny, colors.muted)
-    drawProgress(x + 24, y + 153, 468, 12, download.percent, colors.cyan)
+    text("VOID DESK OS IMAGE  //  " .. imageDownload.state, x + 24, y + 104, fonts.small, colors.violet)
+    text(short(imageDownload.message, 54), x + 24, y + 127, fonts.tiny, colors.muted)
+    drawProgress(x + 24, y + 153, 468, 12, imageDownload.percent, colors.cyan)
     text("M  CLOSE OVERLAY", x + 24, y + 204, fonts.small, colors.white)
     text("START + SELECT  EXIT COMET DESK", x + 24, y + 232, fonts.tiny, colors.amber)
     text("Quick panel // QWASAR control surface", x + 24, y + 258, fonts.tiny, colors.muted)
@@ -362,7 +362,7 @@ end
 
 local function readDownloadStatus()
     if appRoot == "" then return end
-    local statusFile = io.open(appRoot .. "/data/desktop-download.status", "r")
+    local statusFile = io.open(appRoot .. "/data/desktop-image-download.status", "r")
     if not statusFile then return end
     local line = statusFile:read("*l")
     statusFile:close()
@@ -464,6 +464,13 @@ local function exportDiagnostics()
     end
 end
 
+local function cyclePage(direction)
+    selected = ((selected - 1 + direction) % #pages) + 1
+    activePage = selected
+    pageChangedAt = ambientTime
+    setNotice("TAB // " .. pages[activePage].title)
+end
+
 local function activate()
     activePage = selected
     pageChangedAt = ambientTime
@@ -480,7 +487,7 @@ local function shellQuote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
-local function startDesktopDownload()
+local function startDesktopImageDownload()
     if download.state == "STARTING" or download.state == "CHECKING"
         or download.state == "DOWNLOADING" then
         setNotice("DOWNLOAD ALREADY RUNNING")
@@ -504,7 +511,7 @@ local function startDesktopDownload()
         setNotice("PYTHON 3 NOT AVAILABLE ON HOST")
         return
     end
-    local script = appRoot .. "/service/desktop_download.py"
+    local script = appRoot .. "/service/desktop_image_download.py"
     local command = "cd " .. shellQuote(appRoot) .. " && python3 "
         .. shellQuote(script) .. " --slot " .. selectedSlot
         .. " >/dev/null 2>&1 &"
@@ -555,7 +562,7 @@ function love.keypressed(key)
     elseif key == "right" or key == "d" then
         if activePage == 2 then selectedSlot = "tf2" end
     elseif key == "return" or key == "space" or key == "z" then
-        if activePage == 2 then startDesktopDownload() else activate() end
+        if activePage == 2 then startDesktopImageDownload() else activate() end
     elseif key == "e" or key == "y" then
         exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
