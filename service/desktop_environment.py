@@ -294,7 +294,9 @@ class ImageMount:
             raise
 
     def bind(self, source: Path, target: Path, *, filesystem: str | None = None) -> None:
-        if not source.exists():
+        # proc/sys are mounted by filesystem type; their source tokens ("proc",
+        # "sys") are not host paths and therefore must not be stat()'d.
+        if filesystem is None and not source.exists():
             return
         if target.is_symlink():
             raise SetupError("bind mount target is a symbolic link: " + str(target))
@@ -424,8 +426,34 @@ def _write_guest_configuration(root: Path) -> None:
         '  eval "$(dbus-launch --sh-syntax --exit-with-session)"\nfi\n'
         'xset s off -dpms 2>/dev/null\n'
         'for ctl in Master PCM Speaker Headphone; do amixer -q sset "$ctl" 80% unmute 2>/dev/null; done\n'
+        'qjoypad --notray "Default" >/dev/null 2>&1 &\n'
         'exec startxfce4\n', encoding="utf-8")
+
     xinit.chmod(0o755)
+    qjoypad = root / "root/.qjoypad3"
+    qjoypad.mkdir(parents=True, exist_ok=True)
+    (qjoypad / "Default.lyt").write_text(
+        "# QJoyPad 4.3 Layout File\\n"
+        "# Comet Desk controller profile for RG35XX H\\n"
+        "Joystick 1 {\\n"
+        "\\tAxis 1: gradient, maxSpeed 3, mouse+h\\n"
+        "\\tAxis 2: gradient, maxSpeed 3, mouse+v\\n"
+        "\\tAxis 3: gradient, +key 114, -key 113\\n"
+        "\\tAxis 4: gradient, +key 117, -key 112\\n"
+        "\\tAxis 5: +key 114, -key 113\\n"
+        "\\tAxis 6: +key 116, -key 111\\n"
+        "\\tButton 4: mouse 1\\n"
+        "\\tButton 5: key 166\\n"
+        "\\tButton 6: mouse 2\\n"
+        "\\tButton 7: mouse 3\\n"
+        "\\tButton 8: mouse 4\\n"
+        "\\tButton 9: mouse 5\\n"
+        "\\tButton 10: key 9\\n"
+        "\\tButton 11: key 36\\n"
+        "\\tButton 13: mouse 1\\n"
+        "\\tButton 16: mouse 3\\n"
+        "}\\n", encoding="utf-8")
+    (qjoypad / "layout").write_text("Default\\n", encoding="utf-8")
     settings = root / "root/.config/xfce4/xfconf/xfce-perchannel-xml"
     settings.mkdir(parents=True, exist_ok=True)
     (settings / "xfwm4.xml").write_text(
@@ -519,7 +547,7 @@ def setup(slot: str, app_dir: Path) -> Path:
                                   status=(app_dir, "DOWNLOADING_ROOTFS", 46, 55, "Downloading verified Ubuntu Base ARM64"),
                                   max_bytes=40 * 1024 * 1024)
             write_status(app_dir, "EXTRACTING_ROOTFS", 55, "Extracting the verified ARM64 root filesystem")
-            _run(["tar", "-xpf", str(rootfs), "-C", str(mountpoint)],
+            _run(["tar", "-xzpf", str(rootfs), "-C", str(mountpoint)],
                  log=manager.log, timeout=900)
             (mountpoint / ".comet-rootfs-extracted").write_text("verified\n")
         os_release = (mountpoint / "etc/os-release").read_text(errors="replace")
