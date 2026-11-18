@@ -10,7 +10,7 @@ A small, quick-launching MUX application that coordinates desktop-related tasks 
 2. **LÖVE shell** — Lua UI, controller navigation, screen scaling and page state.
 3. **Capability layer** — small, explicit adapters for device facts and supported operations.
 4. **Task layer** — staged setup/session/diagnostic workflows.
-5. **Target storage** — user-selected destination for desktop payloads; never assumed.
+5. **Target storage** — user-selected destination for Void Desk OS disk-image staging; never assumed.\n6. **Boot hand-off** — explicit H700 MultiBoot adapter; Comet must not invent a boot path or flash raw devices.
 
 ## muOS package and runtime
 
@@ -27,7 +27,7 @@ The builder rejects unsafe archive paths, symlinks, missing application/runtime 
 - `love/device_probe.lua`: read-only model, SoC, architecture, RAM, firmware-marker and TF1/TF2 mount probe, including read-only statvfs capacity/free-space data when available.
 - The Overview and Diagnostics screens display the live probe snapshot.
 - Storage capacity/free-space and read-only state use LuaJIT FFI statvfs calls against already detected mounts; unavailable stats remain explicitly unavailable.
-- No privileged installer or filesystem mutation is wired into the UI.
+- Desktop Setup stages only the separately published Void Desk OS disk-image asset; it never downloads a MUX application as a desktop.\n- Image staging is separate from flashing or booting; the H700 MultiBoot adapter is pending its verified interface.\n- The selected TF1/TF2 path is checked live and the compressed image is SHA-256 verified before publication.
 
 ## Device profiles
 
