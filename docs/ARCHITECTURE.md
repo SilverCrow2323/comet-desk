@@ -12,11 +12,22 @@ A small, quick-launching MUX application that coordinates desktop-related tasks 
 4. **Task layer** — staged setup/session/diagnostic workflows.
 5. **Target storage** — user-selected destination for desktop payloads; never assumed.
 
-## muOS package and runtime\n\nThe repository produces a self-contained `.muxapp` for each device-test build. The package includes the muOS `mux_launch.sh` lifecycle entry point, the LÖVE game, and a pinned AArch64 LÖVE 11.5 runtime. It is installed by Archive Manager and launched through muOS shared helpers. The application uses `/run/muos/storage/application/CometDesk` as its runtime path so SD1/SD2 placement remains muOS-managed.\n\nThe builder rejects unsafe archive paths, symlinks, missing runtime components and non-AArch64 ELF files. A successful package build is not proof of physical-device compatibility.\n\n## Current prototype
+## muOS package and runtime
 
-- `love/main.lua`: navigation shell and page rendering.
+The repository produces a self-contained `.muxapp` for every device-test build. The package includes the muOS `mux_launch.sh` lifecycle entry point, the LÖVE game, a read-only Lua device probe, and a pinned AArch64 LÖVE 11.5 runtime.
+
+The launcher follows the muOS Andromeda application runner contract: it sources the shared helper, calls `SETUP_APP`, and uses `/run/muos/storage/application/CometDesk` so SD1/SD2 placement remains muOS-managed.
+
+The builder rejects unsafe archive paths, symlinks, missing application/runtime files, wrong ELF architecture and a non-executable launcher. A successful package build is not proof of physical-device compatibility.
+
+## Current prototype
+
+- `love/main.lua`: navigation shell, Overview and Diagnostics rendering.
 - `love/conf.lua`: LÖVE application metadata and 640×480 baseline.
-- No privileged installer or filesystem mutation is currently wired into the UI.
+- `love/device_probe.lua`: read-only model, SoC, architecture, RAM, firmware-marker and TF1/TF2 mount probe.
+- The Overview and Diagnostics screens display the live probe snapshot.
+- Storage capacity/free-space reporting is intentionally omitted until a native, verified filesystem-statistics adapter is added.
+- No privileged installer or filesystem mutation is wired into the UI.
 
 ## Device profiles
 
