@@ -33,7 +33,43 @@ if [ ! -f "$APP_DIR/love/main.lua" ]; then
 fi
 
 cd "$APP_DIR" || exit 1
-"$APP_DIR/lib/love" "$APP_DIR/love" >> "$LOG_FILE" 2>&1
-RC=$?
-echo "$(date) Comet Desk exit rc=$RC" >> "$LOG_FILE"
+
+# Comet Desk owns the desktop session lifecycle. The LÖVE control surface
+# requests a session through one private file; this same launcher runs the
+# integrated XFCE manager and re-opens Comet Desk when XFCE returns.
+while :; do
+    "$APP_DIR/lib/love" "$APP_DIR/love" >> "$LOG_FILE" 2>&1
+    RC=$?
+    REQUEST="$LOG_DIR/desktop-session.request"
+
+    if [ -L "$REQUEST" ]; then
+        echo "$(date) ERROR: refusing symbolic-link desktop session request" >> "$LOG_FILE"
+        break
+    fi
+    if [ -f "$REQUEST" ]; then
+        SLOT=""
+        IFS= read -r SLOT < "$REQUEST" || true
+        rm -f "$REQUEST"
+        case "$SLOT" in
+            tf1|tf2)
+                if [ ! -f "$APP_DIR/service/desktop_environment.py" ]; then
+                    echo "$(date) ERROR: integrated desktop manager is missing" >> "$LOG_FILE"
+                    break
+                fi
+                echo "$(date) Comet Desk starting its XFCE session from $SLOT" >> "$LOG_FILE"
+                python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+                SESSION_RC=$?
+                echo "$(date) XFCE session returned rc=$SESSION_RC; resuming Comet Desk" >> "$LOG_FILE"
+                continue
+                ;;
+            *)
+                echo "$(date) ERROR: invalid desktop session request" >> "$LOG_FILE"
+                break
+                ;;
+        esac
+    fi
+
+    echo "$(date) Comet Desk exit rc=$RC" >> "$LOG_FILE"
+    break
+done
 exit "$RC"
