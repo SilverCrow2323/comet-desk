@@ -24,13 +24,11 @@ Keep the palette restrained. Cyan is the primary signal; amber is not a generic 
 
 ## Typography
 
-- **Inter Bold** — display titles, section headings and prominent values.
-- **Inter Medium** — interface labels and body copy.
-- **PT Mono** — telemetry, timestamps, technical labels, keys and metadata.
+- **Bitstream Vera Sans** — the LÖVE runtime default for display titles, interface labels and body copy.
+- Documentation uses **DejaVu Sans** as a metrically compatible fallback for the same sans-serif visual rhythm.
+- Technical labels are differentiated through uppercase treatment, compact sizing and tabular alignment rather than a second font family.
 
-These are bundled with the app so the 640×480 interface does not depend on system fonts. Documentation should use the same families; where fonts cannot be embedded, use a close sans-serif/monospace fallback while preserving the hierarchy.
-
-Font files retain their upstream licences in `assets/fonts/THIRD-PARTY-LICENSES.md`.
+Using the LÖVE default avoids a fragile font dependency on muOS and keeps the app lightweight. The documentation cover artwork is rendered with DejaVu Sans to stay visually close to the application.
 
 ## Graphic grammar
 
