@@ -1,7 +1,28 @@
 -- Comet Desk // read-only muOS device probe
--- Uses procfs/device-tree files only. No shell, writes, mounts or privileged actions.
+-- Uses procfs/device-tree and read-only statvfs calls. No shell or writes.
 
 local M = {}
+local ffiOK, ffi = pcall(require, "ffi")
+
+if ffiOK then
+    pcall(ffi.cdef, [[
+        struct statvfs {
+            unsigned long f_bsize;
+            unsigned long f_frsize;
+            unsigned long f_blocks;
+            unsigned long f_bfree;
+            unsigned long f_bavail;
+            unsigned long f_files;
+            unsigned long f_ffree;
+            unsigned long f_favail;
+            unsigned long f_fsid;
+            unsigned long f_flag;
+            unsigned long f_namemax;
+            int __f_spare[6];
+        };
+        int statvfs(const char *path, struct statvfs *buf);
+    ]])
+end
 
 local function readFile(path)
     local file = io.open(path, "rb")
@@ -30,6 +51,29 @@ local function readMemory()
     return math.floor(kb / 1024 + 0.5)
 end
 
+local function filesystemStats(path)
+    if not ffiOK then return nil end
+    local ok, result = pcall(function()
+        local stats = ffi.new("struct statvfs[1]")
+        if ffi.C.statvfs(path, stats) ~= 0 then return nil end
+        local item = stats[0]
+        local unit = tonumber(item.f_frsize)
+        if not unit or unit == 0 then unit = tonumber(item.f_bsize) end
+        if not unit or unit == 0 then return nil end
+        local total = tonumber(item.f_blocks) * unit
+        local free = tonumber(item.f_bavail) * unit
+        local used = (tonumber(item.f_blocks) - tonumber(item.f_bfree)) * unit
+        return {
+            total_bytes = total,
+            used_bytes = used,
+            free_bytes = free,
+            read_only = bit and bit.band(tonumber(item.f_flag), 1) ~= 0 or false,
+        }
+    end)
+    if ok then return result end
+    return nil
+end
+
 local function readStorage()
     local mounts = readFile("/proc/mounts")
     local found = {
@@ -47,6 +91,7 @@ local function readStorage()
                     item.status = "MOUNTED"
                     item.source = source
                     item.filesystem = filesystem or "Unknown"
+                    item.stats = filesystemStats(mountpoint)
                 end
             end
         end
@@ -95,6 +140,7 @@ function M.read()
         memory_mb = readMemory(),
         firmware = firmware or "Unknown",
         storage = readStorage(),
+        storage_stats_available = ffiOK,
     }
 end
 
