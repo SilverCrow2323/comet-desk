@@ -28,10 +28,11 @@ The app and documentation share one visual identity: industrial megastructure ar
 
 | Module | Purpose | Current state |
 |---|---|---|
-| Overview | Device/app landing screen | UI prototype |
+| Overview | Device/app landing screen | Implemented |
 | Desktop Setup | Build and launch the Void Desk XFCE ARM64 filesystem on selected TF1 / TF2 storage | Integrated setup/session manager; hardware validation pending |
 | Session Manager | View and launch installed sessions | Planned |
 | System Tools | Storage and service utilities | Planned |
+| Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
 
 ## Safety principles
