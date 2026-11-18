@@ -7,8 +7,10 @@
 - [x] Add optimized PNG wordmark, icon atlas and 640×480-target background artwork.
 - [x] Add documentation cover, visual system graphic and screenshot evidence rules.
 - [x] Add controller and keyboard navigation.
-- [x] Define safety and architecture boundaries.
-- [x] Add animated Comet boot splash, ambient motion and page-focus transitions.\n- [x] Add M-key quick overlay and START + SELECT exit chord.\n- [ ] Validate the prototype on the RG35XX H.
+- [x] Add L1/R1 section cycling in the main navigation.
+- [x] Add animated Comet boot splash, ambient motion and page-focus transitions.
+- [x] Add M-key quick overlay and START + SELECT exit chord.
+- [ ] Validate the updated controls and animations on the RG35XX H.
 
 ## Phase 1 — Device intelligence
 - [x] Add a read-only device probe (Lua on-device; Python reference probe for host tests).
@@ -18,13 +20,16 @@
 - [x] Report filesystem read-only state when available.
 - [x] Add an opt-in, privacy-scoped diagnostics report export with Lua formatting tests.
 
-## Phase 2 — Desktop setup
-- [ ] Select and validate a target storage location.
-- [ ] Calculate required and available space.
-- [ ] Stage payloads without changing the active system.
-- [ ] Verify checksums and required files.
+## Phase 2 — Void Desk OS image setup
+- [x] Select TF1 / TF2 from live detected mount candidates and reject missing/read-only targets.
+- [x] Read live free space before image staging.
+- [x] Look up only the dedicated `voiddesk-os-v*` release asset (never a Void Desk MUX app).
+- [x] Stage the compressed Debian Trixie ARM64 + labwc full-disk image under `MUOS/CometDesk/OS-Staging/VoidDeskOS/`.
+- [x] Verify published SHA-256 and exact size before atomic publication.
+- [ ] Publish the actual Void Desk OS H700 disk image.
+- [ ] Integrate install/boot hand-off with the verified H700 MultiBoot contract.
 - [ ] Add rollback and interrupted-install recovery.
-- [ ] Add managed desktop-image provisioning and session launch only after device-side tests.
+- [ ] Validate cold boot, device input, panel, audio, Wi-Fi, Bluetooth and return to muOS.
 
 ## Phase 3 — Session manager
 - [ ] Discover installed desktop sessions.
