@@ -14,6 +14,7 @@ local pages = {
 
 local selected, activePage = 1, 1
 local carouselPosition = 1
+local carouselTarget = 1
 local pageChangedDirection = 1
 local notice, noticeTimer = "SYSTEM READY // COMET DESK", 0
 local fonts = {}
@@ -135,7 +136,7 @@ local function drawNavigation()
     for offset = -2, 2 do
         local raw = carouselPosition + offset
         local index = ((math.floor(raw + 0.5) - 1) % #pages) + 1
-        local fraction = raw - math.floor(raw)
+        local fraction = carouselPosition - carouselTarget
         local x = W * 0.5 + offset * 108 - fraction * 108
         if x > -65 and x < W + 65 then
             local page = pages[index]
@@ -540,9 +541,7 @@ end
 
 function love.update(dt)
     ambientTime = ambientTime + dt
-    local delta = selected - carouselPosition
-    if delta > #pages / 2 then delta = delta - #pages end
-    if delta < -#pages / 2 then delta = delta + #pages end
+    local delta = carouselTarget - carouselPosition
     carouselPosition = carouselPosition + delta * math.min(1, dt * 9.5)
     if not boot.done then
         boot.elapsed = math.min(boot.duration, boot.elapsed + dt)
@@ -600,6 +599,11 @@ function love.draw()
     local accent = pageAccent(activePage)
     love.graphics.setColor(accent[1], accent[2], accent[3], 0.82)
     love.graphics.rectangle("fill", 20, 202, 3, 212, 1, 1)
+    if activePage ~= 4 then
+        love.graphics.translate(0, 180)
+        love.graphics.scale(1, 0.85)
+        love.graphics.translate(0, -158)
+    end
     if activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
     elseif activePage == 4 then drawUplink()
@@ -641,6 +645,7 @@ end
 
 local function cyclePage(direction)
     selected = ((selected - 1 + direction) % #pages) + 1
+    carouselTarget = carouselTarget + direction
     activePage = selected
     pageChangedDirection = direction
     pageChangedAt = ambientTime
