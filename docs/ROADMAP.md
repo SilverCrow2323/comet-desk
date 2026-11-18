@@ -8,9 +8,9 @@
 - [ ] Validate the prototype on the RG35XX H.
 
 ## Phase 1 — Device intelligence
-- [ ] Add a read-only device probe.
-- [ ] Detect architecture, model hints, display and storage mounts.
-- [ ] Show confidence and unknown values honestly.
+- [x] Add a read-only device probe (Lua on-device; Python reference probe for host tests).
+- [x] Detect architecture, model hints, firmware metadata and TF1/TF2 mount candidates.
+- [x] Show unknown values honestly; refine confidence scoring after physical-device evidence.
 - [ ] Add a diagnostics report export.
 
 ## Phase 2 — Desktop setup
@@ -27,9 +27,9 @@
 - [ ] Start/stop sessions with clear status and logs.
 
 ## Phase 4 — Release engineering
-- [ ] Implement a minimal, reproducible .muxapp builder.
-- [ ] Validate archive layout, executable permissions and runtime dependencies.
-- [ ] Add CI checks and release artifacts.
+- [x] Implement a minimal, reproducible .muxapp builder.
+- [x] Validate archive layout, executable permissions and AArch64 runtime dependencies.
+- [x] Add CI checks and per-run installable package artifacts.
 - [ ] Test on real hardware before publishing a stable release.
 
 ## Release rule
