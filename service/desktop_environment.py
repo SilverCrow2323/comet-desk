@@ -35,7 +35,7 @@ UBUNTU_BASE_URL = (
     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
     "ubuntu-base-24.04.3-base-arm64.tar.gz"
 )
-UBUNTU_BASE_SIZE = 29_870_000
+UBUNTU_BASE_SIZE = 29_865_086
 UBUNTU_BASE_SHA256 = "7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
 UBUNTU_SOURCES = """deb http://ports.ubuntu.com/ubuntu-ports noble main universe
 deb http://ports.ubuntu.com/ubuntu-ports noble-updates main universe
@@ -167,7 +167,7 @@ def git_blob_sha1(data: bytes) -> str:
 def download_verified(url: str, destination: Path, *, expected_size: int | None,
                       expected_sha256: str | None = None,
                       expected_git_blob_sha1: str | None = None,
-                      status: tuple[Path, str, int, str] | None = None,
+                      status: tuple[Path, str, int, int, str] | None = None,
                       max_bytes: int = 128 * 1024 * 1024,
                       opener=urllib.request.urlopen) -> Path:
     part = destination.with_name(destination.name + ".part")
@@ -207,8 +207,9 @@ def download_verified(url: str, destination: Path, *, expected_size: int | None,
                 if git_payload is not None:
                     git_payload.extend(block)
                 if status and time.monotonic() - last >= 0.25:
-                    app_dir, state, base_percent, label = status
-                    write_status(app_dir, state, base_percent, label)
+                    app_dir, state, start_percent, end_percent, label = status
+                    percent = start_percent + int((end_percent - start_percent) * received / expected_size) if expected_size else start_percent
+                    write_status(app_dir, state, percent, label)
                     last = time.monotonic()
             output.flush()
             os.fsync(output.fileno())
@@ -286,8 +287,10 @@ class ImageMount:
                 raise SetupError("loop mount command returned but mount state is absent")
             self.created_mounts.append(self.mountpoint)
         except Exception:
-            subprocess.run(["losetup", "-d", self.loop], capture_output=True)
-            self.loop = None
+            # setup()/launch() own final cleanup; keep the loop reference so
+            # a failed mount cannot silently leak a loop device.
+            if mount_state(self.mountpoint)[0] and self.mountpoint not in self.created_mounts:
+                self.created_mounts.append(self.mountpoint)
             raise
 
     def bind(self, source: Path, target: Path, *, filesystem: str | None = None) -> None:
@@ -344,30 +347,37 @@ class ImageMount:
     def cleanup(self) -> bool:
         ok = True
         for target in reversed(self.created_mounts):
-            mounted, _rw = mount_state(target)
-            if not mounted:
-                continue
-            result = subprocess.run(["umount", str(target)],
-                                    stdout=self.log, stderr=subprocess.STDOUT,
-                                    check=False, timeout=20)
-            if result.returncode != 0 or mount_state(target)[0]:
-                subprocess.run(["umount", "-l", str(target)],
-                               stdout=self.log, stderr=subprocess.STDOUT,
-                               check=False)
+            try:
+                mounted, _rw = mount_state(target)
+                if not mounted:
+                    continue
+                result = subprocess.run(["umount", str(target)],
+                                        stdout=self.log, stderr=subprocess.STDOUT,
+                                        check=False, timeout=20)
+                if result.returncode != 0 or mount_state(target)[0]:
+                    subprocess.run(["umount", "-l", str(target)],
+                                   stdout=self.log, stderr=subprocess.STDOUT,
+                                   check=False, timeout=20)
                 if mount_state(target)[0]:
                     ok = False
+            except (OSError, subprocess.SubprocessError, SetupError):
+                ok = False
         self.created_mounts.clear()
         if self.loop:
-            if any(source == self.loop for source, _mp, _opt in mount_table()):
-                ok = False
-            else:
-                result = subprocess.run(["losetup", "-d", self.loop],
-                                        stdout=self.log, stderr=subprocess.STDOUT,
-                                        check=False)
-                if result.returncode != 0:
+            try:
+                if any(source == self.loop for source, _mp, _opt in mount_table()):
                     ok = False
-            if subprocess.run(["losetup", "-a"], capture_output=True,
-                              text=True).stdout.find("({})".format(self.image)) >= 0:
+                else:
+                    result = subprocess.run(["losetup", "-d", self.loop],
+                                            stdout=self.log, stderr=subprocess.STDOUT,
+                                            check=False, timeout=20)
+                    if result.returncode != 0:
+                        ok = False
+                loop_state = subprocess.run(["losetup", "-a"], capture_output=True,
+                                            text=True, check=False, timeout=20)
+                if loop_state.returncode != 0 or str(self.image) in loop_state.stdout:
+                    ok = False
+            except (OSError, subprocess.SubprocessError, SetupError):
                 ok = False
             if ok:
                 self.loop = None
@@ -440,6 +450,8 @@ def _bind_build_environment(manager: ImageMount) -> None:
 def setup(slot: str, app_dir: Path) -> Path:
     if os.geteuid() != 0:
         raise SetupError("Comet Desk needs muOS app-runner root privileges for loop mounts and chroot")
+    if os.uname().machine not in ("aarch64", "arm64"):
+        raise SetupError("the XFCE desktop profile requires an ARM64 H700 host")
     if slot not in SLOTS:
         raise SetupError("unknown storage slot")
     mounted, writable = mounted_slot(slot)
@@ -463,6 +475,9 @@ def setup(slot: str, app_dir: Path) -> Path:
     mountpoint = app_dir / "data" / "desktop-mnt"
     log_path = app_dir / "data" / "desktop-environment.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    for protected in (image, seed, rootfs, marker, mountpoint):
+        if protected.is_symlink():
+            raise SetupError("refusing symbolic-link desktop path: " + str(protected))
     if image.is_file() and marker.is_file():
         try:
             saved = json.loads(marker.read_text(encoding="utf-8"))
@@ -476,13 +491,14 @@ def setup(slot: str, app_dir: Path) -> Path:
     if not seed.exists() or seed.stat().st_size != IMAGE_SEED_SIZE:
         download_verified(IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
                           expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
-                          status=(app_dir, "DOWNLOADING_TEMPLATE", 3, "Downloading XFCE image seed"))
+                          status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading XFCE image seed"))
     else:
         data = seed.read_bytes()
         if git_blob_sha1(data) != IMAGE_SEED_GIT_BLOB_SHA1:
             seed.unlink()
             download_verified(IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
-                              expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1)
+                              expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
+                              status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading XFCE image seed"))
     if not image.exists():
         _extract_gzip_image(seed, image, app_dir)
     else:
@@ -498,9 +514,10 @@ def setup(slot: str, app_dir: Path) -> Path:
         if not (mountpoint / "etc/os-release").exists():
             write_status(app_dir, "DOWNLOADING_ROOTFS", 46, "Downloading official Ubuntu Base ARM64 root filesystem")
             if not rootfs.exists() or file_sha256(rootfs) != UBUNTU_BASE_SHA256:
-                download_verified(UBUNTU_BASE_URL, rootfs, expected_size=None,
+                download_verified(UBUNTU_BASE_URL, rootfs, expected_size=UBUNTU_BASE_SIZE,
                                   expected_sha256=UBUNTU_BASE_SHA256,
-                                  status=(app_dir, "DOWNLOADING_ROOTFS", 48, "Downloading Ubuntu Base ARM64"))
+                                  status=(app_dir, "DOWNLOADING_ROOTFS", 46, 55, "Downloading verified Ubuntu Base ARM64"),
+                                  max_bytes=40 * 1024 * 1024)
             write_status(app_dir, "EXTRACTING_ROOTFS", 55, "Extracting the verified ARM64 root filesystem")
             _run(["tar", "-xpf", str(rootfs), "-C", str(mountpoint)],
                  log=manager.log, timeout=900)
