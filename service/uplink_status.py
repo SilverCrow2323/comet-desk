@@ -56,10 +56,10 @@ def network_snapshot(app_dir: Path):
     if wifi_if:
         _, link, _ = run(["iw", "dev", wifi_if, "link"])
         connected = "Connected to" in link
-        match = re.search(r"SSID:\\s*(.+)", link)
+        match = re.search(r"SSID:\s*(.+)", link)
         ssid = match.group(1).strip() if match else ""
         _, addr, _ = run(["ip", "-o", "-4", "addr", "show", "dev", wifi_if])
-        m = re.search(r"inet\\s+([0-9.]+)", addr)
+        m = re.search(r"inet\s+([0-9.]+)", addr)
         ip = m.group(1) if m else ""
     hotspot_if = ""
     for name in interfaces:
@@ -70,12 +70,12 @@ def network_snapshot(app_dir: Path):
     hotspot = bool(hotspot_if and process_running("hostapd"))
     bt_powered = False
     _, bt_info, _ = run(["bluetoothctl", "show"])
-    bt_powered = bool(re.search(r"Powered:\\s*yes", bt_info, re.I))
+    bt_powered = bool(re.search(r"Powered:\s*yes", bt_info, re.I))
     _, paired, _ = run(["bluetoothctl", "devices", "Paired"])
     bt_devices = len([x for x in paired.splitlines() if x.startswith("Device ")])
     _, sockets, _ = run(["ss", "-ltn"])
     _, processes, _ = run(["ps", "-eo", "comm,args"])
-    ports = set(re.findall(r":(\\d+)\\s", sockets))
+    ports = set(re.findall(r":(\d+)\s", sockets))
     services = {
         "dns": process_running("dnsmasq|unbound|dnscrypt"),
         "dashboard": "80" in ports or "8080" in ports or "muxwebserv" in processes,
@@ -125,7 +125,7 @@ def write_status(path: Path, data):
     ]
     path.parent.mkdir(parents=True, exist_ok=True)
     temp = path.with_suffix(".tmp")
-    temp.write_text("|".join(fields) + "\\n", encoding="utf-8")
+    temp.write_text("|".join(fields) + "\n", encoding="utf-8")
     os.replace(temp, path)
 
 
@@ -137,7 +137,7 @@ def install_rt():
     destination = target / "RtTailscale"
     if destination.exists():
         raise RuntimeError("Rt:Tailscale-M already exists; refresh status instead of overwriting it")
-    with tempfile.TemporaryDirectory(prefix="comet-rt-") as temporary:
+    with tempfile.TemporaryDirectory(prefix=".comet-rt-", dir=target) as temporary:
         temp = Path(temporary)
         archive = temp / "rttailscale.muxapp"
         request = urllib.request.Request(RT_URL, headers={"User-Agent": "CometDesk-Uplink"})
@@ -190,7 +190,7 @@ def main():
         write_status(output, data)
     except Exception as exc:
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text("ERROR|" + str(exc).replace("|", "/") + "\\n", encoding="utf-8")
+        output.write_text("ERROR|" + str(exc).replace("|", "/") + "\n", encoding="utf-8")
         raise
 
 
