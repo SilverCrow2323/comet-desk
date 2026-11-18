@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
 <rect width="1200" height="700" fill="#090C13"/>
-<text x="56" y="70" fill="#E8F2FA" font-family="DejaVu Sans,Arial,sans-serif" font-size="34" font-weight="700">COMET DESK / VISUAL SYSTEM</text>
-<text x="58" y="112" fill="#38E0F0" font-family="DejaVu Sans Mono,monospace" font-size="18">MEGASTRUCTURE // INDUSTRIAL CYBERPUNK</text>
+<text x="56" y="70" fill="#E8F2FA" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="34" font-weight="700">COMET DESK / VISUAL SYSTEM</text>
+<text x="58" y="112" fill="#38E0F0" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">MEGASTRUCTURE // INDUSTRIAL CYBERPUNK</text>
 <path d="M56 145H1144" stroke="#293F57" stroke-width="2"/>
-<g font-family="DejaVu Sans Mono,monospace" font-size="16" fill="#7A97B0">
+<g font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="16" fill="#7A97B0">
 <g><rect x="58" y="185" width="230" height="76" rx="10" fill="#090C13" stroke="#293F57"/><text x="58" y="286">GRAPHITE #090C13</text></g>
 <g><rect x="338" y="185" width="230" height="76" rx="10" fill="#111620" stroke="#293F57"/><text x="338" y="286">PANEL #111620</text></g>
 <g><rect x="618" y="185" width="230" height="76" rx="10" fill="#38E0F0"/><text x="618" y="286">CYAN #38E0F0</text></g>
@@ -13,7 +13,7 @@
 <g><rect x="618" y="335" width="230" height="76" rx="10" fill="#59E6AE"/><text x="618" y="436">STATUS GREEN</text></g>
 <g><rect x="898" y="335" width="230" height="76" rx="10" fill="#E8F2FA"/><text x="898" y="436">ICE WHITE</text></g>
 </g>
-<text x="58" y="520" fill="#E8F2FA" font-family="DejaVu Sans,Arial,sans-serif" font-size="28" font-weight="700">TYPOGRAPHY</text>
-<text x="58" y="570" fill="#38E0F0" font-family="DejaVu Sans,Arial,sans-serif" font-size="25">Bitstream Vera Sans / LÖVE default</text>
-<text x="58" y="616" fill="#7A97B0" font-family="DejaVu Sans Mono,monospace" font-size="18">640 x 480 FIRST / HIGH CONTRAST / CONTROLLER-FIRST</text>
+<text x="58" y="520" fill="#E8F2FA" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="28" font-weight="700">TYPOGRAPHY</text>
+<text x="58" y="570" fill="#38E0F0" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="25">Bitstream Vera Sans / LÖVE default</text>
+<text x="58" y="616" fill="#7A97B0" font-family="Bitstream Vera Sans,Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">640 x 480 FIRST / HIGH CONTRAST / CONTROLLER-FIRST</text>
 </svg>
