@@ -171,7 +171,7 @@ def install_rt():
         if not all((root / p).is_file() for p in ("mux_launch.sh", "rt", "ts", "bin/tailscale", "bin/tailscaled")):
             raise RuntimeError("Rt:Tailscale-M archive has an unexpected layout")
         os.replace(root, destination)
-    for name in ("rt", "ts", "watchdog", "mux_launch.sh"):
+    for name in ("rt", "ts", "watchdog", "mux_launch.sh", "bin/tailscale", "bin/tailscaled"):
         path = destination / name
         if path.exists():
             path.chmod(path.stat().st_mode | 0o111)
