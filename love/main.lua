@@ -53,7 +53,7 @@ local function drawBackground()
     love.graphics.clear(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     if visuals.background then
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(visuals.background, 0, 0)
+        love.graphics.draw(visuals.background, 0, 0, 0, 2, 2)
     end
     love.graphics.setColor(0.07, 0.12, 0.18, 0.32)
     for x = 0, W, 32 do love.graphics.line(x, 0, x, H) end
