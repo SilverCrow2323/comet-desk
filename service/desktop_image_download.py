@@ -44,7 +44,7 @@ class ImageReleaseUnavailable(RuntimeError):
 
 
 def _clean(value: str) -> str:
-    return str(value).replace("|", "/").replace("\\r", " ").replace("\\n", " ")[:220]
+    return str(value).replace("|", "/").replace(chr(13), " ").replace(chr(10), " ")[:220]
 
 
 def write_status(path: Path, state: str, percent: int, message: str,
