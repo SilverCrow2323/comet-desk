@@ -152,12 +152,15 @@ def download(slot: str, app_dir: Path, mounts_file: str = "/proc/mounts",
         raise RuntimeError("not enough free space in ARCHIVE")
 
     target = archive_dir / ASSET_NAME
-    if target.is_symlink():
-        raise RuntimeError("existing target is a symbolic link")
+    sidecar = target.with_name(target.name + ".sha256")
+    if target.is_symlink() or sidecar.is_symlink():
+        raise RuntimeError("existing package or checksum is a symbolic link")
     if target.exists():
         if not target.is_file():
             raise RuntimeError("existing target is not a regular file")
         if target.stat().st_size == ASSET_SIZE and sha256_file(target) == ASSET_SHA256:
+            sidecar.write_text("{}  {}\\n".format(ASSET_SHA256, ASSET_NAME),
+                               encoding="ascii")
             write_status(status_path, "DONE", 100, "Already downloaded and verified",
                          str(target))
             return target
