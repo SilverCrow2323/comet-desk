@@ -301,9 +301,10 @@ end
 local function queueUplinkAction(action)
     if appRoot == "" then setNotice("COMET APP PATH UNAVAILABLE"); return end
     local script = appRoot .. "/service/uplink_status.py"
-    local command = "cd " .. shellQuote(appRoot) .. " && python3 " .. shellQuote(script)
-        .. " " .. shellQuote(appRoot) .. " " .. action
-        .. " >> " .. shellQuote(appRoot .. "/data/uplink.log") .. " 2>&1 &"
+    local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
+    local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
+        .. " " .. quote(appRoot) .. " " .. action
+        .. " >> " .. quote(appRoot .. "/data/uplink.log") .. " 2>&1 &"
     local result = os.execute(command)
     if result == 0 or result == true then
         setNotice(action == "install" and "INSTALLING RT:TAILSCALE-M // VERIFIED RELEASE" or "REFRESHING UPLINK TELEMETRY")
