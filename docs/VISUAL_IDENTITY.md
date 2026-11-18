@@ -2,7 +2,7 @@
 
 Comet Desk uses the QWASAR **Megastructure / Industrial Cyberpunk** design language. The application and documentation share one visual system: the same palette, font families, icon language, spacing logic and graphic motifs.
 
-![Comet Desk visual system](assets/visual-system.png)
+![Comet Desk visual system](assets/visual-system.svg)
 
 ## Core palette
 
