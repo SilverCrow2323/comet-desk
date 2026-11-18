@@ -10,7 +10,7 @@ A small, quick-launching MUX application that coordinates desktop-related tasks 
 2. **LÖVE shell** — Lua UI, controller navigation, screen scaling and page state.
 3. **Capability layer** — small, explicit adapters for device facts and supported operations.
 4. **Task layer** — staged setup/session/diagnostic workflows.
-5. **Target storage** — user-selected destination for Void Desk OS disk-image staging; never assumed.\n6. **Boot hand-off** — explicit H700 MultiBoot adapter; Comet must not invent a boot path or flash raw devices.
+5. **Target storage** — user-selected TF1/TF2 destination for the XFCE filesystem image.\n6. **Guest runtime** — Comet-owned loop mount, chroot, Xorg/XFCE launch and verified teardown.
 
 ## muOS package and runtime
 
