@@ -1,11 +1,11 @@
-name: Lua checks
+name: Project checks
 
 on:
   push:
   pull_request:
 
 jobs:
-  syntax:
+  lua:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +17,17 @@ jobs:
         run: |
           luac5.1 -p love/main.lua
           luac5.1 -p love/conf.lua
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test runner
+        run: python -m pip install pytest
+      - name: Validate device probe
+        run: |
+          python -m py_compile service/device_probe.py
+          pytest -q
