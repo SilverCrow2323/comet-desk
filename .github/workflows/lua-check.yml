@@ -18,6 +18,7 @@ jobs:
         run: |
           luac5.1 -p love/main.lua
           luac5.1 -p love/conf.lua
+          sh -n mux_launch.sh
 
   python:
     runs-on: ubuntu-latest
