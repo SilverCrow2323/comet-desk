@@ -16,7 +16,7 @@ local activePage = 1
 local notice = "SYSTEM READY // PROTOTYPE MODE"
 local noticeTimer = 0
 local fonts = {}
-local visuals = { background = nil, icons = {} }
+local visuals = { background = nil, atlas = nil, quads = {} }
 local probe = nil
 local diagnosticReport = nil
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
@@ -65,9 +65,9 @@ local function drawBackground()
 end
 
 local function drawHeader()
-    if visuals.icons.app then
+    if visuals.atlas and visuals.quads.app then
         love.graphics.setColor(1, 1, 1, 1)
-        love.graphics.draw(visuals.icons.app, 22, 34, 0, 0.40, 0.40)
+        love.graphics.draw(visuals.atlas, visuals.quads.app, 22, 34, 0, 0.65, 0.65)
     end
     text("QWASAR  /  FIELD SYSTEMS", 68, 17, fonts.small, colors.muted)
     text("COMET", 68, 36, fonts.title, colors.white)
@@ -90,10 +90,10 @@ local function drawNavigation()
             love.graphics.setColor(colors.cyan)
             love.graphics.rectangle("fill", 28, y + 5, 3, 18, 2, 2)
         end
-        local pageIcon = visuals.icons[page.id]
-        if pageIcon then
+        local pageIcon = visuals.quads[page.id]
+        if visuals.atlas and pageIcon then
             love.graphics.setColor(1, 1, 1, active and 1 or 0.66)
-            love.graphics.draw(pageIcon, 38, y + 2, 0, 0.30, 0.30)
+            love.graphics.draw(visuals.atlas, pageIcon, 38, y + 2, 0, 0.38, 0.38)
         else
             text(string.format("%02d", i), 40, y + 4, fonts.small, active and colors.cyan or colors.muted)
         end
@@ -197,6 +197,7 @@ end
 function love.load()
     love.graphics.setDefaultFilter("linear", "linear")
     local function loadFont(path, size, fallback)
+        if path == "builtin" then return love.graphics.newFont(size) end
         local ok, font = pcall(love.graphics.newFont, path, size)
         if ok then return font end
         return love.graphics.newFont(fallback or size)
@@ -212,9 +213,12 @@ function love.load()
         return nil
     end
     visuals.background = loadImage("assets/backgrounds/comet-dashboard-640x480.png")
-    visuals.icons.app = loadImage("assets/icons/comet-desk-app.png")
-    for _, name in ipairs({ "overview", "setup", "sessions", "tools", "diagnostics" }) do
-        visuals.icons[name] = loadImage("assets/icons/" .. name .. ".png")
+    visuals.atlas = loadImage("assets/icons/comet-desk-atlas.png")
+    if visuals.atlas then
+        local names = { "app", "overview", "setup", "sessions", "tools", "diagnostics" }
+        for index, name in ipairs(names) do
+            visuals.quads[name] = love.graphics.newQuad((index - 1) * 48, 0, 48, 48, 288, 48)
+        end
     end
     love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     local ok, module = pcall(require, "device_probe")
