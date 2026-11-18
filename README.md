@@ -5,7 +5,7 @@
 
 **A fast, focused desktop companion for muOS — part of the QWASAR ecosystem.**
 
-Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It stages the separate Void Desk OS Debian ARM64 disk image for H700 devices, alongside device diagnostics and session-management work, without replacing muOS.
+Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It prepares and runs an isolated Ubuntu Base 24.04.3 ARM64 + XFCE desktop environment on the H700, using the existing muOS kernel and returning to Comet Desk when the session ends.
 
 > **Project status:** Early test candidate. The first self-contained RG35XX H muOS `.muxapp` has been built by CI and its archive, AArch64 runtime payloads and SHA-256 checksum have been verified. Physical-device validation is the next gate.
 
@@ -29,7 +29,7 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Module | Purpose | Current state |
 |---|---|---|
 | Overview | Device/app landing screen | UI prototype |
-| Desktop Setup | Download the Void Desk OS Debian Trixie ARM64 + labwc disk image to selected TF1 / TF2 storage | Implemented release lookup/staging client; OS image release and MultiBoot hand-off are pending |
+| Desktop Setup | Build and launch the Void Desk XFCE ARM64 filesystem on selected TF1 / TF2 storage | Integrated setup/session manager; hardware validation pending |
 | Session Manager | View and launch installed sessions | Planned |
 | System Tools | Storage and service utilities | Planned |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
@@ -64,7 +64,7 @@ QWASAR
 └── Comet Desk    — muOS MUX companion and OS image staging client
 ```
 
-Void Desk OS is a separate full-system image, not a MUX application. Comet Desk looks only for the dedicated OS disk-image release asset; it never downloads the Void Desk application package as a desktop image.
+Comet Desk owns the full XFCE workflow: it downloads the pinned Void Desk XFCE image seed and Ubuntu Base ARM64 root filesystem, verifies both, prepares the ext4 desktop image, installs XFCE packages, mounts and launches the session, then relaunches its own UI on return. It does not launch Void Desk, Archive Manager or another MUX installer, and it does not replace muOS or alter its boot chain.
 
 ## Reference hardware
 
@@ -78,7 +78,7 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Safety model](docs/SAFETY.md)\n- [Void Desk OS image contract](docs/OS_IMAGE_CONTRACT.md)
+- [Safety model](docs/SAFETY.md)\n- [Integrated XFCE environment](docs/DESKTOP_ENVIRONMENT.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)
