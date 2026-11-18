@@ -6,13 +6,14 @@
 . /opt/muos/script/var/func.sh
 
 APP_DIR="/run/muos/storage/application/CometDesk"
-APP_BIN="$APP_DIR/lib/love"
+export PATH="$APP_DIR/lib:$PATH"
+export LD_LIBRARY_PATH="$APP_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+APP_BIN="love"
 SETUP_APP "$APP_BIN" ""
 LOG_DIR="$APP_DIR/data"
 LOG_FILE="$LOG_DIR/comet-desk.log"
 
 mkdir -p "$LOG_DIR"
-export LD_LIBRARY_PATH="$APP_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export COMET_DESK_APP_DIR="$APP_DIR"
 export COMET_DESK_PLATFORM="muos"
 
