@@ -119,7 +119,6 @@ def storage_inventory() -> list[dict[str, Any]]:
             "slot_hint": slot_hint,
             "mount_point": mount_point,
             "source": source,
-            "filesystem": mount["filesystem"],
             "read_only": "ro" in mount["options"].split(","),
             "filesystem": mount["filesystem"],
             "filesystem_capacity_bytes": stats["total_bytes"],
@@ -174,6 +173,7 @@ def firmware_info() -> dict[str, Any]:
         if value:
             metadata[candidate] = value[:2048]
     combined = "\n".join(metadata.values()).lower()
+    is_muos = "muos" in combined or "mustardos" in combined
     if "andromeda" in combined or "2606.0" in combined:
         release = "Andromeda 2606.0"
         confidence = "release-marker"
@@ -181,7 +181,7 @@ def firmware_info() -> dict[str, Any]:
         release = None
         confidence = "unknown"
     return {
-        "family": "muOS" if metadata else None,
+        "family": "muOS" if is_muos else None,
         "release": release,
         "confidence": confidence,
         "metadata_sources": list(metadata.keys()),
