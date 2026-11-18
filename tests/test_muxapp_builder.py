@@ -15,7 +15,7 @@ def _archive(path: Path, entries: dict[str, bytes], executable=()):
 
 
 def _png(width, height):
-    return b"\\x89PNG\\r\\n\\x1a\\n" + b"\\x00\\x00\\x00\\x0dIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big") + b"\\x08\\x06\\x00\\x00\\x00"
+    return b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big") + b"\x08\x06\x00\x00\x00"
 
 
 def _elf():
