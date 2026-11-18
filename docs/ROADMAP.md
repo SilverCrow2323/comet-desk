@@ -32,7 +32,7 @@
 - [ ] Validate the integrated setup and session lifecycle on the RG35XX H.
 - [ ] Add recovery UI for interrupted setup and unclean shutdown.
 
-## Phase 3 — Session manager
+- [x] Add curved L1/R1 navigation with animated per-tab accent colours and directional page transitions.\n- [x] Add Uplink status for Wi-Fi, hotspot, Bluetooth and muOS Andromeda Web Services.\n- [x] Add checksum-pinned Rt:Tailscale-M install and RT-owned service discovery/actions.\n- [ ] Validate wireless telemetry and RT installation on the RG35XX H.\n\n## Phase 3 — Session manager
 - [ ] Discover installed desktop sessions.
 - [ ] Validate launch commands before displaying them.
 - [ ] Start/stop sessions with clear status and logs.
