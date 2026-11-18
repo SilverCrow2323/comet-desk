@@ -1,34 +1,45 @@
 # Safety Model
 
-Comet Desk is a helper application, not an OS installer.
+Comet Desk is a muOS companion with an integrated, reversible XFCE desktop environment. It is **not** a replacement firmware installer or bootloader manager.
 
 ## Non-negotiable rules
 
-- Never modify muOS boot files or boot configuration as part of normal desktop setup.
-- Never infer the install destination from a hard-coded mount path.
-- Never format, repartition or recursively delete a target.
-- Never run shell commands assembled from unchecked UI strings.
-- Never run privileged operations without a narrowly scoped helper and explicit user confirmation.
-- Never display a completed/progress state unless the underlying operation reports it.
-- Never silently continue after a failed preflight, checksum or write.
+- Never modify muOS boot files, boot configuration, recovery or firmware.
+- Never format, repartition or write an image to a raw block device.
+- Never infer the target storage card; the user selects TF1 or TF2.
+- Reject missing/read-only mounts, symlink escapes, unexpected existing files and insufficient space.
+- Never interpolate unchecked UI text into shell commands.
+- Verify every downloaded seed/rootfs payload before extracting or mounting it.
+- Mount only the expected ext4 image through a loop device owned by the current Comet process.
+- Track every bind mount and loop device created by Comet; verify cleanup before reporting success.
+- Never display progress or a completed state unless the helper reports it.
+- Keep the desktop root filesystem isolated from the muOS root filesystem.
 
-## Required install sequence
+## Integrated desktop sequence
 
-1. Identify the device and supported profile.
-2. Enumerate mounted storage and ask the user to choose a target.
-3. Resolve the target and reject unsafe paths (including symlink escapes).
-4. Check free space, filesystem support and write access.
-5. Present a plan: payload, destination, size, changed files and recovery path.
-6. Stage into a temporary directory on the same filesystem.
-7. Verify every downloaded/copied payload against a trusted checksum.
-8. Atomically activate the staged installation where the filesystem allows.
-9. Verify the result and write a recovery manifest.
-10. Offer rollback using only the manifest-owned files.
+1. Verify the RG35XX H / H700 ARM64 profile and the selected TF1/TF2 mount.
+2. Check at least 5 GiB of free space and reject symlinked destinations.
+3. Download the pinned Void Desk XFCE ext4 seed and verify its Git blob checksum.
+4. Download Ubuntu Base 24.04.3 ARM64 and verify the exact size and SHA-256.
+5. Expand the compressed seed to an ext4 image on the selected card.
+6. Mount the image with a dedicated loop device, extract Ubuntu Base into it and validate the OS release.
+7. Install Xorg, XFCE and handheld input/audio packages inside the guest root filesystem.
+8. Verify the desktop entry points and persist a small profile manifest.
+9. Unmount all guest bind mounts, detach the loop device and verify both are gone.
+10. On launch, mount the image again, bind only required host devices/services/storage, and start Xorg/XFCE.
+11. When XFCE exits, unmount and detach, then resume Comet Desk automatically.
 
-## Current implementation status
+## Distribution accuracy
 
-Desktop Setup now looks only for the dedicated Void Desk OS release asset `VoidDeskOS-RG35XX-H-Debian-Trixie-labwc.img.xz` in the `voiddesk-os-v*` release family. The helper rejects missing/read-only mounts, symbolic-link paths, insufficient free space, conflicting existing files, invalid release metadata and incomplete or checksum-invalid payloads. It downloads to a `.part` file and publishes only after exact size and SHA-256 verification.
+The current Void Desk H700 bootstrap source at the pinned commit uses **Ubuntu Base 24.04.3 ARM64 (Noble)** with XFCE packages installed from Ubuntu ports. It is not a Debian Trixie root filesystem. Comet reports the actual base accurately.
 
-The image is staged under `MUOS/CometDesk/OS-Staging/VoidDeskOS/` on the selected SD card. Comet Desk does **not** download the Void Desk MUX application, flash a raw device, repartition, overwrite muOS boot files, or change the active firmware. A successful download means **verified and staged**, not installed or booted. MultiBoot remains a separate, explicit integration boundary.
+## Host/guest boundary
 
-The frontend also provides an animated boot sequence, low-cost ambient motion, an M-key quick overlay and a START + SELECT exit chord. The quick overlay currently belongs to the Comet Desk frontend; a global overlay inside an independent XFCE session is not yet wired to the desktop-session hand-off layer.
+The guest filesystem is an ext4 file stored on TF1 or TF2. It shares the running muOS kernel and selected host devices; it does not contain its own bootloader/kernel and is not a full-device OS image. Comet never flashes the file or asks Archive Manager/Void Desk to continue the workflow.
+
+## Current limitations
+
+- The desktop image is prepared online; initial setup requires Wi-Fi and several GiB free.
+- Package installation time depends on the network and Ubuntu mirrors.
+- Physical RG35XX H validation is still required for framebuffer ownership, input mapping, audio, Wi-Fi/Bluetooth and cleanup after abnormal exits.
+- The M-key quick overlay is currently available in the Comet interface; a global in-desktop overlay still needs its own integrated session hotkey implementation.
