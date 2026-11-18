@@ -29,6 +29,6 @@ Comet Desk is a helper application, not an OS installer.
 
 Desktop Setup now downloads the published Void Desk v10.2.0 MUX package into a selected, detected TF1 or TF2 `ARCHIVE/` folder. The fixed helper rejects missing/read-only mounts, symbolic-link targets, insufficient free space, conflicting existing files and incomplete or checksum-invalid payloads. It writes to a `.part` file and publishes only after exact size and SHA-256 verification.
 
-The downloaded package is **not** automatically extracted or installed. muOS Archive Manager remains the installation boundary, and the user must initiate that step. The downloader does not alter the boot chain, partition table, muOS configuration or existing application folders.
+The downloaded package is **not** automatically extracted or installed. muOS Archive Manager remains the installation boundary, and the user must initiate that step. Afterward, launch Void Desk and use its Desktop XFCE workflow to provision the separate desktop image. The downloader does not alter the boot chain, partition table, muOS configuration or existing application folders.
 
 The frontend also provides an animated boot sequence, low-cost ambient motion, an M-key quick overlay and a START + SELECT exit chord. The quick overlay currently belongs to the Comet Desk frontend; a global overlay inside an independent XFCE session is not yet wired to the desktop-session hand-off layer.
