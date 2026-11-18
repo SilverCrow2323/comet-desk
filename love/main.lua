@@ -34,11 +34,15 @@ local function setNotice(message)
     noticeTimer = 3.5
 end
 
+local function setColor(c)
+    love.graphics.setColor(c[1], c[2], c[3], c[4] or 1)
+end
+
 local function rounded(x, y, w, h, fill, line)
-    love.graphics.setColor(fill)
+    setColor(fill)
     love.graphics.rectangle("fill", x, y, w, h, 8, 8)
     if line then
-        love.graphics.setColor(line)
+        setColor(line)
         love.graphics.setLineWidth(1)
         love.graphics.rectangle("line", x, y, w, h, 8, 8)
     end
@@ -46,18 +50,18 @@ end
 
 local function text(value, x, y, font, color)
     love.graphics.setFont(font)
-    love.graphics.setColor(color)
+    setColor(color)
     love.graphics.print(value, x, y)
 end
 
 local function drawBackground()
-    love.graphics.clear(colors.bg)
+    love.graphics.clear(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     love.graphics.setColor(0.07, 0.12, 0.18, 0.45)
     for x = 0, W, 32 do love.graphics.line(x, 0, x, H) end
     for y = 0, H, 32 do love.graphics.line(0, y, W, y) end
-    love.graphics.setColor(colors.cyan)
+    setColor(colors.cyan)
     love.graphics.rectangle("fill", 0, 0, W, 3)
-    love.graphics.setColor(colors.violet)
+    setColor(colors.violet)
     love.graphics.rectangle("fill", W - 112, 0, 112, 3)
 end
 
@@ -118,7 +122,7 @@ local function drawModule()
 end
 
 local function drawFooter()
-    love.graphics.setColor(colors.line)
+    setColor(colors.line)
     love.graphics.line(20, 425, 620, 425)
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
@@ -133,7 +137,7 @@ function love.load()
     fonts.medium = love.graphics.newFont(15)
     fonts.large = love.graphics.newFont(21)
     fonts.title = love.graphics.newFont(32)
-    love.graphics.setBackgroundColor(colors.bg)
+    love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
 end
 
 function love.update(dt)
