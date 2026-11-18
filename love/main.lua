@@ -777,9 +777,9 @@ function love.keypressed(key)
     end
 
     if key == "up" or key == "w" then
-        selected = ((selected - 2) % #pages) + 1
+        cyclePage(-1)
     elseif key == "down" or key == "s" then
-        selected = (selected % #pages) + 1
+        cyclePage(1)
     elseif key == "left" or key == "a" then
         if activePage == 2 then selectedSlot = "tf1" end
     elseif key == "right" or key == "d" then
@@ -798,6 +798,8 @@ function love.keypressed(key)
     elseif key == "escape" or key == "x" or key == "backspace" then
         activePage = 1
         selected = 1
+        carouselTarget = 1
+        pageChangedDirection = 1
         pageChangedAt = ambientTime
         setNotice("RETURNED TO OVERVIEW")
     end
