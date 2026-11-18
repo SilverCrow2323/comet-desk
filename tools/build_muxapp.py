@@ -152,7 +152,7 @@ def build(output: Path) -> Path:
         raise RuntimeError("; ".join(errors))
     digest = sha256_file(output)
     output.with_suffix(output.suffix + ".sha256").write_text(
-        f"{digest}  {output.name}\\n", encoding="ascii"
+        f"{digest}  {output.name}\n", encoding="ascii"
     )
     print(f"[muxapp] OK: {output} ({output.stat().st_size / 1048576:.1f} MiB)")
     print(f"[muxapp] SHA-256: {digest}")
