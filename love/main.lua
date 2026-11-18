@@ -298,6 +298,45 @@ local function drawSetup()
 end
 
 
+local function queueUplinkAction(action)
+    if appRoot == "" then setNotice("COMET APP PATH UNAVAILABLE"); return end
+    local script = appRoot .. "/service/uplink_status.py"
+    local command = "cd " .. shellQuote(appRoot) .. " && python3 " .. shellQuote(script)
+        .. " " .. shellQuote(appRoot) .. " " .. action
+        .. " >> " .. shellQuote(appRoot .. "/data/uplink.log") .. " 2>&1 &"
+    local result = os.execute(command)
+    if result == 0 or result == true then
+        setNotice(action == "install" and "INSTALLING RT:TAILSCALE-M // VERIFIED RELEASE" or "REFRESHING UPLINK TELEMETRY")
+    else
+        setNotice("COULD NOT START UPLINK TASK")
+    end
+end
+
+local function readUplinkStatus()
+    if appRoot == "" then return end
+    local stream = io.open(appRoot .. "/data/uplink.status", "r")
+    if not stream then return end
+    local line = stream:read("*l")
+    stream:close()
+    if not line then return end
+    local fields = {}
+    for value in (line .. "|"):gmatch("(.-)|") do fields[#fields + 1] = value end
+    if fields[1] == "ERROR" then uplinkStatus.error = fields[2]; return end
+    if #fields < 19 then return end
+    local yes = function(v) return v == "1" end
+    uplinkStatus.wifi = {connected = yes(fields[1]), ssid = fields[2], ip = fields[3]}
+    uplinkStatus.hotspot = {active = yes(fields[4]), ssid = fields[5], interface = fields[6]}
+    uplinkStatus.bluetooth = {powered = yes(fields[7]), devices = tonumber(fields[8]) or 0}
+    uplinkStatus.services = {
+        dns = yes(fields[9]), dashboard = yes(fields[10]), ssh = yes(fields[11]),
+        sftp = yes(fields[12]), terminal = yes(fields[13]), syncthing = yes(fields[14])
+    }
+    uplinkStatus.tailscale = {
+        installed = yes(fields[15]), online = yes(fields[16]), backend = fields[17],
+        peers = tonumber(fields[18]) or 0, ip = fields[19]
+    }
+end
+
 local function drawUplink()
     local tint = pages[activePage].accent
     text(pages[activePage].subtitle, 24, 180, fonts.small, colors.muted)
@@ -327,7 +366,8 @@ local function drawUplink()
         38, 373, fonts.small, ts.online and colors.green or colors.muted)
     text(ts.installed and (tostring(ts.peers or 0) .. " PEERS  ·  " .. (ts.ip or "NO TAILNET IP"))
         or "A  INSTALL RT:TAILSCALE-M", 38, 394, fonts.tiny, ts.installed and colors.white or tint)
-    text("Y  REFRESH", 506, 394, fonts.tiny, colors.muted)
+    text(ts.installed and "Y  REFRESH" or "Y  REFRESH", 506, 394, fonts.tiny, colors.muted)
+    if uplinkStatus.error then text(short(uplinkStatus.error, 72), 38, 410, fonts.tiny, colors.amber) end
 end
 
 local function drawDiagnostics()
@@ -520,6 +560,11 @@ function love.update(dt)
         readImageDownloadStatus()
     end
 
+    uplinkPoll = uplinkPoll + dt
+    if uplinkPoll >= 2 then
+        uplinkPoll = 0
+        readUplinkStatus()
+    end
     probeTimer = probeTimer + dt
     if probe and probeTimer >= 10 then
         probeTimer = 0
@@ -544,6 +589,10 @@ function love.draw()
     drawBackground()
     drawHeader()
     drawNavigation()
+    if activePage == 4 and not uplinkStatus.loaded then
+        queueUplinkAction("status")
+        uplinkStatus.loaded = true
+    end
     local transition = math.min(1, math.max(0, (ambientTime - pageChangedAt) / 0.34))
     love.graphics.push()
     love.graphics.translate((1 - transition) * 26 * pageChangedDirection, (1 - transition) * 5)
