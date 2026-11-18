@@ -51,6 +51,8 @@ The current prototype is a pure LÖVE/Lua interface and can be opened on a deskt
 love love
 ```
 
+The app bundles its low-memory background, six-tile PNG icon atlas and transparent PNG wordmark; source artwork and documentation graphics live beside the project docs. The visual system is documented in [Visual identity](docs/VISUAL_IDENTITY.md).
+
 Every device-test milestone is distributed as an installable `.muxapp`. The package builder pins and validates the AArch64 LÖVE runtime, includes the muOS launcher, and publishes a SHA-256 checksum with the GitHub Actions artifact. See [MUX App build and install](docs/MUXAPP_BUILD.md).
 
 ## Project relationship
