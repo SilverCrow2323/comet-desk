@@ -785,7 +785,14 @@ function love.keypressed(key)
     elseif key == "right" or key == "d" then
         if activePage == 2 then selectedSlot = "tf2" end
     elseif key == "return" or key == "space" or key == "z" then
-        if activePage == 2 then startDesktopEnvironment() else activate() end
+        if activePage == 2 then startDesktopEnvironment()
+        elseif activePage == 4 then
+            if uplinkStatus.tailscale and uplinkStatus.tailscale.installed then
+                queueUplinkAction(uplinkStatus.tailscale.online and "status" or "start")
+            else
+                queueUplinkAction("install")
+            end
+        else activate() end
     elseif key == "e" or key == "y" then
         exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
