@@ -29,7 +29,7 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Module | Purpose | Current state |
 |---|---|---|
 | Overview | Device/app landing screen | UI prototype |
-| Desktop Setup | Download verified Void Desk muOS package to selected TF1 / TF2 ARCHIVE | Implemented; Archive Manager installation remains a separate user step |
+| Desktop Setup | Download the Void Desk OS Debian Trixie ARM64 + labwc disk image to selected TF1 / TF2 storage | Implemented release lookup/staging client; OS image release and MultiBoot hand-off are pending |
 | Session Manager | View and launch installed sessions | Planned |
 | System Tools | Storage and service utilities | Planned |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
@@ -63,7 +63,7 @@ QWASAR
 └── Comet Desk    — lightweight muOS MUX companion
 ```
 
-Void Desk is the experience base, not a runtime dependency.
+Void Desk OS is a separate full-system image, not a MUX application. Comet Desk looks only for the dedicated OS disk-image release asset; it never downloads the Void Desk application package as a desktop image.
 
 ## Reference hardware
 
@@ -77,7 +77,7 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Safety model](docs/SAFETY.md)
+- [Safety model](docs/SAFETY.md)\n- [Void Desk OS image contract](docs/OS_IMAGE_CONTRACT.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)
