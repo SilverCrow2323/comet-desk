@@ -21,7 +21,8 @@ local probe = nil
 local diagnosticReport = nil
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
 local probeTimer = 0
-local colors = require("theme").colors
+local theme = require("theme")
+local colors = theme.colors
 
 local function setNotice(message)
     notice = message
@@ -200,11 +201,11 @@ function love.load()
         if ok then return font end
         return love.graphics.newFont(fallback or size)
     end
-    fonts.tiny = loadFont("assets/fonts/PT-Mono.ttf", 10, 10)
-    fonts.small = loadFont("assets/fonts/Inter-Medium.otf", 12, 12)
-    fonts.medium = loadFont("assets/fonts/Inter-Bold.otf", 15, 15)
-    fonts.large = loadFont("assets/fonts/Inter-Bold.otf", 21, 21)
-    fonts.title = loadFont("assets/fonts/Inter-Bold.otf", 32, 32)
+    fonts.tiny = loadFont(theme.fonts.telemetry, 10, 10)
+    fonts.small = loadFont(theme.fonts.interface, 12, 12)
+    fonts.medium = loadFont(theme.fonts.display, 15, 15)
+    fonts.large = loadFont(theme.fonts.display, 21, 21)
+    fonts.title = loadFont(theme.fonts.display, 32, 32)
     local function loadImage(path)
         local ok, image = pcall(love.graphics.newImage, path)
         if ok then return image end
