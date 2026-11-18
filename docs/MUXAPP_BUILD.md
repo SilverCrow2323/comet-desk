@@ -17,6 +17,7 @@ CometDesk/
 │   └── diagnostics_report.lua
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
+│   ├── branding/comet-desk-logo.png
 │   └── icons/comet-desk-atlas.png
 ├── lib/
 │   ├── love
