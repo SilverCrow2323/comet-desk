@@ -1,0 +1,19 @@
+name: Lua checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Lua 5.1 parser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+      - name: Validate LÖVE Lua sources
+        run: |
+          luac5.1 -p love/main.lua
+          luac5.1 -p love/conf.lua
