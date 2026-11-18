@@ -62,14 +62,13 @@ def test_staging_path_rejects_symlink_escape(tmp_path):
 
 def test_mount_parser_uses_exact_mountpoint_and_read_only_state():
     rows = desktop.mount_table_from_text(
-        "/dev/mmcblk0p1 /mnt/mmc exfat rw,nosuid,nodev 0 0\\n"
-        "/dev/mmcblk1p1 /mnt/sdcard exfat ro,nosuid,nodev 0 0\\n"
+        "/dev/mmcblk0p1 /mnt/mmc exfat rw,nosuid,nodev 0 0" + chr(10)
+        + "/dev/mmcblk1p1 /mnt/sdcard exfat ro,nosuid,nodev 0 0"
     )
     assert rows == [
         ("/dev/mmcblk0p1", "/mnt/mmc", "rw,nosuid,nodev"),
         ("/dev/mmcblk1p1", "/mnt/sdcard", "ro,nosuid,nodev"),
     ]
-
 
 def test_guest_profile_constants_match_voiddesk_xfce_contract():
     assert "xfce4-session" in desktop.PACKAGES
