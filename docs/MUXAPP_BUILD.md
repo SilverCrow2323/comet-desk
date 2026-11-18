@@ -16,7 +16,7 @@ CometDesk/
 │   ├── device_probe.lua
 │   └── diagnostics_report.lua
 ├── service/
-│   └── desktop_image_download.py
+│   └── desktop_environment.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
@@ -37,15 +37,17 @@ The launcher follows the muOS Andromeda application runner contract: it sources 
 Every push, pull request and manual workflow run builds a package after the Lua and Python checks pass. Open the repository's **Actions** tab, select the **Project checks and device package** run, then download the `CometDesk-muOS-Andromeda-RG35XX-H` artifact. It contains the `.muxapp` and matching SHA-256 sidecar.
 
 
-## Desktop Setup download
+## Integrated XFCE environment
 
-The Desktop Setup page looks for the **Void Desk OS** full-disk image release: Debian Trixie ARM64, labwc as the primary compositor, XFCE optional, and an H700-specific boot stack. It does not download the Void Desk MUX application.
+The Desktop Setup page builds the desktop environment inside Comet Desk. It uses the exact XFCE image seed pinned from the Void Desk H700 source (assets/xfce.img.gz) and the Ubuntu Base 24.04.3 ARM64 root filesystem. The currently inspected Void Desk bootstrap uses Ubuntu Base 24.04.3 (Noble), not Debian Trixie; Comet keeps that verified base/profile consistent rather than silently relabelling it.
 
-The downloader accepts only the `voiddesk-os-v*` release family and the exact asset `VoidDeskOS-RG35XX-H-Debian-Trixie-labwc.img.xz`. It checks the chosen TF1/TF2 mount, write access, free space, exact release asset metadata and SHA-256 before atomically publishing the image and checksum under `MUOS/CometDesk/OS-Staging/VoidDeskOS/`. If no matching OS image release exists, the UI explicitly reports **NOT PUBLISHED**; it will not fall back to a MUX package or source archive.
+Comet downloads the 4,181,220-byte image seed and verifies its Git blob SHA-1, downloads the 29,865,086-byte Ubuntu Base archive and verifies its SHA-256, expands the 4 GiB ext4 image, extracts the ARM64 root filesystem into it, and installs the XFCE/Xorg/input/audio packages. The environment is stored on the selected TF1/TF2 card at MUOS/CometDesk/Desktop/. The image is loop-mounted only while Comet is preparing or running the session.
 
-This is image staging only. Comet Desk does not flash raw devices, repartition cards, alter muOS boot files, or launch an unverified image. The actual boot hand-off is reserved for the documented H700 MultiBoot integration contract.
+No external MUX app or installer is called. The MUX launcher supervises Comet: when the user starts XFCE, Comet's own UI exits to release the framebuffer, the same launcher invokes Comet's integrated session manager, and the UI is reopened after XFCE exits. The desktop uses the existing muOS kernel and host devices; it is not a second bootable OS.
 
-Controls: **L1 / R1** cycle tabs, **A / Enter** selects or starts the OS image download, **Left / Right** chooses TF1/TF2 on Desktop Setup, **M** opens the Comet quick overlay, and **START + SELECT** exits Comet Desk. The M overlay currently belongs to the Comet Desk frontend; it is not yet a global XFCE overlay.
+The helper rejects missing or read-only target mounts, symbolic-link paths, insufficient free space, unexpected asset sizes, checksum mismatches and unverified loop/mount state. It does not format or repartition cards, flash raw devices, change muOS boot files or replace the active firmware. The mount tree and loop device are cleaned up on return; any cleanup failure remains visible in the status file and log.
+
+Controls: **L1 / R1** cycle navigation tabs, **A / Enter** installs XFCE or launches the prepared session, **Left / Right** selects TF1/TF2, **M** opens the Comet quick overlay while Comet is active, and **START + SELECT** exits Comet Desk.
 
 ## Visual assets
 
