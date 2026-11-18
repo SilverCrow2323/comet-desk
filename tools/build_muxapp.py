@@ -22,7 +22,7 @@ RUNTIME_FILES = {
     "lib/libluajit-5.1.so.2": "lib/libluajit-5.1.so.2",
 }
 REQUIRED = (
-    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/device_probe.lua",
+    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/device_probe.lua", "love/diagnostics_report.lua",
 )
 AARCH64_MACHINE = 183
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
