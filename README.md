@@ -4,7 +4,7 @@
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It brings desktop setup, session management and device diagnostics into one controller-friendly interface without replacing muOS.
 
-> **Project status:** Early prototype. A self-contained RG35XX H muOS MUX package is now built by CI; physical device validation is still pending.
+> **Project status:** Early prototype. The self-contained RG35XX H muOS MUX build pipeline is configured; its first artifact and physical device validation are still pending.
 
 ## What it is
 
