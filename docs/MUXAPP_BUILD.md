@@ -12,8 +12,12 @@ CometDesk/
 ├── love/
 │   ├── main.lua
 │   ├── conf.lua
+│   ├── theme.lua
 │   ├── device_probe.lua
 │   └── diagnostics_report.lua
+├── assets/
+│   ├── backgrounds/comet-dashboard-640x480.png
+│   └── icons/comet-desk-atlas.png
 ├── lib/
 │   ├── love
 │   ├── liblove-11.5.so
@@ -21,7 +25,7 @@ CometDesk/
 └── data/
 ```
 
-The AArch64 launcher and LuaJIT runtime are fetched from a pinned Void Desk commit; the LÖVE 11.5 shared library comes from the pinned Dolphin RT Core runtime source. All three are checked as 64-bit little-endian AArch64 ELF, and the LÖVE shared library also has a pinned Git blob checksum. The package includes the read-only Lua device probe and the opt-in diagnostic report exporter; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
+The AArch64 launcher and LuaJIT runtime are fetched from a pinned Void Desk commit; the LÖVE 11.5 shared library comes from the pinned Dolphin RT Core runtime source. All three are checked as 64-bit little-endian AArch64 ELF, and the LÖVE shared library also has a pinned Git blob checksum. The package includes the read-only Lua device probe, opt-in diagnostic report exporter, canonical theme tokens, a palette-limited 640×480 background and a compact transparent icon atlas; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
 
 The launcher follows the muOS Andromeda application runner contract: it sources `/opt/muos/script/var/func.sh`, calls `SETUP_APP`, and uses the runtime application path `/run/muos/storage/application/CometDesk`. It does not hard-code SD1/SD2 mount roots.
 
@@ -29,6 +33,10 @@ The launcher follows the muOS Andromeda application runner contract: it sources 
 
 Every push, pull request and manual workflow run builds a package after the Lua and Python checks pass. Open the repository's **Actions** tab, select the **Project checks and device package** run, then download the `CometDesk-muOS-Andromeda-RG35XX-H` artifact. It contains the `.muxapp` and matching SHA-256 sidecar.
 
+
+## Visual assets
+
+The app uses the same palette and navigation icons documented in [Visual identity](VISUAL_IDENTITY.md). Artwork is palette-limited and scaled for the 640×480 H700 target. The background is decorative only: all status text and controls remain live UI elements drawn by the app.
 
 ## Diagnostic report export
 
