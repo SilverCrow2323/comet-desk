@@ -123,6 +123,16 @@ local function curveY(x)
     return 122 + 15 * d * d
 end
 
+local function drawGlobe(cx, cy, radius, tint, alpha)
+    love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
+    love.graphics.setLineWidth(1.4)
+    love.graphics.circle("line", cx, cy, radius)
+    love.graphics.ellipse("line", cx, cy, radius * 0.42, radius)
+    love.graphics.line(cx - radius, cy, cx + radius, cy)
+    love.graphics.arc("line", "open", cx, cy, radius * 0.72, math.pi, math.pi * 2)
+    love.graphics.arc("line", "open", cx, cy, radius * 0.72, 0, math.pi)
+end
+
 local function drawNavigation()
     local active = pageAccent(selected)
     local points = {}
@@ -134,10 +144,9 @@ local function drawNavigation()
     love.graphics.setColor(active[1], active[2], active[3], 0.34)
     love.graphics.setLineWidth(2.2); love.graphics.line(points)
     for offset = -2, 2 do
-        local raw = carouselPosition + offset
-        local index = ((math.floor(raw + 0.5) - 1) % #pages) + 1
-        local fraction = carouselPosition - carouselTarget
-        local x = W * 0.5 + offset * 108 - fraction * 108
+        local raw = carouselTarget + offset
+        local index = ((raw - 1) % #pages) + 1
+        local x = W * 0.5 + (raw - carouselPosition) * 108
         if x > -65 and x < W + 65 then
             local page = pages[index]
             local distance = math.abs(x - W * 0.5) / 216
@@ -154,7 +163,14 @@ local function drawNavigation()
                 love.graphics.setColor(tint[1], tint[2], tint[3], 0.16 + 0.08 * math.sin(ambientTime * 4))
                 love.graphics.rectangle("fill", px + 3, py + h - 4, w - 6, 2, 1, 1)
             end
-            text(page.icon, px + 9, py + 10, fonts.medium, {tint[1], tint[2], tint[3], alpha})
+            if page.id == "uplink" then
+                drawGlobe(px + 18, py + h / 2, 8 * scale, tint, alpha)
+            elseif visuals.atlas and visuals.quads[page.id] then
+                love.graphics.setColor(1, 1, 1, alpha)
+                love.graphics.draw(visuals.atlas, visuals.quads[page.id], px + 8, py + 9, 0, 0.52 * scale, 0.52 * scale)
+            else
+                text(page.icon, px + 9, py + 10, fonts.medium, {tint[1], tint[2], tint[3], alpha})
+            end
             local label = page.id == "setup" and "DESKTOP" or page.title:gsub("SESSION MANAGER", "SESSIONS"):gsub("SYSTEM TOOLS", "TOOLS")
             text(label, px + 30, py + 15, fonts.tiny, {colors.white[1], colors.white[2], colors.white[3], alpha})
         end
