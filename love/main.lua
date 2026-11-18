@@ -102,6 +102,23 @@ local function short(value, limit)
     return value
 end
 
+local function formatBytes(value)
+    if not value then return "n/a" end
+    local gib = value / 1073741824
+    if gib >= 10 then return string.format("%.1f GB", gib) end
+    if gib >= 1 then return string.format("%.2f GB", gib) end
+    return string.format("%.0f MB", value / 1048576)
+end
+
+local function storageLine(label, item)
+    if not item or item.status ~= "MOUNTED" then
+        return label .. "  NOT DETECTED"
+    end
+    local stats = item.stats
+    if not stats then return label .. "  MOUNTED // SPACE N/A" end
+    return string.format("%s  %s FREE / %s", label, formatBytes(stats.free_bytes), formatBytes(stats.total_bytes))
+end
+
 local function drawOverview()
     local page = pages[activePage]
     text(page.subtitle, 235, 127, fonts.small, colors.muted)
@@ -120,9 +137,9 @@ local function drawOverview()
     text("STORAGE PRESENCE", 248, 332, fonts.small, colors.violet)
     local tf1 = device.storage and device.storage.tf1 or nil
     local tf2 = device.storage and device.storage.tf2 or nil
-    text("TF1  " .. (tf1 and tf1.status or "UNKNOWN"), 248, 358, fonts.small, tf1 and tf1.status == "MOUNTED" and colors.green or colors.amber)
-    text("TF2  " .. (tf2 and tf2.status or "UNKNOWN"), 420, 358, fonts.small, tf2 and tf2.status == "MOUNTED" and colors.green or colors.muted)
-    text("Read-only probe // no storage writes", 248, 385, fonts.tiny, colors.muted)
+    text(storageLine("TF1", tf1), 248, 356, fonts.tiny, tf1 and tf1.status == "MOUNTED" and colors.green or colors.amber)
+    text(storageLine("TF2", tf2), 248, 374, fonts.tiny, tf2 and tf2.status == "MOUNTED" and colors.green or colors.muted)
+    text("Free space from statvfs // read-only", 248, 392, fonts.tiny, colors.muted)
 end
 
 local function drawDiagnostics()
@@ -144,8 +161,8 @@ local function drawDiagnostics()
     text("STORAGE MOUNTS", 248, 351, fonts.small, colors.violet)
     local tf1 = device.storage and device.storage.tf1 or {}
     local tf2 = device.storage and device.storage.tf2 or {}
-    text("TF1  " .. (tf1.status or "UNKNOWN") .. "  " .. short(tf1.filesystem, 10), 248, 375, fonts.tiny, colors.white)
-    text("TF2  " .. (tf2.status or "UNKNOWN") .. "  " .. short(tf2.filesystem, 10), 248, 392, fonts.tiny, colors.white)
+    text(storageLine("TF1", tf1) .. "  [" .. short(tf1.filesystem, 8) .. "]", 248, 375, fonts.tiny, colors.white)
+    text(storageLine("TF2", tf2) .. "  [" .. short(tf2.filesystem, 8) .. "]", 248, 392, fonts.tiny, colors.white)
 end
 
 local function drawModule()
