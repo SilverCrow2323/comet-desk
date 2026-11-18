@@ -31,13 +31,13 @@ CHUNK_SIZE = 64 * 1024
 
 
 def _clean(value: str) -> str:
-    return str(value).replace("|", "/").replace("\\r", " ").replace("\\n", " ")[:220]
+    return str(value).replace("|", "/").replace("\r", " ").replace("\n", " ")[:220]
 
 
 def write_status(path: Path, state: str, percent: int, message: str,
                  location: str = "") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = "{}|{}|{}|{}\\n".format(
+    payload = "{}|{}|{}|{}\n".format(
         state, max(0, min(100, int(percent))), _clean(message), _clean(location)
     )
     temporary = path.with_suffix(path.suffix + ".tmp")
@@ -146,7 +146,7 @@ def download(slot: str, app_dir: Path, mounts_file: str = "/proc/mounts",
     archive_dir.mkdir(mode=0o755, exist_ok=True)
     if not archive_dir.is_dir() or not os.access(str(archive_dir), os.W_OK):
         raise RuntimeError("ARCHIVE is not writable")
-    free_bytes = os.statvfs(str(archive_dir)).f_bavail * os.statvfs(str(archive_dir)).f_frsize
+    storage_stats = os.statvfs(str(archive_dir))\n    free_bytes = storage_stats.f_bavail * storage_stats.f_frsize
     if free_bytes < ASSET_SIZE + 2 * 1024 * 1024:
         raise RuntimeError("not enough free space in ARCHIVE")
 
@@ -187,7 +187,7 @@ def download(slot: str, app_dir: Path, mounts_file: str = "/proc/mounts",
                             status_path, str(target))
         os.replace(part, target)
         sidecar = target.with_name(target.name + ".sha256")
-        sidecar.write_text("{}  {}\\n".format(ASSET_SHA256, ASSET_NAME),
+        sidecar.write_text("{}  {}\n".format(ASSET_SHA256, ASSET_NAME),
                            encoding="ascii")
         write_status(status_path, "DONE", 100,
                      "Verified. Open muOS Archive Manager to install.",
