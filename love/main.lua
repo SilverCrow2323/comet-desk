@@ -1,6 +1,6 @@
 -- COMET DESK // QWASAR
--- Controller-first muOS companion. Desktop downloads use a pinned helper;
--- the app never installs downloaded MUX packages or changes host firmware.
+-- Controller-first muOS companion. Desktop Setup retrieves the dedicated Void Desk OS
+-- disk image only; it never downloads or installs the Void Desk MUX application.
 
 local W, H = 640, 480
 local pages = {
@@ -631,7 +631,7 @@ function love.gamepadpressed(joystick, button)
     elseif button == "dpright" and activePage == 2 then
         selectedSlot = "tf2"
     elseif button == "a" then
-        if activePage == 2 then startDesktopDownload() else activate() end
+        if activePage == 2 then startDesktopImageDownload() else activate() end
     elseif button == "y" then
         exportDiagnostics()
     elseif button == "b" or button == "back" then
