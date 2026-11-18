@@ -13,7 +13,7 @@
 - [x] Show unknown values honestly; refine confidence scoring after physical-device evidence.
 - [x] Read TF1/TF2 total and available space with read-only statvfs when supported.
 - [x] Report filesystem read-only state when available.
-- [ ] Add a diagnostics report export.
+- [x] Add an opt-in, privacy-scoped diagnostics report export with Lua formatting tests.
 
 ## Phase 2 — Desktop setup
 - [ ] Select and validate a target storage location.
