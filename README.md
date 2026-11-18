@@ -4,7 +4,7 @@
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It brings desktop setup, session management and device diagnostics into one controller-friendly interface without replacing muOS.
 
-> **Project status:** Early foundation / prototype. Hardware installation workflows are not yet enabled.
+> **Project status:** Early prototype. A self-contained RG35XX H muOS MUX package is now built by CI; physical device validation is still pending.
 
 ## What it is
 
@@ -45,7 +45,7 @@ The current prototype is a pure LÖVE/Lua interface and can be opened on a deskt
 love love
 ```
 
-The muOS .muxapp packaging/launcher integration is a separate milestone. It will be based on verified QWASAR/Void Desk packaging experience, with Comet-specific paths and dependencies — not by copying Void Desk wholesale.
+Every device-test milestone is distributed as an installable `.muxapp`. The package builder pins and validates the AArch64 LÖVE runtime, includes the muOS launcher, and publishes a SHA-256 checksum with the GitHub Actions artifact. See [MUX App build and install](docs/MUXAPP_BUILD.md).
 
 ## Project relationship
 
