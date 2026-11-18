@@ -11,6 +11,8 @@
 - [x] Add a read-only device probe (Lua on-device; Python reference probe for host tests).
 - [x] Detect architecture, model hints, firmware metadata and TF1/TF2 mount candidates.
 - [x] Show unknown values honestly; refine confidence scoring after physical-device evidence.
+- [x] Read TF1/TF2 total and available space with read-only statvfs when supported.
+- [x] Report filesystem read-only state when available.
 - [ ] Add a diagnostics report export.
 
 ## Phase 2 — Desktop setup
