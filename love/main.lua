@@ -71,8 +71,8 @@ local function drawHeader()
     text("DESK", 133, 42, fonts.medium, colors.cyan)
     text("MUX COMPANION  //  BUILD 0.1.0-dev", 24, 77, fonts.tiny, colors.muted)
     rounded(482, 22, 132, 42, colors.panel, colors.line)
-    text("H700 PROFILE", 495, 28, fonts.small, colors.cyan)
-    text("NOT VERIFIED", 495, 45, fonts.tiny, colors.amber)
+    text("RG35XX H TARGET", 495, 28, fonts.small, colors.cyan)
+    text("LIVE PROBE PENDING", 495, 45, fonts.tiny, colors.amber)
 end
 
 local function drawNavigation()
