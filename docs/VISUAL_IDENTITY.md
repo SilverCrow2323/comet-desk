@@ -1,6 +1,6 @@
 # Comet Desk — visual identity
 
-Comet Desk uses the QWASAR **Megastructure / Industrial Cyberpunk** design language. The application and documentation share one visual system: the same palette, font families, icon language, spacing logic and graphic motifs.
+Comet Desk uses the QWASAR **Megastructure / Industrial Cyberpunk** design language. The application and documentation share one visual system: the same palette, typeface family, icon language, spacing logic and graphic motifs.
 
 ![Comet Desk visual system](assets/visual-system.svg)
 
@@ -43,8 +43,7 @@ Using the LÖVE default avoids a fragile font dependency on muOS and keeps the a
 - `assets/branding/` — product wordmark and identity.
 - `assets/icons/` — app icon and individual navigation icons.
 - `assets/backgrounds/` — in-app 640×480 artwork.
-- `assets/ui/` — reusable interface texture.
-- `assets/fonts/` — bundled UI typefaces and notices.
+- `assets/branding/` — scalable wordmark source.
 - `docs/assets/` — documentation covers and explanatory graphics.
 
 ## Screenshots and evidence
