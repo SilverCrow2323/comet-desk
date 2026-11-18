@@ -275,11 +275,26 @@ class ImageMount:
         mounted, _rw = mount_state(self.mountpoint)
         if mounted:
             raise SetupError("desktop image is already mounted; refusing a second mount")
-        result = subprocess.run(["losetup", "--find", "--show", str(self.image)],
-                                capture_output=True, text=True, check=False)
-        if result.returncode != 0 or not result.stdout.strip().startswith("/dev/loop"):
-            raise SetupError(result.stderr.strip() or "cannot allocate a loop device")
-        self.loop = result.stdout.strip()
+        attached = subprocess.run(["losetup", "-a"], capture_output=True,
+                                  text=True, check=False, timeout=20)
+        if attached.returncode != 0:
+            raise SetupError("cannot inspect existing loop devices")
+        if str(self.image) in attached.stdout:
+            raise SetupError("desktop image already has a loop device; refusing a duplicate mount")
+        free = subprocess.run(["losetup", "-f"], capture_output=True,
+                              text=True, check=False, timeout=20)
+        if free.returncode != 0 or not free.stdout.strip().startswith("/dev/loop"):
+            raise SetupError(free.stderr.strip() or "cannot find a free loop device")
+        candidate = free.stdout.strip()
+        linked = subprocess.run(["losetup", candidate, str(self.image)],
+                                capture_output=True, text=True, check=False, timeout=20)
+        if linked.returncode != 0:
+            raise SetupError(linked.stderr.strip() or "cannot attach the desktop image")
+        self.loop = candidate
+        attached = subprocess.run(["losetup", "-a"], capture_output=True,
+                                  text=True, check=False, timeout=20)
+        if attached.returncode != 0 or str(self.image) not in attached.stdout:
+            raise SetupError("loop attachment could not be verified")
         try:
             _run(["mount", self.loop, str(self.mountpoint)], log=self.log, timeout=30)
             mounted, _rw = mount_state(self.mountpoint)
@@ -643,7 +658,7 @@ def launch(slot: str, app_dir: Path) -> int:
             stderr=subprocess.STDOUT, env=env, check=False,
         )
         write_status(app_dir, "READY", 100,
-                     "Desktop session ended; returned to Comet Desk")
+                     "Desktop session ended; returned to Comet Desk", str(image))
         return result.returncode
     finally:
         clean = manager.cleanup()
