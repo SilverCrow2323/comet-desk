@@ -921,21 +921,39 @@ function love.keypressed(key)
     if key == "pagedown" then cyclePage(1); return end
     if key == "f8" then keyboardHeld.select = true; maybeExitKeyboard(); return end
     if key == "m" then toggleQuickPanel(); return end
+    if activePage == 5 and forgeSearchActive then
+        if key == "escape" then forgeSearchActive = false
+        elseif key == "backspace" then forgeSearch = forgeSearch:sub(1, math.max(0, #forgeSearch - 1)) end
+        return
+    end
     if quickPanelOpen then
         if key == "escape" or key == "backspace" then toggleQuickPanel() end
         return
     end
 
-    if key == "up" or key == "w" then
-        if activePage == 2 then cycleDesktopProfile(-1) else cyclePage(-1) end
+    if key == "/" and activePage == 5 then
+        forgeSearchActive = true
+        setNotice("THE FORGE SEARCH // TYPE TO FILTER")
+    elseif key == "up" or key == "w" then
+        if activePage == 2 then cycleDesktopProfile(-1)
+        elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
+        else cyclePage(-1) end
     elseif key == "down" or key == "s" then
-        if activePage == 2 then cycleDesktopProfile(1) else cyclePage(1) end
+        if activePage == 2 then cycleDesktopProfile(1)
+        elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
+        else cyclePage(1) end
     elseif key == "left" or key == "a" then
-        if activePage == 2 then selectedSlot = "tf1" end
+        if activePage == 2 then selectedSlot = "tf1"
+        elseif activePage == 5 then cycleForgeCategory(-1) end
     elseif key == "right" or key == "d" then
-        if activePage == 2 then selectedSlot = "tf2" end
-    elseif key == "return" or key == "space" or key == "z" then
+        if activePage == 2 then selectedSlot = "tf2"
+        elseif activePage == 5 then cycleForgeCategory(1) end
+    elseif key == "return" or key == "space" or key == "z" or key == "i" then
         if activePage == 2 then startDesktopEnvironment()
+        elseif activePage == 5 then
+            local item = forgeFilteredPackages()[forgeSelectedIndex]
+            if item and item.available and not item.installed then queueForgeAction("install", item.package)
+            elseif item and item.installed then setNotice(item.title .. " IS ALREADY INSTALLED") end
         elseif activePage == 4 then
             if uplinkStatus.tailscale and uplinkStatus.tailscale.installed then
                 queueUplinkAction(uplinkStatus.tailscale.online and "status" or "start")
@@ -943,6 +961,19 @@ function love.keypressed(key)
                 queueUplinkAction("install")
             end
         else activate() end
+    elseif key == "r" and activePage == 5 then
+        local item = forgeFilteredPackages()[forgeSelectedIndex]
+        if item and item.installed then
+            if forgeConfirmRemove == item.package then
+                queueForgeAction("remove", item.package)
+                forgeConfirmRemove = nil
+            else
+                forgeConfirmRemove = item.package
+                setNotice("PRESS R AGAIN TO REMOVE " .. item.package)
+            end
+        end
+    elseif key == "y" and activePage == 5 then
+        queueForgeAction("update")
     elseif key == "e" or key == "y" then
         exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
@@ -952,6 +983,12 @@ function love.keypressed(key)
         pageChangedDirection = 1
         pageChangedAt = ambientTime
         setNotice("RETURNED TO OVERVIEW")
+    end
+end
+
+function love.textinput(value)
+    if activePage == 5 and forgeSearchActive then
+        if #forgeSearch < 40 then forgeSearch = forgeSearch .. value end
     end
 end
 
