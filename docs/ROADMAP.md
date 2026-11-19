@@ -20,19 +20,24 @@
 - [x] Report filesystem read-only state when available.
 - [x] Add an opt-in, privacy-scoped diagnostics report export with Lua formatting tests.
 
-## Phase 2 — Integrated XFCE environment
-- [x] Select TF1 / TF2 from live detected mount candidates and reject missing/read-only targets.
-- [x] Check free space and reject symlinked storage paths.
-- [x] Pin the existing Void Desk H700 XFCE ext4 image seed by size and Git blob checksum.
-- [x] Download Ubuntu Base 24.04.3 ARM64 and verify its published size and SHA-256.
-- [x] Expand the ext4 image and extract the root filesystem into it.
-- [x] Install Xorg, XFCE and handheld input/audio packages inside the guest image.
-- [x] Mount the desktop image, run its session directly and resume Comet Desk on return.
-- [x] Track and verify loop device and bind-mount cleanup.
-- [ ] Validate the integrated setup and session lifecycle on the RG35XX H.
-- [ ] Add recovery UI for interrupted setup and unclean shutdown.
+## Phase 2 — Debian Trixie ARM64 desktop
+- [x] Pin Debian GNU/Linux 13 (Trixie) ARM64 rootfs by immutable source commit, exact size and SHA-256.
+- [x] Build one persistent ext4 rootfs with APT and a minimal H700-oriented base.
+- [x] Install labwc as the default lightweight Wayland profile.
+- [x] Add optional XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox profiles to the same rootfs.
+- [x] Serialize setup, package operations and session launches with a shared Debian lock.
+- [x] Keep muOS as host: no boot-chain, raw-device or host APT changes.
+- [ ] Validate labwc DRM/KMS and X11 framebuffer sessions on the RG35XX H.
 
-- [x] Add curved L1/R1 navigation with animated per-tab accent colours and directional page transitions.\n- [x] Add Uplink status for Wi-Fi, hotspot, Bluetooth and muOS Andromeda Web Services.\n- [x] Add checksum-pinned Rt:Tailscale-M install and RT-owned service discovery/actions.\n- [ ] Validate wireless telemetry and RT installation on the RG35XX H.\n\n## Phase 3 — Session manager
+## Phase 2.1 — THE FORGE
+- [x] Add a curated Debian ARM64 catalogue grouped by handheld input, desktop, development, media, network and utilities.
+- [x] Add package search, live dpkg/APT availability, install, remove and index refresh operations.
+- [x] Enforce an allowlist and filter host/init/bootloader/kernel/firmware and heavyweight app-store packages.
+- [x] Add disabled Input Leap entry pending a trustworthy Debian Trixie ARM64 package source.
+- [ ] Validate package dependencies and actual installation/removal on the RG35XX H.
+- [ ] Add app registry and in-Comet application launch from installed Debian programs.
+
+## Phase 3 — Session manager
 - [ ] Discover installed desktop sessions.
 - [ ] Validate launch commands before displaying them.
 - [ ] Start/stop sessions with clear status and logs.
