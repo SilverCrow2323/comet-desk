@@ -89,6 +89,23 @@ while :; do
         esac
     fi
 
+    MEDIA_REQUEST="$LOG_DIR/media-session.request"
+    if [ -L "$MEDIA_REQUEST" ]; then
+        echo "$(date) ERROR: refusing symbolic-link media session request" >> "$LOG_FILE"
+        rm -f "$MEDIA_REQUEST"
+    elif [ -f "$MEDIA_REQUEST" ]; then
+        echo "$(date) Comet Desk handing display to Media Vault" >> "$LOG_FILE"
+        python3 "$APP_DIR/service/media_vault.py" playback --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+        MEDIA_RC=$?
+        echo "$(date) Media Vault playback returned rc=$MEDIA_RC; resuming Comet Desk" >> "$LOG_FILE"
+        continue
+    fi
+
+    # A radio stream may have been playing in the background while the
+    # frontend was visible. Leaving Comet always releases the media owner.
+    if [ -f "$APP_DIR/service/media_vault.py" ]; then
+        python3 "$APP_DIR/service/media_vault.py" stop --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+    fi
     echo "$(date) Comet Desk exit rc=$RC" >> "$LOG_FILE"
     break
 done
