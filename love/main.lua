@@ -36,12 +36,12 @@ local selectedSlot = "tf1"
 local installedSlot = nil
 local desktopProfiles = {
     { id = "labwc", label = "LABWC", detail = "WAYLAND", accent = {0.22, 0.88, 0.94} },
-    { id = "xfce", label = "XFCE", detail = "FULL DESKTOP", accent = {0.62, 0.43, 0.98} },
+    { id = "xfce", label = "XFCE", detail = "FULL", accent = {0.62, 0.43, 0.98} },
     { id = "lxde", label = "LXDE", detail = "LIGHTWEIGHT", accent = {1.0, 0.72, 0.32} },
     { id = "lxqt", label = "LXQT", detail = "QT DESKTOP", accent = {0.24, 0.72, 1.0} },
-    { id = "icewm", label = "ICEWM", detail = "WINDOW MANAGER", accent = {0.35, 0.90, 0.68} },
-    { id = "fluxbox", label = "FLUXBOX", detail = "WINDOW MANAGER", accent = {0.96, 0.30, 0.70} },
-    { id = "openbox", label = "OPENBOX", detail = "WINDOW MANAGER", accent = {0.70, 0.80, 0.96} },
+    { id = "icewm", label = "ICEWM", detail = "WM", accent = {0.35, 0.90, 0.68} },
+    { id = "fluxbox", label = "FLUXBOX", detail = "WM", accent = {0.96, 0.30, 0.70} },
+    { id = "openbox", label = "OPENBOX", detail = "WM", accent = {0.70, 0.80, 0.96} },
 }
 local selectedProfileIndex = 1
 local selectedProfile = "labwc"
@@ -510,7 +510,7 @@ local function drawForge()
             text(short(forgeStatus.message, 38), 296, 296, fonts.tiny, colors.muted)
         end
         love.graphics.setFont(fonts.tiny); setColor(colors.muted)
-        love.graphics.printf(chosen.summary, 296, 307, 294, "left")
+        love.graphics.printf(short(chosen.summary, 96), 296, 307, 294, "left")
         local stateText = chosen.installed and "INSTALLED" or (chosen.available and "AVAILABLE" or chosen.tag)
         text(stateText .. "  /  " .. (chosen.size ~= "" and chosen.size or "SIZE N/A"),
             296, 365, fonts.tiny, chosen.installed and colors.green or (chosen.available and colors.cyan or colors.amber))
@@ -782,11 +782,6 @@ function love.draw()
     local accent = pageAccent(activePage)
     love.graphics.setColor(accent[1], accent[2], accent[3], 0.82)
     love.graphics.rectangle("fill", 20, 202, 3, 212, 1, 1)
-    if activePage ~= 4 then
-        love.graphics.translate(0, 180)
-        love.graphics.scale(1, 0.85)
-        love.graphics.translate(0, -158)
-    end
     love.graphics.setScissor(18, 176, 604, 244)
     if activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
