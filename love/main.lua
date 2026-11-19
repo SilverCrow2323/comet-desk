@@ -677,6 +677,8 @@ local function readImageDownloadStatus()
     local state, percent, message, location, profile =
         line and line:match("^([^|]+)|(%d+)|([^|]*)|([^|]*)|(.*)$")
     if not state then return end
+    local previousState, previousProfile, previousSlot =
+        imageDownload.state, imageDownload.profile, installedSlot
     imageDownload.state = state
     imageDownload.percent = tonumber(percent) or 0
     imageDownload.message = message
