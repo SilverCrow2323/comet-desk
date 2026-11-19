@@ -90,6 +90,23 @@ class SetupError(RuntimeError):
     pass
 
 
+def operation_lock_busy(app_dir: Path) -> bool:
+    """Return whether another Comet Debian/APT worker currently owns the shared lock.
+
+    The lock file's existence is not meaningful: flock releases ownership when
+    a process exits, even if its file remains on disk.
+    """
+    lock_path = app_dir / "data" / "debian-system.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(lock, fcntl.LOCK_UN)
+    return False
+
+
 def clean_status(value: str) -> str:
     return str(value).replace("|", "/").replace(chr(10), " ").replace(chr(13), " ")[:220]
 
@@ -1213,7 +1230,7 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("setup", "session"))
+    parser.add_argument("action", choices=("setup", "session", "check"))
     parser.add_argument("--slot", required=True, choices=sorted(SLOTS))
     parser.add_argument("--profile", choices=sorted(PROFILE_PACKAGES), default=DEFAULT_PROFILE)
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
@@ -1225,6 +1242,15 @@ def main() -> int:
     app_dir = Path(args.app_dir).resolve()
     lock_path = app_dir / "data" / "debian-system.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
+    if args.action == "check":
+        busy = operation_lock_busy(app_dir)
+        status_path = app_dir / "data" / "debian-lock.status"
+        temporary = status_path.with_suffix(".tmp")
+        temporary.write_text("BUSY\n" if busy else "IDLE\n", encoding="ascii")
+        os.replace(temporary, status_path)
+        print("BUSY" if busy else "IDLE")
+        return 0
+
     with lock_path.open("a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
