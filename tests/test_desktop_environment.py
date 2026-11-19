@@ -224,3 +224,19 @@ def test_apt_progress_runner_reports_status_fd_events(tmp_path):
         )
     assert events == [(42, "Unpacking base"), (100, "Installed base")]
 
+
+
+
+def test_first_boot_is_a_light_desktop_baseline_and_dev_tools_are_optional():
+    from service.forge_apt import CATALOG
+
+    base = set(desktop.BASE_PACKAGES.split())
+    forge = {row[1] for row in CATALOG}
+    assert {"apt", "dbus", "gvfs", "e2fsprogs", "seatd"} <= base
+    optional = {
+        "git", "curl", "wget", "python3-venv", "python3-pip",
+        "build-essential", "cmake", "ninja-build", "pkg-config",
+        "file", "unzip", "zip",
+    }
+    assert base.isdisjoint(optional)
+    assert optional <= forge
