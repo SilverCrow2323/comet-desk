@@ -283,7 +283,7 @@ local function drawOverview()
         engineColor = colors.green
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         desktopEngine = imageDownload.state
-        engineColor = imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED"
+        engineColor = (imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED")
             and colors.amber or colors.violet
     end
     text(short(desktopEngine, 28), 413, 293, fonts.small, engineColor)
@@ -811,7 +811,7 @@ local function drawSystemTools()
         guestState, guestColor = "DEBIAN 13 / TRIXIE READY", colors.green
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         guestState = imageDownload.state
-        guestColor = imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED"
+        guestColor = (imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED")
             and colors.amber or colors.violet
     end
     local forgeLabel = not installedSlot and "LOCKED // DEBIAN NOT READY"
@@ -824,7 +824,7 @@ local function drawSystemTools()
         { "GUEST OS", guestState, guestColor },
         { "ARCHITECTURE", (device.architecture or "UNKNOWN"):upper() .. " // SHARED MUOS KERNEL", colors.white },
         { "STORAGE", installedSlot and installedSlot:upper() or "NOT CONFIGURED", installedSlot and colors.green or colors.amber },
-        { "DESKTOP PROFILE", imageDownload.state == "READY" and imageDownload.profile:upper()
+        { "DESKTOP PROFILE", imageDownload.state == "READY" and (imageDownload.profile or selectedProfile):upper()
             or (imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state), colors.violet },
         { "APT / FORGE", forgeLabel, installedSlot and colors.green or colors.amber },
         { "APPLICATION REGISTRY", appLabel, colors.cyan },
