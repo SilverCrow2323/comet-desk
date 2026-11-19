@@ -15,6 +15,7 @@ import gzip
 import hashlib
 import json
 import os
+import select
 import shutil
 import signal
 import subprocess
@@ -121,6 +122,145 @@ def _run(command: list[str], *, log: BinaryIO | None = None,
         raise SetupError("{}: {}".format(command[0], exc)) from exc
     if result.returncode != 0:
         raise SetupError("{} exited with status {}".format(command[0], result.returncode))
+
+
+def apt_status_event(line: str) -> tuple[float, str] | None:
+    """Decode one APT Status-Fd event into a percentage and readable message."""
+    fields = line.strip().split(":")
+    if not fields:
+        return None
+    if fields[0] == "pmstatus" and len(fields) >= 4:
+        try:
+            percent = float(fields[2])
+        except ValueError:
+            return None
+        return max(0.0, min(100.0, percent)), ":".join(fields[3:])
+    if fields[0] == "dlstatus":
+        numeric: list[float] = []
+        for value in fields[1:]:
+            try:
+                numeric.append(float(value))
+            except ValueError:
+                continue
+        if len(numeric) >= 2 and numeric[-1] > 0:
+            percent = numeric[-2] * 100.0 / numeric[-1]
+            return max(0.0, min(100.0, percent)), "Downloading Debian packages"
+    return None
+
+
+def run_apt_with_progress(
+    command: list[str],
+    *,
+    log: BinaryIO,
+    timeout: int,
+    env: dict[str, str] | None = None,
+    on_progress=None,
+) -> None:
+    """Run apt-get with its machine-readable Status-Fd channel.
+
+    Apt/dpkg output continues to the normal operation log. Progress events travel
+    over a dedicated inherited descriptor, so they never corrupt the log or TUI.
+    """
+    apt_index = next(
+        (index for index, value in enumerate(command)
+         if Path(value).name == "apt-get"),
+        None,
+    )
+    if apt_index is None:
+        raise SetupError("progress runner requires an apt-get command")
+
+    read_fd, write_fd = os.pipe()
+    monitored = list(command)
+    monitored[apt_index + 1:apt_index + 1] = [
+        "-o", "APT::Status-Fd={}".format(write_fd)
+    ]
+    process = None
+    buffer = b""
+    eof = False
+    last_percent = -1.0
+    deadline = time.monotonic() + timeout
+
+    try:
+        process = subprocess.Popen(
+            monitored,
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            env=env,
+            pass_fds=(write_fd,),
+            start_new_session=True,
+        )
+        os.close(write_fd)
+        write_fd = -1
+
+        while not eof or process.poll() is None:
+            if time.monotonic() >= deadline:
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait()
+                raise SetupError("apt-get timed out after {} seconds".format(timeout))
+
+            if eof:
+                try:
+                    process.wait(timeout=0.15)
+                except subprocess.TimeoutExpired:
+                    pass
+                continue
+
+            readable, _, _ = select.select([read_fd], [], [], 0.15)
+            if not readable:
+                continue
+            chunk = os.read(read_fd, 4096)
+            if not chunk:
+                eof = True
+                continue
+            buffer += chunk
+            while b"\n" in buffer:
+                raw_line, buffer = buffer.split(b"\n", 1)
+                event = apt_status_event(raw_line.decode("utf-8", errors="replace"))
+                if event is not None:
+                    percent, message = event
+                    last_percent = percent
+                    if on_progress is not None:
+                        on_progress(int(percent), clean_status(message))
+
+        if buffer:
+            event = apt_status_event(buffer.decode("utf-8", errors="replace"))
+            if event is not None and on_progress is not None:
+                percent, message = event
+                on_progress(int(percent), clean_status(message))
+
+        return_code = process.wait()
+        if return_code != 0:
+            raise SetupError("apt-get exited with status {}".format(return_code))
+    except OSError as exc:
+        raise SetupError("apt-get: {}".format(exc)) from exc
+    finally:
+        if write_fd >= 0:
+            os.close(write_fd)
+        os.close(read_fd)
+        if process is not None and process.poll() is None:
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait()
 
 
 def mount_table_from_text(contents: str) -> list[tuple[str, str, str]]:
@@ -771,11 +911,18 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
         write_status(app_dir, "APT_UPDATE", 42,
                      "Refreshing Debian Trixie package indexes",
                      str(image), profile)
-        _run(["chroot", str(mountpoint), "/usr/bin/env",
-              "DEBIAN_FRONTEND=noninteractive",
-              "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-              "apt-get", "-o", "Acquire::Retries=2", "update"],
-             log=manager.log, timeout=1200, env=env)
+        run_apt_with_progress(
+            ["chroot", str(mountpoint), "/usr/bin/env",
+             "DEBIAN_FRONTEND=noninteractive",
+             "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+             "apt-get", "-o", "Acquire::Retries=2", "update"],
+            log=manager.log, timeout=1200, env=env,
+            on_progress=lambda percent, message: write_status(
+                app_dir, "APT_UPDATE", 42 + int(percent * 0.14),
+                message or "Refreshing Debian Trixie package indexes",
+                str(image), profile,
+            ),
+        )
 
         packages = BASE_PACKAGES.split() + PROFILE_PACKAGES[DEFAULT_PROFILE].split()
         if profile != DEFAULT_PROFILE:
@@ -784,12 +931,19 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
         write_status(app_dir, "INSTALLING_PROFILE", 58,
                      "Installing APT profile // " + profile.upper(),
                      str(image), profile)
-        _run(["chroot", str(mountpoint), "/usr/bin/env",
-              "DEBIAN_FRONTEND=noninteractive",
-              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-              "apt-get", "-o", "Acquire::Retries=2",
-              "install", "-y", "--no-install-recommends"] + packages,
-             log=manager.log, timeout=3600, env=env)
+        run_apt_with_progress(
+            ["chroot", str(mountpoint), "/usr/bin/env",
+             "DEBIAN_FRONTEND=noninteractive",
+             "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+             "apt-get", "-o", "Acquire::Retries=2",
+             "install", "-y", "--no-install-recommends"] + packages,
+            log=manager.log, timeout=3600, env=env,
+            on_progress=lambda percent, message: write_status(
+                app_dir, "INSTALLING_PROFILE", 58 + int(percent * 0.37),
+                message or ("Installing APT profile // " + profile.upper()),
+                str(image), profile,
+            ),
+        )
         _run(["chroot", str(mountpoint), "/usr/bin/env",
               "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "apt-get", "clean"],
              log=manager.log, timeout=180, env=env)
