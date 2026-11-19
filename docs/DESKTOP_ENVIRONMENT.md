@@ -63,6 +63,18 @@ Installing another profile adds its packages to the existing rootfs; it does not
 
 A shared Debian-system lock serializes environment setup, package-manager operations and desktop sessions.
 
+## H700 CORE dependencies
+
+THE FORGE has a dedicated H700 CORE group for native application work:
+
+- **Graphics:** libdrm-dev, libgbm-dev, libegl1-mesa-dev, libgl4es-dev
+- **Wayland:** libwayland-dev, wayland-protocols, libxkbcommon-dev
+- **Input:** libevdev-dev, libinput-dev, libudev-dev
+- **Audio:** libasound2-dev, libpulse-dev
+- **SDL2:** libsdl2-image-dev, libsdl2-ttf-dev, libsdl2-mixer-dev
+
+These are package candidates, not a promise that every H700 peripheral or API is hardware-accelerated. Applications must use the capabilities actually exposed by muOS.
+
 ## THE FORGE — APT software centre
 
 THE FORGE presents a curated, filtered catalogue grouped into handheld/input, desktop, development, media/audio, network and utilities. It reads real availability and installation state from Debian's APT/dpkg database.
