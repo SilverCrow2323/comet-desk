@@ -42,6 +42,8 @@ def _valid_entries():
         "CometDesk/assets/backgrounds/comet-dashboard-640x480.png": _png(320, 240),
         "CometDesk/assets/icons/comet-desk-atlas.png": _png(288, 48),
         "CometDesk/assets/branding/comet-desk-logo.png": _png(160, 54),
+        "CometDesk/love/assets/backgrounds/comet-dashboard-640x480.png": _png(320, 240),
+        "CometDesk/love/assets/icons/comet-desk-atlas.png": _png(288, 48),
         "CometDesk/lib/love": _elf(),
         "CometDesk/lib/liblove-11.5.so": _elf(),
         "CometDesk/lib/libluajit-5.1.so.2": _elf(),
@@ -69,6 +71,15 @@ def test_rejects_missing_version_metadata(tmp_path):
     del entries["CometDesk/love/version.txt"]
     _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
     assert any("required file missing: love/version.txt" in error for error in validate_archive(path))
+
+
+def test_rejects_missing_runtime_asset_inside_love_game(tmp_path):
+    path = tmp_path / "missing-game-art.muxapp"
+    entries = _valid_entries()
+    del entries["CometDesk/love/assets/icons/comet-desk-atlas.png"]
+    _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
+    assert any("LÖVE game asset missing: assets/icons/comet-desk-atlas.png" in error
+               for error in validate_archive(path))
 
 
 def test_rejects_missing_runtime(tmp_path):
