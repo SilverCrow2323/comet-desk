@@ -264,6 +264,7 @@ def test_operation_lock_probe_distinguishes_stale_file_from_active_worker(tmp_pa
 
 
 def test_desktop_environment_check_action_writes_machine_readable_lock_state(tmp_path):
+    import fcntl
     import subprocess
     import sys
 
