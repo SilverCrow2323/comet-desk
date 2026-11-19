@@ -860,6 +860,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("setup", "session"))
     parser.add_argument("--slot", required=True, choices=sorted(SLOTS))
+    parser.add_argument("--profile", choices=sorted(PROFILE_PACKAGES), default=DEFAULT_PROFILE)
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
     args = parser.parse_args()
     if not args.app_dir:
@@ -868,11 +869,15 @@ def main() -> int:
     app_dir = Path(args.app_dir).resolve()
     try:
         if args.action == "setup":
-            image = setup(args.slot, app_dir)
-            print("[comet-desktop] prepared {}".format(image))
+            image = setup(args.slot, app_dir, args.profile)
+            print("[comet-desktop] Debian Trixie prepared: {} ({})".format(
+                image, args.profile
+            ))
             return 0
-        result = launch(args.slot, app_dir)
-        print("[comet-desktop] XFCE session returned ({})".format(result))
+        result = launch(args.slot, app_dir, args.profile)
+        print("[comet-desktop] {} session returned ({})".format(
+            args.profile, result
+        ))
         return 0
     except (SetupError, OSError, ValueError, urllib.error.URLError,
             subprocess.SubprocessError, json.JSONDecodeError) as exc:
