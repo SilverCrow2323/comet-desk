@@ -118,6 +118,8 @@ local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
 local mediaSearch, mediaSearchActive = "", false
 local mediaFilteredRows, mediaFilterCacheKey = {}, ""
+local mediaUrlDialog, mediaUrlField, mediaUrlName, mediaUrlValue = false, "name", "Custom IPTV", ""
+local mediaUrlCharIndex, mediaUrlShift = 1, false
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
 local mediaCatalogBusyAge = 0
 
@@ -1306,6 +1308,65 @@ local function queueMediaActivatePlaylist(item)
     mediaCatalogBusyAge = 0
 end
 
+local function openMediaUrlDialog()
+    mediaUrlDialog = true
+    mediaUrlField = "name"
+    mediaUrlName = "Custom IPTV"
+    mediaUrlValue = ""
+    mediaUrlCharIndex = 1
+    mediaUrlShift = false
+    mediaSearchActive = false
+end
+
+local function closeMediaUrlDialog()
+    mediaUrlDialog = false
+    mediaUrlShift = false
+end
+
+local function mediaUrlCharacters()
+    local lower, upper = "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    local rest = "0123456789:/._-?&=%+@~# "
+    return (mediaUrlShift and upper or lower)
+        .. (mediaUrlShift and lower or upper) .. rest
+end
+
+local function mediaUrlMove(delta)
+    local count = #mediaUrlCharacters()
+    mediaUrlCharIndex = ((mediaUrlCharIndex - 1 + delta) % count) + 1
+end
+
+local function mediaUrlAppend(value)
+    if mediaUrlField == "name" then
+        if #mediaUrlName < 80 then mediaUrlName = mediaUrlName .. value end
+    elseif #mediaUrlValue < 512 then
+        mediaUrlValue = mediaUrlValue .. value
+    end
+end
+
+local function mediaUrlBackspace()
+    if mediaUrlField == "name" then
+        mediaUrlName = mediaUrlName:sub(1, math.max(0, #mediaUrlName - 1))
+    else
+        mediaUrlValue = mediaUrlValue:sub(1, math.max(0, #mediaUrlValue - 1))
+    end
+end
+
+local function commitMediaUrlDialog()
+    local name = mediaUrlName:gsub("^%s+", ""):gsub("%s+$", "")
+    local url = mediaUrlValue:gsub("^%s+", ""):gsub("%s+$", "")
+    if url == "" then
+        mediaUrlField = "url"
+        setNotice("ENTER A PLAYLIST URL FIRST")
+        return
+    end
+    closeMediaUrlDialog()
+    mediaCatalogLoaded, mediaCatalogBusy = false, true
+    mediaCatalogBusyAge = 0
+    queueMediaTask("import-playlist", "--name "
+        .. shellQuoteMedia(name ~= "" and name or "Custom IPTV")
+        .. " --url " .. shellQuoteMedia(url))
+end
+
 local function queueMediaFavourite(item)
     if mediaMode == "PLAYLISTS" then
         setNotice("SELECT A TV OR RADIO ITEM TO CHANGE FAVOURITES")
@@ -1542,6 +1603,43 @@ local function cycleMediaMode(direction)
     mediaSelectedIndex = 1
 end
 
+local function drawMediaUrlEditor(tint)
+    local chars, columns = mediaUrlCharacters(), 8
+    love.graphics.setColor(0.005, 0.009, 0.018, 0.94)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+    rounded(22, 160, 596, 258, colors.panel, {tint[1], tint[2], tint[3], 0.95})
+    text("MEDIA VAULT  //  ADD REMOTE PLAYLIST", 38, 174, fonts.medium, tint)
+    rounded(36, 202, 568, 24, colors.panel2, {
+        mediaUrlField == "name" and tint[1] or colors.line[1],
+        mediaUrlField == "name" and tint[2] or colors.line[2],
+        mediaUrlField == "name" and tint[3] or colors.line[3], 0.9,
+    })
+    text("NAME  " .. short(mediaUrlName, 62), 46, 206, fonts.tiny,
+        mediaUrlField == "name" and colors.white or colors.muted)
+    rounded(36, 230, 568, 24, colors.panel2, {
+        mediaUrlField == "url" and tint[1] or colors.line[1],
+        mediaUrlField == "url" and tint[2] or colors.line[2],
+        mediaUrlField == "url" and tint[3] or colors.line[3], 0.9,
+    })
+    text("URL   " .. short(mediaUrlValue ~= "" and mediaUrlValue or "https://", 62),
+        46, 234, fonts.tiny, mediaUrlField == "url" and colors.white or colors.muted)
+    text("D-PAD MOVE  //  A INSERT  //  Y FIELD  //  X DELETE  //  R1 SHIFT",
+        38, 260, fonts.tiny, colors.muted)
+    for index = 1, #chars do
+        local column = (index - 1) % columns
+        local row = math.floor((index - 1) / columns)
+        local x, y = 38 + column * 70, 281 + row * 13
+        if index == mediaUrlCharIndex then
+            rounded(x - 3, y - 1, 64, 13, colors.panel2,
+                {tint[1], tint[2], tint[3], 0.95})
+        end
+        local char = chars:sub(index, index)
+        text(char == " " and "SPACE" or char, x + 3, y - 1, fonts.tiny,
+            index == mediaUrlCharIndex and colors.white or colors.muted)
+    end
+    text("START SAVE  //  B CANCEL", 38, 400, fonts.tiny, tint)
+end
+
 local function drawMediaVault()
     local page, tint = pages[activePage], pages[activePage].accent
     drawSectionStructure(20, 183, 600, 232, page, 1)
@@ -1573,26 +1671,33 @@ local function drawMediaVault()
 
     local rows = selectedMediaRows()
     local count = #rows
-    if mediaSelectedIndex > count then mediaSelectedIndex = math.max(1, count) end
+    local displayCount = count + (mediaMode == "PLAYLISTS" and 1 or 0)
+    if mediaSelectedIndex > displayCount then mediaSelectedIndex = math.max(1, displayCount) end
     rounded(34, 248, 260, 148, colors.panel2, colors.line)
     local first = math.max(1, math.min(mediaSelectedIndex - 2, math.max(1, count - 5)))
     for visible = 1, 6 do
         local index = first + visible - 1
         local item = rows[index]
-        if item then
+        if item or (mediaMode == "PLAYLISTS" and index == count + 1) then
             local y = 255 + (visible - 1) * 22
             if index == mediaSelectedIndex then
                 rounded(40, y - 2, 246, 20, colors.bg, {tint[1], tint[2], tint[3], 0.8})
             end
-            local suffix = mediaMode == "PLAYLISTS" and (item.active and "  • ACTIVE" or "")
-                or (item.favorite and " ★" or "")
-            text(short(item.name, mediaMode == "PLAYLISTS" and 22 or 28) .. suffix, 48, y,
+            local label = item and item.name or "+ ADD REMOTE PLAYLIST"
+            local suffix = item and (mediaMode == "PLAYLISTS" and (item.active and "  • ACTIVE" or "")
+                or (item.favorite and " ★" or "")) or ""
+            text(short(label, mediaMode == "PLAYLISTS" and 22 or 28) .. suffix, 48, y,
                 fonts.tiny, index == mediaSelectedIndex and colors.white or colors.muted)
         end
     end
     rounded(306, 248, 296, 148, colors.panel2, colors.line)
     local chosen = rows[mediaSelectedIndex]
-    if chosen then
+    if mediaMode == "PLAYLISTS" and mediaSelectedIndex == count + 1 then
+        text("ADD REMOTE PLAYLIST", 320, 259, fonts.medium, colors.white)
+        text("Enter an HTTP or HTTPS M3U URL", 320, 286, fonts.tiny, tint)
+        text("A  OPEN URL EDITOR", 320, 315, fonts.small, tint)
+        text("Local files: data/media/playlists/imports", 320, 344, fonts.tiny, colors.muted)
+    elseif chosen then
         text(short(chosen.name, 31), 320, 259, fonts.medium, colors.white)
         if mediaMode == "PLAYLISTS" then
             text(chosen.active and "ACTIVE SOURCE" or "AVAILABLE SOURCE",
@@ -1642,6 +1747,7 @@ local function drawMediaVault()
         text("EPG  //  " .. short(mediaEpgStatus, 58), 38, 408, fonts.tiny,
             mediaEpgStatus:find("READY", 1, true) and colors.green or colors.muted)
     end
+    if mediaUrlDialog then drawMediaUrlEditor(tint) end
 end
 
 local function drawPageContent()
