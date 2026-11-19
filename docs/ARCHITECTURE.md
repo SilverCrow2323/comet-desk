@@ -13,7 +13,7 @@ Comet Desk is the controller-first Linux workspace layer for muOS. muOS remains 
 5. **THE FORGE** — curated APT catalogue, installed/available state, search, install/remove/update and a strict package allowlist.
 6. **APP DECK** — scans installed freedesktop application entries, validates the executable inside Debian and presents a controller-driven app catalogue.
 7. **Session supervisor** — Comet launches the requested desktop profile and app, then returns to the Comet frontend after the app exits.
-7. **Target storage** — user-selected TF1/TF2 destination; guest ext4 image is a file, never written to a raw block device.
+8. **Target storage** — user-selected TF1/TF2 destination; guest ext4 image is a file, never written to a raw block device.
 
 ## Debian guest
 
@@ -26,6 +26,14 @@ The guest shares the currently running muOS H700 kernel and only the host device
 THE FORGE operates only inside the mounted Debian rootfs. APT commands are serialized with setup and session launches through one shared lock. The curated H700 catalogue focuses on graphics (DRM/GBM/EGL), Wayland, input (evdev/libinput), audio (ALSA/PulseAudio), SDL2 and useful development/network tools.
 
 APP DECK parses installed .desktop entries, excludes hidden, NoDisplay and Terminal entries, strips supported Desktop Entry field codes, rejects shell/privilege wrappers, and resolves the first executable strictly within the Debian rootfs. It stores a compact atomic catalogue. A launch request contains only a validated registry ID; the supervisor re-reads the entry from the mounted guest, starts the selected desktop profile, waits for the compositor/display endpoint, and launches the validated argv directly through chroot (never through a shell). When the app process exits, Comet terminates the desktop session, cleans up bind/loop mounts and reopens the frontend. DBus-only activation, terminal applications, unsupported field-code patterns and binaries outside the guest are not exposed.
+
+## Operation and status model
+
+Setup, APT operations and desktop sessions share one kernel flock lock. The live lock owner is authoritative; a leftover lock file or stale status snapshot does not mean a worker is still running.
+
+Long-running operations must preflight their target, acquire the shared lock, execute, verify the requested result, clean up owned mounts/processes and only then publish a terminal state. Status snapshots are written atomically. READY means the guest/profile or requested package state was verified; BUSY means a live lock owner exists; FAILED retains a useful reason and log; CLEANUP_REQUIRED means resource cleanup is not verified. Unknown and not-checked states must remain visibly distinct from success.
+
+APT progress is driven by APT/dpkg Status-Fd events. Download progress is based on transferred bytes. UI animation must never be substituted for worker progress.
 
 ## muOS host boundary
 
