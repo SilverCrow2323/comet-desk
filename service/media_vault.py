@@ -720,7 +720,7 @@ def _safe_stream_options(options: dict | None) -> dict:
     for key in ("http-user-agent", "http-referrer", "http-referer", "http-origin"):
         value = options.get(key)
         if isinstance(value, str) and value and len(value) <= 300 and not any(
-            ch in value for ch in ("\\r", "\\n", chr(0))
+            ch in value for ch in ("\r", "\n", chr(0))
         ):
             result[key] = value
     headers = options.get("headers")
@@ -730,7 +730,7 @@ def _safe_stream_options(options: dict | None) -> dict:
             key = str(key)[:80]
             value = str(value)[:300]
             if (re.fullmatch(r"[A-Za-z0-9!#$%&'*+.^_\x60|~-]+", key)
-                    and not any(ch in value for ch in ("\\r", "\\n", chr(0)))):
+                    and not any(ch in value for ch in ("\r", "\n", chr(0)))):
                 safe_headers[key] = value
         if safe_headers:
             result["headers"] = safe_headers
@@ -775,7 +775,7 @@ def _player_command(kind: str, url: str, options: dict | None = None) -> tuple[l
         if referrer:
             command += ["-referer", referrer]
         if headers:
-            values = "".join(key + ": " + value + "\\r\\n" for key, value in headers.items())
+            values = "".join(key + ": " + value + "\r\n" for key, value in headers.items())
             command += ["-headers", values]
         command += ["-i", url]
         return command, "ffplay"
