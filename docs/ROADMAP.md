@@ -102,3 +102,16 @@ A feature is not complete because its screen exists. It is complete when the und
 - [ ] Keep unsupported hardware and unverified features explicitly out of the compatibility claim.
 
 The product boundary and test authority are documented in [Product Blueprint](PRODUCT_BLUEPRINT.md) and [Release Gates](RELEASE_GATES.md).
+
+
+## Phase 4.3 — Controller-first information architecture (0.8.0-dev)
+
+- [x] Replace always-open module pages with compact section snapshots.
+- [x] Expand a selected section into a full-screen, scrollable overlay with animated open/close motion.
+- [x] Give each section its own accent and structural frame treatment.
+- [x] Show section icon, title and controller legend in the overlay.
+- [x] Make L1/R1 the only controller tab-navigation inputs.
+- [x] Increase navigation tab size and separate icon/text zones to prevent collisions.
+- [x] Draw the curved fascia, two guide rails and cross-ties behind the carousel.
+- [x] Bind SELECT to show/hide the live Debian/ APT task console without cancelling its worker.
+- [ ] Validate the 0.8.0-dev layout, focus, scrolling and SELECT console toggle on the RG35XX H.
