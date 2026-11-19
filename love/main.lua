@@ -399,6 +399,135 @@ local function drawUplink()
     if uplinkStatus.error then text(short(uplinkStatus.error, 72), 38, 410, fonts.tiny, colors.amber) end
 end
 
+local function queueForgeAction(action, packageName)
+    if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return end
+    local slot = installedSlot or selectedSlot
+    if not installedSlot then setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST"); return end
+    local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
+    local script = appRoot .. "/service/forge_apt.py"
+    local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
+        .. " " .. action .. " --slot " .. slot
+        .. (packageName and (" --package " .. quote(packageName)) or "")
+        .. " --app-dir " .. quote(appRoot)
+        .. " >> " .. quote(appRoot .. "/data/forge-apt.log") .. " 2>&1 &"
+    local result = os.execute(command)
+    if result == 0 or result == true then
+        forgeStatus.state = action == "catalog" and "LOADING" or string.upper(action)
+        forgeStatus.percent = 0
+        forgeStatus.message = action == "catalog" and "Loading curated APT catalogue" or
+            (string.upper(action) .. " // " .. (packageName or "DEBIAN INDEXES"))
+        forgeStatus.package = packageName or ""
+        forgeActionBusy = action ~= "catalog"
+        setNotice("THE FORGE // " .. string.upper(action))
+    else
+        forgeStatus.state = "FAILED"; forgeStatus.message = "Could not start APT worker"
+        setNotice("THE FORGE WORKER COULD NOT START")
+    end
+end
+
+local function readForgeFiles()
+    if appRoot == "" then return end
+    local catalog = io.open(appRoot .. "/data/forge-catalog.txt", "r")
+    if catalog then
+        local rows = {}
+        for line in catalog:lines() do
+            local category, packageName, title, summary, installed, available, size, tag =
+                line:match("^PKG|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
+            if packageName then rows[#rows + 1] = {
+                category = category, package = packageName, title = title, summary = summary,
+                installed = installed == "1", available = available == "1", size = size, tag = tag,
+            } end
+        end
+        catalog:close(); forgePackages = rows
+    end
+    local status = io.open(appRoot .. "/data/forge-operation.status", "r")
+    if status then
+        local line = status:read("*l"); status:close()
+        local state, percent, message, packageName = line and line:match("^([^|]+)|(%d+)|([^|]*)|(.*)$")
+        if state then
+            forgeStatus.state = state; forgeStatus.percent = tonumber(percent) or 0
+            forgeStatus.message = message; forgeStatus.package = packageName or ""
+            forgeActionBusy = state == "INSTALLING" or state == "REMOVING" or state == "UPDATING"
+        end
+    end
+end
+
+local function forgeFilteredPackages()
+    local category = forgeCategories[forgeCategoryIndex]
+    local query = forgeSearch:lower()
+    local rows = {}
+    for _, item in ipairs(forgePackages) do
+        local categoryMatch = category == "ALL" or item.category == category
+        local textMatch = query == "" or item.title:lower():find(query, 1, true)
+            or item.package:lower():find(query, 1, true) or item.summary:lower():find(query, 1, true)
+        if categoryMatch and textMatch then rows[#rows + 1] = item end
+    end
+    return rows
+end
+
+local function cycleForgeCategory(direction)
+    forgeCategoryIndex = ((forgeCategoryIndex - 1 + direction) % #forgeCategories) + 1
+    forgeSelectedIndex = 1; forgeConfirmRemove = nil
+end
+
+local function drawForge()
+    local tint = pages[activePage].accent
+    text("DEBIAN TRIXIE  /  ARM64 SOFTWARE CENTRE", 24, 180, fonts.small, colors.muted)
+    rounded(20, 201, 600, 214, colors.panel, {tint[1], tint[2], tint[3], 0.75})
+    local labels = { "ALL", "INPUT", "DESKTOP", "DEV", "MEDIA", "NETWORK", "TOOLS" }
+    for i, label in ipairs(labels) do
+        local x = 27 + (i - 1) * 84
+        local active = forgeCategoryIndex == i
+        rounded(x, 211, 78, 25, active and colors.panel2 or colors.bg, active and tint or colors.line)
+        text(label, x + 8, 216, fonts.tiny, active and colors.white or colors.muted)
+    end
+    local rows = forgeFilteredPackages()
+    if forgeSelectedIndex > #rows then forgeSelectedIndex = math.max(1, #rows) end
+    rounded(27, 246, 245, 151, colors.panel2, colors.line)
+    text("CURATED SOFTWARE  /  " .. tostring(#rows), 39, 252, fonts.tiny, tint)
+    local first = math.max(1, math.min(forgeSelectedIndex - 1, math.max(1, #rows - 3)))
+    for visible = 1, 4 do
+        local index = first + visible - 1
+        local item = rows[index]
+        if item then
+            local y = 271 + (visible - 1) * 29
+            local active = index == forgeSelectedIndex
+            if active then rounded(34, y - 2, 230, 27, colors.bg, item.available and tint or colors.amber) end
+            local marker = item.installed and "[x] " or (item.available and "[ ] " or "[-] ")
+            text(marker .. short(item.title, 20), 42, y, fonts.small,
+                active and colors.white or (item.available and colors.muted or colors.amber))
+        end
+    end
+    rounded(281, 246, 326, 151, colors.panel2, colors.line)
+    local chosen = rows[forgeSelectedIndex]
+    if chosen then
+        text(short(chosen.title, 29), 296, 255, fonts.medium, colors.white)
+        text(chosen.package, 296, 281, fonts.small, tint)
+        love.graphics.setFont(fonts.tiny); setColor(colors.muted)
+        love.graphics.printf(chosen.summary, 296, 307, 294, "left")
+        local stateText = chosen.installed and "INSTALLED" or (chosen.available and "AVAILABLE" or chosen.tag)
+        text(stateText .. "  /  " .. (chosen.size ~= "" and chosen.size or "SIZE N/A"),
+            296, 365, fonts.tiny, chosen.installed and colors.green or (chosen.available and colors.cyan or colors.amber))
+        if chosen.package == "input-leap" then
+            text("UPSTREAM BUILD NOT PACKAGED FOR TRIXIE", 296, 383, fonts.tiny, colors.amber)
+        elseif forgeConfirmRemove == chosen.package then
+            text("PRESS X AGAIN TO CONFIRM REMOVE", 296, 383, fonts.tiny, colors.amber)
+        elseif chosen.installed then
+            text("X  REMOVE   /   A  DETAILS", 296, 383, fonts.tiny, colors.amber)
+        elseif chosen.available then
+            text("A  INSTALL PACKAGE", 296, 383, fonts.small, tint)
+        else
+            text("NOT IN DEBIAN ARM64 REPOSITORY", 296, 383, fonts.tiny, colors.amber)
+        end
+    else
+        text("DEBIAN NOT READY", 296, 270, fonts.medium, colors.amber)
+        text("Install the base system from DESKTOP SYSTEM.", 296, 306, fonts.small, colors.muted)
+    end
+    text("LEFT / RIGHT CATEGORY   UP / DOWN PACKAGE   Y REFRESH", 29, 402, fonts.tiny, colors.muted)
+    if forgeSearch ~= "" then text("SEARCH: " .. short(forgeSearch, 22), 425, 402, fonts.tiny, tint)
+    else text("/ SEARCH", 526, 402, fonts.tiny, tint) end
+end
+
 local function drawDiagnostics()
     text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
     rounded(20, 183, 600, 232, colors.panel, colors.line)
