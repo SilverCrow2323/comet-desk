@@ -5,7 +5,7 @@
 
 **A fast, focused desktop companion for muOS — part of the QWASAR ecosystem.**
 
-Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It prepares and runs an isolated Ubuntu Base 24.04.3 ARM64 + XFCE desktop environment on the H700, using the existing muOS kernel and returning to Comet Desk when the session ends.
+Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It owns a persistent Debian GNU/Linux 13 (Trixie) ARM64 root filesystem with APT, a default labwc session and optional X11/Wayland desktop profiles. Its software centre, THE FORGE, manages curated packages inside that Debian environment while muOS remains the host.
 
 > **Project status:** Early test candidate. The first self-contained RG35XX H muOS `.muxapp` has been built by CI and its archive, AArch64 runtime payloads and SHA-256 checksum have been verified. Physical-device validation is the next gate.
 
@@ -29,9 +29,9 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Module | Purpose | Current state |
 |---|---|---|
 | Overview | Device/app landing screen | Implemented |
-| Desktop Setup | Build and launch the Void Desk XFCE ARM64 filesystem on selected TF1 / TF2 storage | Integrated setup/session manager; hardware validation pending |
+| Desktop System | Build Debian Trixie ARM64 + APT and install labwc/XFCE/LXDE/LXQt/IceWM/Fluxbox/Openbox profiles | Integrated setup/session manager; hardware validation pending |
 | Session Manager | View and launch installed sessions | Planned |
-| System Tools | Storage and service utilities | Planned |
+| THE FORGE | Discover, install, update and remove curated Debian APT packages | Integrated catalogue and package operations; device validation pending |\n| System Tools | Storage and service utilities | Planned |
 | Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
 
@@ -62,10 +62,10 @@ Every device-test milestone is distributed as an installable `.muxapp`. The pack
 QWASAR
 ├── Void Desk      — desktop reference implementation and shared H700 research
 ├── Rt:Tailscale-M — optional muOS-managed Tailscale service stack
-└── Comet Desk     — standalone muOS MUX app, XFCE session manager and Uplink
+└── Comet Desk     — standalone muOS MUX app, Debian/ APT desktop engine, THE FORGE and Uplink
 ```
 
-Comet Desk owns the XFCE workflow and its curved, controller-first navigation. Uplink reads muOS Andromeda network and Web Service state and can install the optional Rt:Tailscale-M package directly, without requiring the user to open Archive Manager. The RT service manager remains the sole owner of the Tailscale daemon.
+Comet Desk owns the Debian rootfs and desktop lifecycle: it downloads a checksum-pinned Debian Trixie ARM64 base, installs APT and the selected desktop profile, mounts and launches sessions, and returns to the Comet UI. THE FORGE is a Discover/Software-style package centre with an allowlisted H700-oriented catalogue. It never operates on muOS's host APT database. Uplink reads muOS Andromeda state and can install Rt:Tailscale-M; the RT service manager remains the sole owner of the Tailscale daemon.
 
 ## Reference hardware
 
@@ -79,7 +79,7 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Safety model](docs/SAFETY.md)\n- [Integrated XFCE environment](docs/DESKTOP_ENVIRONMENT.md)
+- [Safety model](docs/SAFETY.md)\n- [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)\n- [THE FORGE package centre](docs/FORGE.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)
