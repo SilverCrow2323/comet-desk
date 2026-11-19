@@ -82,6 +82,41 @@ def test_rootfs_extraction_reports_tar_failure(tmp_path):
             )
 
 
+def test_rootfs_extraction_with_system_tar_restores_files_and_symlinks(tmp_path):
+    import shutil
+    import tarfile
+
+    tar_executable = shutil.which("tar")
+    if not tar_executable:
+        pytest.skip("tar is unavailable")
+
+    source = tmp_path / "source"
+    (source / "usr/bin").mkdir(parents=True)
+    executable = source / "usr/bin/comet-test"
+    executable.write_text("#!/bin/sh\\necho Comet\\n", encoding="utf-8")
+    executable.chmod(0o755)
+    (source / "bin").symlink_to("usr/bin", target_is_directory=True)
+
+    raw_tar = tmp_path / "rootfs.tar"
+    with tarfile.open(raw_tar, "w") as archive:
+        archive.add(source / "usr", arcname="usr")
+        archive.add(source / "bin", arcname="bin", recursive=False)
+    archive = tmp_path / "rootfs.tar.gz"
+    archive.write_bytes(gzip.compress(raw_tar.read_bytes()))
+
+    destination = tmp_path / "guest"
+    destination.mkdir()
+    with (tmp_path / "extract.log").open("wb") as log:
+        desktop.extract_gzip_tar(
+            archive, destination, log=log, timeout=10, tar_command=tar_executable
+        )
+
+    assert (destination / "usr/bin/comet-test").read_text(encoding="utf-8").endswith("echo Comet\\n")
+    assert (destination / "usr/bin/comet-test").stat().st_mode & 0o111
+    assert (destination / "bin").is_symlink()
+    assert (destination / "bin").readlink().as_posix() == "usr/bin"
+
+
 def test_mount_parser_decodes_escaped_mount_path(tmp_path):
     target = tmp_path / "Comet Desk"
     rows = desktop.mount_table_from_text(
