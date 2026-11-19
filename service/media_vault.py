@@ -49,8 +49,9 @@ DEFAULT_CONFIG = {
         }
     ],
     "epg_urls": [
-        "https://epg-guide.com/wltv.gz",
-        "https://github.com/matthuisman/i.mjh.nz/raw/master/SamsungTVPlus/it.xml.gz",
+        "https://xmltv.live/epg/it.xml.gz",
+        "https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz",
+        "https://www.open-epg.com/files/italy3.xml.gz",
     ],
     "radios": [
         {
@@ -159,6 +160,14 @@ def load_config(app_dir: Path) -> dict:
                 merged[key] = value
         elif key in ("active_playlist", "player", "last_epg_sync", "schema_version"):
             merged[key] = value
+    legacy_epg_defaults = {
+        "https://epg-guide.com/wltv.gz",
+        "https://github.com/matthuisman/i.mjh.nz/raw/master/SamsungTVPlus/it.xml.gz",
+    }
+    if set(merged["epg_urls"]) == legacy_epg_defaults:
+        merged["epg_urls"] = list(DEFAULT_CONFIG["epg_urls"])
+    merged["epg_urls"] = [url for url in merged["epg_urls"]
+                          if isinstance(url, str) and url.strip()][:4]
     merged["playlists"] = [row for row in merged["playlists"]
                            if isinstance(row, dict) and row.get("id") and row.get("source")]
     merged["radios"] = [row for row in merged["radios"]
