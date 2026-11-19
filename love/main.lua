@@ -2241,7 +2241,17 @@ function love.keypressed(key)
     end
     if key == "m" then toggleQuickPanel(); return end
     if quickPanelOpen then
-        if key == "escape" or key == "backspace" or key == "b" then toggleQuickPanel() end
+        if key == "escape" or key == "backspace" or key == "b" then
+            toggleQuickPanel()
+        elseif key == "return" or key == "space" then
+            queueMediaToggle()
+        elseif key == "x" then
+            queueMediaStop()
+        elseif key == "y" then
+            toggleQuickPanel()
+            selected, activePage, carouselTarget = 9, 9, 9
+            activate()
+        end
         return
     end
 
@@ -2260,23 +2270,37 @@ function love.keypressed(key)
         if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf1"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(-1)
-        elseif activePage == 5 then cycleForgeCategory(-1) end
+        elseif activePage == 5 then cycleForgeCategory(-1)
+        elseif activePage == 8 then adjustDesktopInput(-1)
+        elseif activePage == 9 then
+            mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
+            mediaSelectedIndex = 1
+        end
     elseif key == "right" or key == "d" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf2"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(1)
-        elseif activePage == 5 then cycleForgeCategory(1) end
+        elseif activePage == 5 then cycleForgeCategory(1)
+        elseif activePage == 8 then adjustDesktopInput(1)
+        elseif activePage == 9 then
+            mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
+            mediaSelectedIndex = 1
+        end
     elseif key == "up" or key == "w" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(-1)
         elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
         elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.max(1, desktopInput.selectedOption - 1)
+        elseif activePage == 9 then mediaSelectedIndex = math.max(1, mediaSelectedIndex - 1)
         else scrollSectionOverlay(-1) end
     elseif key == "down" or key == "s" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.min(4, desktopInput.selectedOption + 1)
+        elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif key == "/" and sectionOverlayOpen and activePage == 5 then
         forgeSearchActive = true
@@ -2291,6 +2315,13 @@ function love.keypressed(key)
         end
         if activePage == 2 then
             startDesktopEnvironment()
+        elseif activePage == 8 then
+            adjustDesktopInput(1)
+        elseif activePage == 9 then
+            local item = selectedMediaRows()[mediaSelectedIndex]
+            if item then
+                if mediaMode == "RADIO" then queueMediaRadio(item) else queueMediaTV(item) end
+            end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
             if item then startDesktopApplication(item.id) end
@@ -2307,6 +2338,13 @@ function love.keypressed(key)
         else
             setNotice(pages[activePage].title .. " // NO PRIMARY ACTION")
         end
+    elseif key == "y" and sectionOverlayOpen and activePage == 8 then
+        resetDesktopInput()
+    elseif key == "y" and sectionOverlayOpen and activePage == 9 then
+        queueMediaCatalogue(true)
+        queueMediaTask("refresh-epg")
+    elseif key == "x" and sectionOverlayOpen and activePage == 9 then
+        queueMediaStop()
     elseif key == "r" and sectionOverlayOpen and activePage == 5 then
         local item = forgeFilteredPackages()[forgeSelectedIndex]
         if item and item.installed then
@@ -2389,7 +2427,19 @@ function love.gamepadpressed(joystick, button)
         return
     end
     if quickPanelOpen then
-        if button == "b" then toggleQuickPanel() end
+        if button == "b" then
+            toggleQuickPanel()
+        elseif button == "a" then
+            queueMediaToggle()
+        elseif button == "x" then
+            queueMediaStop()
+        elseif button == "y" then
+            toggleQuickPanel()
+            selected, activePage, carouselTarget = 9, 9, 9
+            sectionOverlayOpen = true
+            sectionOverlayProgress = 0
+            overlayScroll = 0
+        end
         return
     end
     if button == "leftshoulder" then
@@ -2412,12 +2462,16 @@ function love.gamepadpressed(joystick, button)
         if activePage == 2 then cycleDesktopProfile(-1)
         elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
         elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.max(1, desktopInput.selectedOption - 1)
+        elseif activePage == 9 then mediaSelectedIndex = math.max(1, mediaSelectedIndex - 1)
         else scrollSectionOverlay(-1) end
     elseif button == "dpdown" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.min(4, desktopInput.selectedOption + 1)
+        elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 2 then
         selectedSlot = "tf1"
@@ -2433,6 +2487,16 @@ function love.gamepadpressed(joystick, button)
         cycleForgeCategory(-1)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 5 then
         cycleForgeCategory(1)
+    elseif button == "dpleft" and sectionOverlayOpen and activePage == 8 then
+        adjustDesktopInput(-1)
+    elseif button == "dpright" and sectionOverlayOpen and activePage == 8 then
+        adjustDesktopInput(1)
+    elseif button == "dpleft" and sectionOverlayOpen and activePage == 9 then
+        mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
+        mediaSelectedIndex = 1
+    elseif button == "dpright" and sectionOverlayOpen and activePage == 9 then
+        mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
+        mediaSelectedIndex = 1
     elseif button == "a" then
         if not sectionOverlayOpen then
             activate()
@@ -2440,6 +2504,13 @@ function love.gamepadpressed(joystick, button)
         end
         if activePage == 2 then
             startDesktopEnvironment()
+        elseif activePage == 8 then
+            adjustDesktopInput(1)
+        elseif activePage == 9 then
+            local item = selectedMediaRows()[mediaSelectedIndex]
+            if item then
+                if mediaMode == "RADIO" then queueMediaRadio(item) else queueMediaTV(item) end
+            end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
             if item then startDesktopApplication(item.id) end
@@ -2467,6 +2538,13 @@ function love.gamepadpressed(joystick, button)
                 setNotice("PRESS X AGAIN TO REMOVE " .. item.package)
             end
         end
+    elseif button == "y" and sectionOverlayOpen and activePage == 8 then
+        resetDesktopInput()
+    elseif button == "y" and sectionOverlayOpen and activePage == 9 then
+        queueMediaCatalogue(true)
+        queueMediaTask("refresh-epg")
+    elseif button == "x" and sectionOverlayOpen and activePage == 9 then
+        queueMediaStop()
     elseif button == "y" and sectionOverlayOpen and activePage == 3 then
         appCatalogLoaded = false
         queueAppCatalog()
