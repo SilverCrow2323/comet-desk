@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Comet Desk's in-process XFCE environment manager for muOS / Allwinner H700.
+"""Comet Desk's persistent Debian Trixie ARM64 guest and session manager.
 
-This is part of Comet Desk. It does not launch or invoke the Void Desk MUX app,
-Archive Manager, or another installer. It downloads the same pinned XFCE image
-seed used by Void Desk, expands it, builds the ARM64 root filesystem in-place,
-and launches Xorg/XFCE directly in a chroot. Only ordinary host kernel tools
-(mount, losetup, chroot and apt-get inside the guest) are used.
+The service prepares one verified ext4 Debian root filesystem on the selected
+muOS storage card, installs a requested desktop profile inside that guest, and
+supervises desktop/application sessions. The guest shares the running muOS
+kernel; APT and dpkg operate only inside the mounted Debian rootfs. Host-side
+mount, loop and chroot helpers are used without changing the muOS boot chain,
+host package database or raw storage devices.
 """
 from __future__ import annotations
 
