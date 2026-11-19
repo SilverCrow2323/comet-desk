@@ -117,6 +117,7 @@ def data_paths(app_dir: Path) -> dict[str, Path]:
         "command": data / "media-player.command",
         "heartbeat": data / "media-player.heartbeat",
         "supervisor_lock": data / "media-player.lock",
+        "catalogue_lock": data / "media-catalogue.lock",
         "supervisor_pid": data / "media-player.supervisor.pid",
         "player_pid": data / "media-player.pid",
         "log": data / "media-player.log",
@@ -167,6 +168,19 @@ def load_config(app_dir: Path) -> dict:
 def save_config(app_dir: Path, config: dict) -> None:
     atomic_write(data_paths(app_dir)["config"],
                  json.dumps(config, indent=2, ensure_ascii=False) + "\n")
+
+
+def with_catalogue_lock(app_dir: Path, callback):
+    path = data_paths(app_dir)["catalogue_lock"]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.is_symlink():
+        raise MediaError("refusing symbolic-link Media Vault catalogue lock")
+    with path.open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            return callback()
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
 
 
 def safe_url(value: str) -> str:
@@ -1015,29 +1029,29 @@ def main() -> int:
             return _supervisor(app_dir)
         if args.action == "init":
             config = load_config(app_dir)
-            result = build_catalogue(app_dir, force=False)
+            result = with_catalogue_lock(app_dir, lambda: build_catalogue(app_dir, force=False))
             print(json.dumps(result))
             return 0
         if args.action == "catalogue":
-            result = build_catalogue(app_dir, force=args.force)
+            result = with_catalogue_lock(app_dir, lambda: build_catalogue(app_dir, force=args.force))
             print(json.dumps(result))
             return 0
         if args.action == "import-playlist":
-            result = add_playlist(app_dir, args.name, args.url)
+            result = with_catalogue_lock(app_dir, lambda: add_playlist(app_dir, args.name, args.url))
             print(json.dumps(result))
             return 0
         if args.action == "activate-playlist":
-            result = activate_playlist(app_dir, args.query)
+            result = with_catalogue_lock(app_dir, lambda: activate_playlist(app_dir, args.query))
             print(json.dumps(result))
             return 0
         if args.action == "refresh-epg":
             config = load_config(app_dir)
-            result = sync_epg(app_dir, config, force=True)
+            result = with_catalogue_lock(app_dir, lambda: sync_epg(app_dir, config, force=True))
             print(json.dumps({"sources_ok": len(result["ok"]),
                               "sources_error": len(result["errors"])}))
             return 0
         if args.action == "toggle-favourite":
-            active = toggle_favourite(app_dir, args.kind, args.query)
+            active = with_catalogue_lock(app_dir, lambda: toggle_favourite(app_dir, args.kind, args.query))
             print("FAVOURITE|{}".format("1" if active else "0"))
             return 0
         if args.action == "play-radio":
