@@ -689,7 +689,8 @@ local function readImageDownloadStatus()
     elseif location and location:find("/mnt/sdcard/", 1, true) then
         installedSlot = "tf2"
     end
-    if state == "READY" and imageDownload._notice ~= "READY:" .. imageDownload.profile then
+    if state == "READY" and (previousState ~= "READY" or previousProfile ~= imageDownload.profile or previousSlot ~= installedSlot) then
+        forgeLoaded = false
         setNotice("DEBIAN TRIXIE READY // " .. (imageDownload.profile or "APT"))
     elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING:" .. imageDownload.profile then
         setNotice("DESKTOP SESSION // " .. (imageDownload.profile or ""):upper())
