@@ -82,6 +82,7 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - [Release gates and hardware acceptance matrix](docs/RELEASE_GATES.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
+- [Controller map and task console](docs/CONTROLS.md)
 - [Safety model](docs/SAFETY.md)
 - [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)
 - [THE FORGE package centre](docs/FORGE.md)
