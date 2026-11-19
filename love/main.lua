@@ -49,7 +49,7 @@ local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "Debian 
 local downloadPoll = 0
 local uplinkStatus = { wifi = {}, bluetooth = {}, hotspot = {}, services = {}, tailscale = {} }
 local uplinkPoll = 0
-local forgeCategories = { "ALL", "INPUT", "DESKTOP", "DEVELOPMENT", "MEDIA", "NETWORK", "UTILITIES" }
+local forgeCategories = { "ALL", "CORE", "INPUT", "DESKTOP", "DEVELOPMENT", "MEDIA", "NETWORK", "UTILITIES" }
 local forgeCategoryIndex, forgeSelectedIndex = 1, 1
 local forgePackages, forgeSearch = {}, ""
 local forgeSearchActive, forgeConfirmRemove = false, nil
@@ -475,12 +475,12 @@ local function drawForge()
     local tint = pages[activePage].accent
     text("DEBIAN TRIXIE  /  ARM64 SOFTWARE CENTRE", 24, 180, fonts.small, colors.muted)
     rounded(20, 201, 600, 214, colors.panel, {tint[1], tint[2], tint[3], 0.75})
-    local labels = { "ALL", "INPUT", "DESKTOP", "DEV", "MEDIA", "NETWORK", "TOOLS" }
+    local labels = { "ALL", "H700 CORE", "INPUT", "DESKTOP", "DEV", "MEDIA", "NET", "TOOLS" }
     for i, label in ipairs(labels) do
-        local x = 27 + (i - 1) * 84
+        local x = 26 + (i - 1) * 73
         local active = forgeCategoryIndex == i
-        rounded(x, 211, 78, 25, active and colors.panel2 or colors.bg, active and tint or colors.line)
-        text(label, x + 8, 216, fonts.tiny, active and colors.white or colors.muted)
+        rounded(x, 211, 68, 25, active and colors.panel2 or colors.bg, active and tint or colors.line)
+        text(label, x + 5, 216, fonts.tiny, active and colors.white or colors.muted)
     end
     local rows = forgeFilteredPackages()
     if forgeSelectedIndex > #rows then forgeSelectedIndex = math.max(1, #rows) end
