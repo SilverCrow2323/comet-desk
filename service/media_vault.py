@@ -46,7 +46,35 @@ DEFAULT_CONFIG = {
             "type": "url",
             "source": "https://iptv-org.github.io/iptv/countries/it.m3u",
             "enabled": True,
-        }
+        },
+        {
+            "id": "iptv-org-news",
+            "name": "IPTV-org // NEWS",
+            "type": "url",
+            "source": "https://iptv-org.github.io/iptv/categories/news.m3u",
+            "enabled": True,
+        },
+        {
+            "id": "iptv-org-sports",
+            "name": "IPTV-org // SPORTS",
+            "type": "url",
+            "source": "https://iptv-org.github.io/iptv/categories/sports.m3u",
+            "enabled": True,
+        },
+        {
+            "id": "iptv-org-movies",
+            "name": "IPTV-org // MOVIES",
+            "type": "url",
+            "source": "https://iptv-org.github.io/iptv/categories/movies.m3u",
+            "enabled": True,
+        },
+        {
+            "id": "iptv-org-music",
+            "name": "IPTV-org // MUSIC",
+            "type": "url",
+            "source": "https://iptv-org.github.io/iptv/categories/music.m3u",
+            "enabled": True,
+        },
     ],
     "epg_urls": [
         "https://xmltv.live/epg/it.xml.gz",
@@ -160,6 +188,12 @@ def load_config(app_dir: Path) -> dict:
                 merged[key] = value
         elif key in ("active_playlist", "player", "last_epg_sync", "schema_version"):
             merged[key] = value
+    # Add new first-party playlist presets to existing installations without
+    # resetting the user's selected playlist or deleting custom sources.
+    known_playlist_ids = {row.get("id") for row in merged["playlists"] if isinstance(row, dict)}
+    for preset in DEFAULT_CONFIG["playlists"]:
+        if preset["id"] not in known_playlist_ids and len(merged["playlists"]) < 24:
+            merged["playlists"].append(json.loads(json.dumps(preset)))
     legacy_epg_defaults = {
         "https://epg-guide.com/wltv.gz",
         "https://github.com/matthuisman/i.mjh.nz/raw/master/SamsungTVPlus/it.xml.gz",
