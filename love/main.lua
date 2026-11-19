@@ -1593,12 +1593,21 @@ local function drawQuickPanel()
         { colors.cyan[1], colors.cyan[2], colors.cyan[3], 0.75 * reveal })
     text("COMET  //  QUICK OVERLAY", x + 24, y + 22, fonts.medium, colors.cyan)
     text("CONTROL DECK", x + 24, y + 53, fonts.large, colors.white)
-    text("DEBIAN TRIXIE // " .. imageDownload.state, x + 24, y + 104, fonts.small, colors.violet)
-    text(short(imageDownload.message, 54), x + 24, y + 127, fonts.tiny, colors.muted)
-    drawProgress(x + 24, y + 153, 468, 12, imageDownload.percent, colors.cyan)
-    text("M  CLOSE OVERLAY", x + 24, y + 204, fonts.small, colors.white)
-    text("START + SELECT  EXIT COMET DESK", x + 24, y + 232, fonts.tiny, colors.amber)
-    text("Quick panel // QWASAR control surface", x + 24, y + 258, fonts.tiny, colors.muted)
+    text("NOW PLAYING  //  " .. short(mediaStatus.title ~= "" and mediaStatus.title or "NOTHING",
+        38), x + 24, y + 104, fonts.small, colors.white)
+    text("MEDIA  " .. mediaStatus.state .. "  //  "
+        .. (mediaStatus.kind ~= "" and mediaStatus.kind:upper() or "IDLE"),
+        x + 24, y + 131, fonts.tiny,
+        mediaStatus.state == "PLAYING" and colors.green or colors.muted)
+    text("DEBIAN  " .. imageDownload.state .. "  //  "
+        .. string.format("%d%%", imageDownload.percent or 0), x + 24, y + 158,
+        fonts.tiny, colors.violet)
+    text("A  PAUSE / RESUME     X  STOP     Y  MEDIA VAULT", x + 24, y + 204,
+        fonts.small, colors.white)
+    text("M  CLOSE PANEL   //   START + SELECT  EXIT COMET", x + 24, y + 232,
+        fonts.tiny, colors.amber)
+    text("Radio stays in the frontend; IPTV uses the full-screen player handoff.", x + 24, y + 258,
+        fonts.tiny, colors.muted)
 end
 
 function love.load()
@@ -1646,6 +1655,10 @@ function love.load()
             normalizeSelectedSlot(false)
         end
     end
+    readDesktopInputConfig()
+    readDesktopInputStatus()
+    readMediaStatus()
+    readMediaCatalog()
 end
 
 local function readImageDownloadStatus()
@@ -1709,6 +1722,22 @@ function love.update(dt)
     end
     if quickPanelOpen then quickPanelAge = quickPanelAge + dt end
     if noticeTimer > 0 then noticeTimer = math.max(0, noticeTimer - dt) end
+
+    mediaHeartbeat = mediaHeartbeat + dt
+    if mediaHeartbeat >= 1 then
+        mediaHeartbeat = 0
+        heartbeatMedia()
+    end
+    mediaPoll = mediaPoll + dt
+    if mediaPoll >= 0.5 then
+        mediaPoll = 0
+        readMediaStatus()
+        readMediaCatalog()
+        readDesktopInputStatus()
+    end
+    if activePage == 9 and not mediaCatalogLoaded and not mediaCatalogBusy then
+        queueMediaCatalogue(false)
+    end
 
     downloadPoll = downloadPoll + dt
     if downloadPoll >= 0.25 then
