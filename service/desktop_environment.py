@@ -1230,6 +1230,27 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
 
         return_request = runtime_dir / "comet-return.request"
         return_request.unlink(missing_ok=True)
+        # Comet owns controller input on the muOS host. Start the virtual
+        # keyboard/mouse bridge before the compositor so labwc/X11 discovers
+        # the uinput device during seat initialization. Failure is non-fatal:
+        # the desktop can still be used with a physical keyboard/mouse.
+        input_process = None
+        input_script = Path(__file__).with_name("desktop_input.py")
+        if input_script.is_file():
+            try:
+                input_process = subprocess.Popen(
+                    [sys.executable, str(input_script), "--app-dir", str(app_dir)],
+                    stdin=subprocess.DEVNULL, stdout=log_stream,
+                    stderr=subprocess.STDOUT, env=child_environment(),
+                    start_new_session=True,
+                )
+                time.sleep(0.08)
+                if input_process.poll() is not None:
+                    input_process = None
+            except OSError as exc:
+                print("[comet-desktop] controller bridge unavailable: {}".format(exc),
+                      file=log_stream, flush=True)
+
         session = subprocess.Popen(
             command, stdin=subprocess.DEVNULL, stdout=log_stream,
             stderr=subprocess.STDOUT, env=env, start_new_session=True,
@@ -1316,6 +1337,8 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
             if app_process is not None:
                 stop_process_group(app_process)
             stop_process_group(session)
+            if input_process is not None:
+                stop_process_group(input_process, grace_seconds=2.0)
             return_request.unlink(missing_ok=True)
     finally:
         clean = manager.cleanup()
