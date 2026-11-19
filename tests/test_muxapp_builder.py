@@ -103,3 +103,21 @@ def test_rejects_wrong_artwork_dimensions(tmp_path):
     entries["CometDesk/assets/icons/comet-desk-atlas.png"] = _png(256, 64)
     _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
     assert any("unexpected PNG dimensions" in error for error in validate_archive(path))
+
+
+def test_rejects_missing_desktop_input_bridge(tmp_path):
+    path = tmp_path / "missing-input-bridge.muxapp"
+    entries = _valid_entries()
+    del entries["CometDesk/service/desktop_input.py"]
+    _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
+    assert any("required file missing: service/desktop_input.py" in error
+               for error in validate_archive(path))
+
+
+def test_rejects_missing_media_vault_service(tmp_path):
+    path = tmp_path / "missing-media-vault.muxapp"
+    entries = _valid_entries()
+    del entries["CometDesk/service/media_vault.py"]
+    _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
+    assert any("required file missing: service/media_vault.py" in error
+               for error in validate_archive(path))
