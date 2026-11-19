@@ -90,7 +90,7 @@ Only the last level counts as device validation.
 
 ## Curved navigation and Uplink
 
-The main navigation is a curved five-card viewport over a recessed rail. L1/R1 moves the unwrapped carousel target; cards travel along the curve with eased interpolation, the selected card grows and takes its own accent colour, and the page body enters with a directional slide/fade. The selected page title and position indicators sit above the rail. The six hubs are Overview, Desktop Setup, Session Manager, Uplink, System Tools and Diagnostics.
+The main navigation is a curved five-card viewport over a recessed rail. L1/R1 moves the unwrapped carousel target; cards travel along the curve with eased interpolation, the selected card grows and takes its own accent colour, and the page body enters with a directional slide/fade. The selected page title and position indicators sit above the rail. The seven hubs are Overview, Desktop System, APP DECK, Uplink, THE FORGE, System Tools and Diagnostics.
 
 Uplink reads live muOS state without blocking the LÖVE frame loop. The Python helper reports Wi-Fi association/IP, hotspot/AP state, Bluetooth power and paired-device count, plus the Andromeda Local DNS, Web Dashboard, SSH/SFTP, Virtual Terminal and Syncthing services. These are status indicators; Comet does not change muOS network configuration.
 

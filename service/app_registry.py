@@ -21,7 +21,12 @@ import desktop_environment as desktop
 
 APP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._+-]{0,95}$")
 SHELLS = {"sh", "bash", "dash", "zsh", "fish", "ksh", "csh", "tcsh"}
-LAUNCH_WRAPPERS = {"env", "sudo", "pkexec", "su", "doas"}
+LAUNCH_WRAPPERS = {
+    "env", "sudo", "pkexec", "su", "doas",
+    "python", "python2", "python3", "python3.13",
+    "perl", "ruby", "node", "php", "lua", "busybox", "tclsh", "wish",
+}
+SHELL_LAUNCH_FLAGS = {"-e", "-ec", "-c", "--command", "--execute", "--eval", "--shell"}
 SEARCH_DIRS = (
     Path("usr/share/applications"),
     Path("usr/local/share/applications"),
@@ -64,23 +69,60 @@ def _unescape(value: str) -> str:
             .replace("\\t", "\t").replace("\\\\", "\\"))
 
 
-def resolve_executable(root: Path, command: str) -> Path | None:
-    candidate = Path(command)
-    candidates = [root / command.lstrip("/")] if candidate.is_absolute() else [
-        root / directory / command for directory in EXEC_DIRS
-    ]
-    for item in candidates:
-        try:
-            if not item.exists():
-                continue
-            resolved = item.resolve(strict=True)
-            resolved.relative_to(root.resolve(strict=True))
-            if resolved.is_file() and os.access(resolved, os.X_OK):
-                return resolved
-        except (OSError, ValueError):
-            continue
-    return None
+def resolve_guest_path(root: Path, candidate: Path) -> Path | None:
+    """Resolve a path using guest-root symlink semantics, not host / semantics."""
+    root = root.resolve(strict=True)
+    relative = candidate if not candidate.is_absolute() else Path(*candidate.parts[1:])
+    pending = list(relative.parts)
+    resolved_parts: list[str] = []
+    symlink_hops = 0
 
+    while pending:
+        part = pending.pop(0)
+        if part in ("", "."):
+            continue
+        if part == "..":
+            if not resolved_parts:
+                return None
+            resolved_parts.pop()
+            continue
+        current = root.joinpath(*resolved_parts, part)
+        try:
+            if current.is_symlink():
+                symlink_hops += 1
+                if symlink_hops > 40:
+                    return None
+                link = Path(os.readlink(current))
+                if link.is_absolute():
+                    resolved_parts = []
+                    pending = list(link.parts[1:]) + pending
+                else:
+                    pending = list(link.parts) + pending
+                continue
+            if not current.exists():
+                return None
+        except OSError:
+            return None
+        resolved_parts.append(part)
+
+    result = root.joinpath(*resolved_parts)
+    try:
+        result.relative_to(root)
+    except ValueError:
+        return None
+    return result
+
+
+def resolve_executable(root: Path, command: str) -> Path | None:
+    raw = Path(command)
+    candidates = [raw] if raw.is_absolute() else [
+        directory / raw for directory in EXEC_DIRS
+    ]
+    for candidate in candidates:
+        resolved = resolve_guest_path(root, candidate)
+        if resolved is not None and resolved.is_file() and os.access(resolved, os.X_OK):
+            return resolved
+    return None
 
 def parse_desktop_entry(path: Path, root: Path) -> dict | None:
     """Parse one Desktop Entry and resolve its Exec target inside root."""
@@ -136,6 +178,8 @@ def parse_desktop_entry(path: Path, root: Path) -> dict | None:
         if token:
             argv.append(token)
     if not argv or Path(argv[0]).name in SHELLS | LAUNCH_WRAPPERS:
+        return None
+    if any(argument in SHELL_LAUNCH_FLAGS for argument in argv[1:]):
         return None
 
     executable = resolve_executable(root, argv[0])

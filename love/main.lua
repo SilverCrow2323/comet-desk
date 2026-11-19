@@ -44,6 +44,7 @@ local desktopProfiles = {
 }
 local selectedProfileIndex = 1
 local selectedProfile = "labwc"
+local DESKTOP_CONFIG_REVISION = 2
 local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "Debian Trixie not installed", location = "", profile = "" }
 local downloadPoll = 0
 local uplinkStatus = { wifi = {}, bluetooth = {}, hotspot = {}, services = {}, tailscale = {} }
@@ -710,7 +711,6 @@ local function drawSystemTools()
     setColor(colors.line)
     love.graphics.line(40, 385, 600, 385)
     text("Y  REFRESH APPLICATION REGISTRY", 40, 393, fonts.tiny, colors.cyan)
-    text("SYSTEM TOOLS REPORT STATE; THEY DO NOT MODIFY MUOS HOST PACKAGES.", 40, 411, fonts.tiny, colors.muted)
 end
 
 local function drawDiagnostics()
@@ -876,6 +876,7 @@ local function readImageDownloadStatus()
     end
     if state == "READY" and (previousState ~= "READY" or previousProfile ~= imageDownload.profile or previousSlot ~= installedSlot) then
         forgeLoaded = false
+        appCatalogLoaded = false
         setNotice("DEBIAN TRIXIE READY // " .. (imageDownload.profile or "APT"))
     elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING:" .. imageDownload.profile then
         setNotice("DESKTOP SESSION // " .. (imageDownload.profile or ""):upper())
@@ -1045,6 +1046,15 @@ local function cycleDesktopProfile(direction)
     setNotice("DESKTOP PROFILE // " .. selectedProfile:upper())
 end
 
+local function desktopConfigReady()
+    if appRoot == "" then return false end
+    local stream = io.open(appRoot .. "/data/desktop-config-revision", "r")
+    if not stream then return false end
+    local revision = tonumber(stream:read("*l") or "")
+    stream:close()
+    return revision == DESKTOP_CONFIG_REVISION
+end
+
 local function startDesktopEnvironment()
     if imageDownload.state == "STARTING" or imageDownload.state == "RUNNING"
         or imageDownload.state == "APT_UPDATE" or imageDownload.state == "INSTALLING_PROFILE"
@@ -1069,6 +1079,7 @@ local function startDesktopEnvironment()
     end
     local installedHere = imageDownload.state == "READY"
         and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+        and desktopConfigReady()
     if installedHere then
         local request = appRoot .. "/data/desktop-session.request"
         local temporary = request .. ".tmp"
@@ -1117,7 +1128,11 @@ local function startDesktopApplication(appId)
         return
     end
     if not installedSlot or imageDownload.state ~= "READY" then
-        setNotice("DEBIAN Trixie MUST BE READY BEFORE APP LAUNCH")
+        setNotice("DEBIAN TRIXIE MUST BE READY BEFORE APP LAUNCH")
+        return
+    end
+    if not desktopConfigReady() then
+        setNotice("UPDATE DESKTOP SYSTEM BEFORE APP LAUNCH")
         return
     end
     if selectedProfile ~= imageDownload.profile then
@@ -1126,6 +1141,7 @@ local function startDesktopApplication(appId)
     end
     local request = appRoot .. "/data/desktop-session.request"
     local temporary = request .. ".tmp"
+    os.remove(temporary)
     local stream = io.open(temporary, "w")
     if not stream then
         setNotice("COULD NOT CREATE APP SESSION REQUEST")

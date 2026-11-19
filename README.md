@@ -83,6 +83,7 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - [Safety model](docs/SAFETY.md)
 - [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)
 - [THE FORGE package centre](docs/FORGE.md)
+- [APP DECK — Comet-managed Debian applications](docs/APP_DECK.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)

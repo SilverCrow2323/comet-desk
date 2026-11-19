@@ -57,24 +57,25 @@ PROFILE_PACKAGES = {
     "labwc": "labwc waybar foot swaybg mako-notifier wofi xwayland",
     "xfce": "xfce4 xfce4-goodies xfce4-terminal thunar qjoypad matchbox-keyboard "
             "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-            "xinit x11-xserver-utils xdotool x11-utils",
+            "xinit x11-xserver-utils xdotool x11-utils xbindkeys dmenu",
     "lxde": "lxde-core lxterminal pcmanfm openbox "
             "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-            "xinit x11-xserver-utils",
+            "xinit x11-xserver-utils xbindkeys dmenu",
     "lxqt": "lxqt-core qterminal pcmanfm-qt "
             "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-            "xinit x11-xserver-utils",
+            "xinit x11-xserver-utils xbindkeys dmenu",
     "icewm": "icewm icewm-themes tint2 xterm pcmanfm "
              "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-             "xinit x11-xserver-utils",
+             "xinit x11-xserver-utils xbindkeys dmenu",
     "fluxbox": "fluxbox tint2 xterm pcmanfm "
                "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-               "xinit x11-xserver-utils",
+               "xinit x11-xserver-utils xbindkeys dmenu",
     "openbox": "openbox obconf tint2 xterm pcmanfm "
                "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
-               "xinit x11-xserver-utils",
+               "xinit x11-xserver-utils xbindkeys dmenu",
 }
 DEFAULT_PROFILE = "labwc"
+DESKTOP_CONFIG_REVISION = 2
 DESKTOP_IMAGE_BYTES = 8 * 1024 * 1024 * 1024
 SLOTS = {"tf1": Path("/mnt/mmc"), "tf2": Path("/mnt/sdcard")}
 STAGING_RELATIVE = Path("MUOS") / "CometDesk" / "Desktop"
@@ -473,14 +474,59 @@ def _write_guest_configuration(root: Path) -> None:
         '<labwc_config>\n'
         '  <core><decoration>server</decoration><gap>0</gap></core>\n'
         '  <keyboard><keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>'
-        '<keybind key="W-q"><action name="Exit"/></keybind></keyboard>\n'
+        '<keybind key="W-q"><action name="Exit"/></keybind>'
+        '<keybind key="m"><action name="Execute"><command>/usr/local/bin/comet-quick-panel</command></action></keybind></keyboard>\n'
         '  <mouse><default/></mouse>\n'
         '</labwc_config>\n', encoding="utf-8")
+
+    wofi_dir = root / "root/.config/wofi"
+    wofi_dir.mkdir(parents=True, exist_ok=True)
+    (wofi_dir / "style.css").write_text(
+        "window { background-color: rgba(8, 15, 29, 0.97); border: 2px solid #3bdde5; border-radius: 12px; }\n"
+        "#input { background: #111d32; color: #edf7ff; border: 1px solid #3bdde5; border-radius: 8px; margin: 8px; padding: 8px; }\n"
+        "#entry { color: #d7e7f4; padding: 6px; }\n"
+        "#entry:selected { background: #2a2149; color: #ffffff; border-radius: 6px; }\n",
+        encoding="utf-8",
+    )
+
+    quick_panel = root / "usr/local/bin/comet-quick-panel"
+    quick_panel.parent.mkdir(parents=True, exist_ok=True)
+    quick_panel.write_text(
+        "#!/bin/sh\n"
+        "runtime_dir=/run/user/0\n"
+        "[ -n \"$XDG_RUNTIME_DIR\" ] && runtime_dir=\"$XDG_RUNTIME_DIR\"\n"
+        "if [ -S \"$runtime_dir/wayland-0\" ] && command -v wofi >/dev/null 2>&1; then\n"
+        "  WAYLAND_DISPLAY=\"$WAYLAND_DISPLAY\"\n"
+        "[ -n \"$WAYLAND_DISPLAY\" ] || WAYLAND_DISPLAY=wayland-0\n"
+        "  export WAYLAND_DISPLAY\n"
+        "  choice=$(printf 'Open application menu\\nReturn to Comet Desk\\n' | wofi --style /root/.config/wofi/style.css --dmenu --prompt 'COMET // QUICK PANEL') || exit 0\n"
+        "  case \"$choice\" in\n"
+        "    'Open application menu') wofi --style /root/.config/wofi/style.css --show drun ;;\n"
+        "    'Return to Comet Desk') : > \"$runtime_dir/comet-return.request\" ;;\n"
+        "  esac\n"
+        "else\n"
+        "  choice=$(printf 'Open application menu\\nReturn to Comet Desk\\n' | dmenu -i -p 'COMET // QUICK PANEL' -nb '#080f1d' -nf '#d7e7f4' -sb '#2a2149' -sf '#3bdde5' -fn 'DejaVu Sans:size=12') || exit 0\n"
+        "  case \"$choice\" in\n"
+        "    'Open application menu') dmenu_run ;;\n"
+        "    'Return to Comet Desk') : > \"$runtime_dir/comet-return.request\" ;;\n"
+        "  esac\n"
+        "fi\n",
+        encoding="utf-8",
+    )
+    quick_panel.chmod(0o755)
+
+    xbindkeys = root / "root/.xbindkeysrc"
+    xbindkeys.write_text(
+        '"comet-quick-panel"\n'
+        '    m\n',
+        encoding="utf-8",
+    )
 
     x11_script = root / "usr/local/bin/comet-session-x11"
     x11_script.parent.mkdir(parents=True, exist_ok=True)
     x11_script.write_text(
         "#!/bin/sh\n"
+        "xbindkeys -f /root/.xbindkeysrc >/tmp/comet-xbindkeys.log 2>&1 &\n"
         "qjoypad --notray Default >/dev/null 2>&1 &\n"
         "case " + chr(34) + "$" + "{COMET_DESKTOP_PROFILE:-icewm}" + chr(34) + " in\n"
         "  xfce) exec startxfce4 ;;\n"
@@ -554,11 +600,23 @@ def _write_manifest(marker: Path, *, image: Path, installed_profiles: set[str],
         "image": str(image),
         "rootfs_sha256": DEBIAN_ROOTFS_SHA256,
         "seed_git_blob_sha1": IMAGE_SEED_GIT_BLOB_SHA1,
+        "desktop_config_revision": DESKTOP_CONFIG_REVISION,
         "updated_at": int(time.time()),
     }
     temporary = marker.with_suffix(".tmp")
     temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
     os.replace(temporary, marker)
+
+
+def write_app_config_revision(app_dir: Path) -> None:
+    path = app_dir / "data" / "desktop-config-revision"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    with temporary.open("w", encoding="ascii") as stream:
+        stream.write(str(DESKTOP_CONFIG_REVISION) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temporary, path)
 
 
 def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
@@ -599,7 +657,9 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
     manifest = _read_manifest(marker)
     if image.is_file() and manifest.get("distribution") == "debian":
         installed = set(manifest.get("installed_profiles", []))
-        if profile in installed:
+        if (profile in installed
+                and int(manifest.get("desktop_config_revision", 0)) >= DESKTOP_CONFIG_REVISION):
+            write_app_config_revision(app_dir)
             write_status(app_dir, "READY", 100,
                          "Debian Trixie ready // " + profile.upper(),
                          str(image), profile)
@@ -760,6 +820,7 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
         _write_manifest(marker, image=image,
                         installed_profiles=installed,
                         selected_profile=profile)
+        write_app_config_revision(app_dir)
         write_status(app_dir, "READY", 100,
                      "Debian Trixie ready // " + profile.upper(),
                      str(image), profile)
@@ -789,6 +850,30 @@ def _x11_profile_command(profile: str) -> str:
     return commands[profile]
 
 
+def stop_process_group(process: subprocess.Popen, grace_seconds: float = 6.0) -> None:
+    """Stop the whole session/app process group, including reparented helpers."""
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except (ProcessLookupError, OSError):
+        pass
+    deadline = time.monotonic() + grace_seconds
+    while time.monotonic() < deadline:
+        process.poll()
+        try:
+            os.killpg(process.pid, 0)
+        except (ProcessLookupError, OSError):
+            break
+        time.sleep(0.1)
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (ProcessLookupError, OSError):
+        pass
+    try:
+        process.wait(timeout=2)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
 def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
            app_id: str | None = None) -> int:
     if os.geteuid() != 0:
@@ -810,6 +895,7 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
     manifest = _read_manifest(marker)
     if (manifest.get("distribution") != "debian"
             or manifest.get("codename") != "trixie"
+            or int(manifest.get("desktop_config_revision", 0)) < DESKTOP_CONFIG_REVISION
             or profile not in set(manifest.get("installed_profiles", []))):
         raise SetupError("Debian profile is not installed; run Desktop Setup first")
 
@@ -864,30 +950,35 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
                 "/usr/bin/startx", "/usr/local/bin/comet-session-x11", "--",
                 ":0", "vt1", "-novtswitch", "-keeptty",
             ]
-        if not app_id:
-            result = subprocess.run(
-                command, stdin=subprocess.DEVNULL, stdout=log_stream,
-                stderr=subprocess.STDOUT, env=env, check=False,
-            )
-            write_status(app_dir, "READY", 100,
-                         "Desktop session ended; returned to Comet Desk",
-                         str(image), profile)
-            return result.returncode
+        application = None
+        if app_id:
+            import app_registry
+            application = app_registry.find_application(mountpoint, app_id)
+            if application is None:
+                raise SetupError("application is no longer installed; refresh APP DECK")
 
-        # Resolve the selected .desktop entry while the verified Debian image
-        # is mounted. The registry rejects shell interpreters and executables
-        # that escape the guest rootfs.
-        import app_registry
-        application = app_registry.find_application(mountpoint, app_id)
-        if application is None:
-            raise SetupError("application is no longer installed; refresh APP DECK")
-
+        return_request = runtime_dir / "comet-return.request"
+        return_request.unlink(missing_ok=True)
         session = subprocess.Popen(
             command, stdin=subprocess.DEVNULL, stdout=log_stream,
             stderr=subprocess.STDOUT, env=env, start_new_session=True,
         )
         app_process = None
         try:
+            if application is None:
+                write_status(app_dir, "RUNNING", 100,
+                             "Debian desktop running // press M for Comet Quick Panel",
+                             str(image), profile)
+                while session.poll() is None and not return_request.exists():
+                    time.sleep(0.2)
+                return_code = session.poll()
+                write_status(app_dir, "READY", 100,
+                             "Returned to Comet Desk from desktop Quick Panel"
+                             if return_request.exists()
+                             else "Desktop session ended; returned to Comet Desk",
+                             str(image), profile)
+                return return_code or 0
+
             deadline = time.monotonic() + 45
             ready = False
             while time.monotonic() < deadline:
@@ -901,8 +992,8 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
                 else:
                     probe_display = subprocess.run(
                         ["chroot", str(mountpoint), "/usr/bin/env",
-                         "DISPLAY=:0", "PATH=/usr/bin:/bin",
-                         "/usr/bin/xdpyinfo", "-display", ":0"],
+                         "DISPLAY=:0", "HOME=/root", "XAUTHORITY=/root/.Xauthority",
+                         "PATH=/usr/bin:/bin", "/usr/bin/xdpyinfo", "-display", ":0"],
                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL, check=False, timeout=3,
                     )
@@ -924,7 +1015,10 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
                     "LIBSEAT_BACKEND=builtin",
                 ]
             else:
-                app_variables += ["XDG_SESSION_TYPE=x11", "DISPLAY=:0"]
+                app_variables += [
+                    "XDG_SESSION_TYPE=x11", "DISPLAY=:0",
+                    "XAUTHORITY=/root/.Xauthority",
+                ]
             app_command = [
                 "chroot", str(mountpoint), "/usr/bin/env",
                 *app_variables, *application["exec"],
@@ -936,30 +1030,22 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
                 app_command, stdin=subprocess.DEVNULL, stdout=log_stream,
                 stderr=subprocess.STDOUT, env=env, start_new_session=True,
             )
-            result_code = app_process.wait()
+            while app_process.poll() is None and not return_request.exists():
+                if session.poll() is not None:
+                    raise SetupError("desktop session exited while the application was running")
+                time.sleep(0.2)
+            return_code = app_process.poll()
             write_status(app_dir, "READY", 100,
-                         "Application closed; returned to Comet Desk",
+                         "Returned to Comet Desk from desktop Quick Panel"
+                         if return_request.exists()
+                         else "Application closed; returned to Comet Desk",
                          str(image), profile)
-            return result_code
+            return return_code or 0
         finally:
-            if app_process is not None and app_process.poll() is None:
-                try:
-                    os.killpg(app_process.pid, signal.SIGTERM)
-                    app_process.wait(timeout=8)
-                except (OSError, subprocess.TimeoutExpired):
-                    try:
-                        os.killpg(app_process.pid, signal.SIGKILL)
-                    except OSError:
-                        pass
-            if session.poll() is None:
-                try:
-                    os.killpg(session.pid, signal.SIGTERM)
-                    session.wait(timeout=10)
-                except (OSError, subprocess.TimeoutExpired):
-                    try:
-                        os.killpg(session.pid, signal.SIGKILL)
-                    except OSError:
-                        pass
+            if app_process is not None:
+                stop_process_group(app_process)
+            stop_process_group(session)
+            return_request.unlink(missing_ok=True)
     finally:
         clean = manager.cleanup()
         log_stream.close()

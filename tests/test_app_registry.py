@@ -112,3 +112,42 @@ def test_parse_desktop_entry_rejects_command_and_privilege_wrappers(tmp_path):
         encoding="utf-8",
     )
     assert app_registry.parse_desktop_entry(wrapper, root) is None
+
+
+def test_absolute_guest_symlinks_resolve_inside_guest_root(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    target = root / "usr/libexec/demo-app"
+    target.parent.mkdir(parents=True)
+    target.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    target.chmod(0o755)
+    link = root / "usr/bin/demo-app"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("/usr/libexec/demo-app")
+    assert app_registry.resolve_executable(root, "/usr/bin/demo-app") == target
+
+
+def test_guest_symlinks_cannot_escape_to_host_root(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    link = root / "usr/bin/demo-app"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("/../../etc/passwd")
+    assert app_registry.resolve_executable(root, "/usr/bin/demo-app") is None
+
+
+def test_interpreters_and_shell_launch_flags_are_not_exposed(tmp_path):
+    root = tmp_path / "root"
+    root.mkdir()
+    folder = root / "usr/share/applications"
+    folder.mkdir(parents=True)
+    for name, command in (
+        ("python.desktop", "/usr/bin/python3 -c 'import os'"),
+        ("terminal.desktop", "/usr/bin/xterm -e /bin/sh"),
+    ):
+        entry = folder / name
+        entry.write_text(
+            "[Desktop Entry]\nType=Application\nName=Unsafe\nExec=" + command + "\n",
+            encoding="utf-8",
+        )
+        assert app_registry.parse_desktop_entry(entry, root) is None

@@ -83,3 +83,56 @@ def test_guest_profile_constants_match_debian_trixie_contract():
     assert "fluxbox" in desktop.PROFILE_PACKAGES["fluxbox"]
     assert "openbox" in desktop.PROFILE_PACKAGES["openbox"]
     assert desktop.MIN_FREE_BYTES > desktop.DESKTOP_IMAGE_BYTES
+
+
+def test_desktop_config_includes_global_m_quick_panel_for_both_backends(tmp_path):
+    import subprocess
+    import xml.etree.ElementTree as ET
+
+    desktop._write_guest_configuration(tmp_path)
+    quick_panel = tmp_path / "usr/local/bin/comet-quick-panel"
+    x11_session = tmp_path / "usr/local/bin/comet-session-x11"
+    rc_xml = tmp_path / "root/.config/labwc/rc.xml"
+    xbindkeys = tmp_path / "root/.xbindkeysrc"
+
+    assert quick_panel.is_file()
+    assert quick_panel.stat().st_mode & 0o111
+    assert "wofi --style /root/.config/wofi/style.css --dmenu" in quick_panel.read_text()
+    assert "dmenu -i" in quick_panel.read_text()
+    assert "comet-return.request" in quick_panel.read_text()
+    wofi_style = tmp_path / "root/.config/wofi/style.css"
+    assert wofi_style.is_file()
+    assert "#3bdde5" in wofi_style.read_text()
+    assert 'key="m"' in rc_xml.read_text()
+    assert "comet-quick-panel" in xbindkeys.read_text()
+    assert "xbindkeys" in x11_session.read_text()
+    ET.parse(rc_xml)
+
+    subprocess.run(["sh", "-n", str(quick_panel)], check=True)
+    subprocess.run(["sh", "-n", str(x11_session)], check=True)
+
+
+def test_x11_profiles_install_the_global_quick_panel_hotkey_tools():
+    for profile in ("xfce", "lxde", "lxqt", "icewm", "fluxbox", "openbox"):
+        packages = desktop.PROFILE_PACKAGES[profile].split()
+        assert "xbindkeys" in packages
+        assert "dmenu" in packages
+
+
+def test_desktop_config_revision_is_explicit_for_safe_in_place_migration():
+    assert desktop.DESKTOP_CONFIG_REVISION == 2
+
+
+def test_stop_process_group_terminates_the_owned_session_process():
+    import subprocess
+
+    process = subprocess.Popen(["sleep", "30"], start_new_session=True)
+    desktop.stop_process_group(process, grace_seconds=0.2)
+    assert process.poll() is not None
+
+
+def test_config_revision_marker_is_atomic_and_matches_guest_manifest_revision(tmp_path):
+    desktop.write_app_config_revision(tmp_path)
+    marker = tmp_path / "data" / "desktop-config-revision"
+    assert marker.read_text(encoding="ascii") == "2\n"
+    assert not marker.with_suffix(".tmp").exists()

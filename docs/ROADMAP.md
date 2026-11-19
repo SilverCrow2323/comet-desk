@@ -46,6 +46,7 @@
 - [x] Filter unsafe, hidden, terminal-only and externally resolved executables.
 - [x] Search and filter applications by category.
 - [x] Route launches through the Comet supervisor; restore Comet after the application exits.
+- [x] Add the global M Quick Panel to labwc and X11 sessions, including a supervised return-to-Comet request.
 - [ ] Add explicit desktop-profile discovery and per-app launch preferences.
 - [ ] Add DBus activation and terminal application support after session-bus supervision is validated.
 - [ ] Validate display/session lifecycle and process cleanup on the RG35XX H.

@@ -22,6 +22,10 @@ Only Type=Application entries with a resolvable executable inside the selected D
 
 The app and desktop session share the Debian rootfs and the muOS host kernel. Comet is the lifecycle owner. The Comet frontend is not drawn over the external application: the framebuffer is occupied by the selected desktop until the app exits, after which Comet resumes.
 
+## Desktop Quick Panel
+
+Press **M** while an external desktop is active. labwc binds the key directly through its compositor configuration; X11 profiles use `xbindkeys`. The panel is rendered by the active desktop stack (Wofi on Wayland, dmenu on X11), so it is a real overlay above the foreground app rather than an attempted second LÖVE window. It offers the Debian app menu and **Return to Comet Desk**. The latter writes a request into Comet's mounted runtime directory; the supervisor stops the foreground app and desktop process groups, verifies cleanup, and reopens Comet. Existing Debian images are upgraded to the current desktop configuration revision on their next profile setup.
+
 ## Deliberate limits
 
 - DBus-only activatable applications are not yet launched by APP DECK.

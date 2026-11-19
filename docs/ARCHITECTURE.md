@@ -2,7 +2,7 @@
 
 ## Design goal
 
-Comet Desk is the controller-first Linux workspace layer for muOS. muOS remains the host firmware; Comet owns a persistent Debian Trixie ARM64 userspace, APT package lifecycle, desktop sessions and a future application registry.
+Comet Desk is the controller-first Linux workspace layer for muOS. muOS remains the host firmware; Comet owns a persistent Debian Trixie ARM64 userspace, APT package lifecycle, desktop sessions and the APP DECK application registry.
 
 ## Runtime layers
 

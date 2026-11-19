@@ -108,7 +108,7 @@ Comet itself provides the curated software-centre workflow; it does not need to 
 
 ## App integration direction
 
-APT installs dependencies and Linux programs into the shared Debian rootfs. The next Comet subsystem will maintain an app registry (name, executable, arguments, icon, category, required packages and session compatibility), then launch those programs within the active Comet-managed desktop session. Installing a package does not yet automatically register it as a Comet application.
+APT installs dependencies and Linux programs into the shared Debian rootfs. APP DECK now maintains an atomic registry of eligible installed .desktop entries, validates guest executable paths and launches foreground GUI programs within a Comet-managed desktop session. Installing or removing packages refreshes the catalogue on the next APP DECK view. DBus-only, terminal and unsupported command-wrapper entries remain filtered.
 
 ## Safety boundaries
 
@@ -122,4 +122,4 @@ APT installs dependencies and Linux programs into the shared Debian rootfs. The 
 
 ## Hardware validation still required
 
-CI verifies syntax, package structure and service logic, but not a real display hand-off. The RG35XX H must validate loop mount, labwc DRM/KMS acquisition, Xorg fbdev fallback, controller mapping, audio/network access, package installation, app launch, session exit and full cleanup.
+CI verifies syntax, package structure and service logic, but not a real display hand-off. The RG35XX H must validate loop mount, labwc DRM/KMS acquisition, Xorg fbdev fallback, the M-key Quick Panel, controller mapping, audio/network access, package installation, GUI app launch, return-to-Comet hand-off and full cleanup.
