@@ -64,3 +64,32 @@
 ## Release rule
 
 A feature is not complete because its screen exists. It is complete when the underlying operation is implemented, validated, safely fails, and has been tested on the target device.
+
+
+## Phase 4.1 — Product definition and reliability line (0.7.x)
+
+- [x] Define the Comet Desk 1.0 product boundary and six core responsibilities.
+- [x] Define hardware release gates and explicit stable-release blockers.
+- [x] Recover stale Debian status from the live shared flock owner rather than trusting an old status string.
+- [x] Display the shipped development version from one bundled version file.
+- [x] Remove stale XFCE/Xorg and unverified-ready claims from Overview and System Tools.
+- [ ] Add one read-only health snapshot covering guest manifest/image, storage preflight, live operation lock and last operation outcome.
+- [ ] Give operations stable IDs and one consistent terminal-state/reporting contract.
+- [ ] Add safe APT transaction preview, including dependency impact, before destructive package changes.
+- [ ] Validate all supported display/session paths on the RG35XX H.
+
+## 0.8.0-rc — Feature freeze
+
+- [ ] Freeze the six core workflows and remove any control without a verified backend.
+- [ ] Validate every profile and advertise only those that pass the device matrix.
+- [ ] Complete the Uplink host-action audit for Wi-Fi, hotspot, Bluetooth and Rt:Tailscale-M.
+- [ ] Complete first-run, retry, package, app-launch, return-to-Comet and cleanup tests.
+- [ ] Complete native 640×480 visual and controller usability review.
+
+## 1.0.0 — Stable release
+
+- [ ] Close every blocker in [Release Gates](RELEASE_GATES.md) with real-device evidence.
+- [ ] Publish the installable MUX package, SHA-256 checksum, release notes and tested compatibility statement.
+- [ ] Keep unsupported hardware and unverified features explicitly out of the compatibility claim.
+
+The product boundary and test authority are documented in [Product Blueprint](PRODUCT_BLUEPRINT.md) and [Release Gates](RELEASE_GATES.md).
