@@ -278,7 +278,8 @@ class ControllerMapper:
             (REL_WHEEL, ABS_RY, -1.0), (REL_HWHEEL, ABS_RX, 1.0)
         ):
             self.axis_fraction[output] += self._shape(self.axes[axis]) * scroll * dt * sign
-            amount = int(self.axis_fraction[output])
+            fraction = self.axis_fraction[output]
+            amount = int(math.copysign(math.floor(abs(fraction) + 0.5), fraction)) if fraction else 0
             if amount:
                 self.axis_fraction[output] -= amount
                 events.append((EV_REL, output, amount))
