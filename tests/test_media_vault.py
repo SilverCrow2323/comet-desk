@@ -299,3 +299,14 @@ def test_channel_options_are_validated_before_reaching_mpv(monkeypatch):
     assert "--referrer=https://provider.example/" in command
     assert "--http-header-fields=X-Provider: value" in command
     assert "--no-config" not in command
+
+
+def test_player_pid_guard_requires_owned_mpv_or_ffplay_cmdline(tmp_path):
+    (tmp_path / "123").mkdir()
+    (tmp_path / "123" / "cmdline").write_bytes(b"/usr/bin/mpv\0--fullscreen\0")
+    (tmp_path / "124").mkdir()
+    (tmp_path / "124" / "cmdline").write_bytes(b"/usr/bin/ssh\0remote\0")
+    assert media.player_process_owned(123, tmp_path)
+    assert not media.player_process_owned(124, tmp_path)
+    assert not media.player_process_owned(999, tmp_path)
+    assert not media.player_process_owned(1, tmp_path)
