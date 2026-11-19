@@ -430,6 +430,7 @@ class ImageMount:
 
 def _write_guest_configuration(root: Path) -> None:
     (root / "etc").mkdir(parents=True, exist_ok=True)
+    (root / "etc/apt").mkdir(parents=True, exist_ok=True)
     (root / "etc/hostname").write_text("comet-debian\n", encoding="utf-8")
     (root / "etc/hosts").write_text(
         "127.0.0.1 localhost\n127.0.1.1 comet-debian\n", encoding="utf-8")
