@@ -58,7 +58,6 @@ def test_dpad_hat_emits_key_edges_only():
         (bridge.EV_KEY, bridge.KEY_LEFT, 1)
     ]
     assert mapper.feed(bridge.EV_ABS, bridge.ABS_HAT0Y, -1) == [
-        (bridge.EV_KEY, bridge.KEY_LEFT, 1),
         (bridge.EV_KEY, bridge.KEY_UP, 1),
     ]
     assert mapper.feed(bridge.EV_ABS, bridge.ABS_HAT0X, 0) == [
