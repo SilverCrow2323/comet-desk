@@ -10,6 +10,7 @@ and launches Xorg/XFCE directly in a chroot. Only ordinary host kernel tools
 from __future__ import annotations
 
 import argparse
+import fcntl
 import gzip
 import hashlib
 import json
@@ -867,23 +868,38 @@ def main() -> int:
         print("COMET_DESK_APP_DIR is required", file=sys.stderr)
         return 2
     app_dir = Path(args.app_dir).resolve()
-    try:
-        if args.action == "setup":
-            image = setup(args.slot, app_dir, args.profile)
-            print("[comet-desktop] Debian Trixie prepared: {} ({})".format(
-                image, args.profile
+    lock_path = app_dir / "data" / "debian-system.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            write_status(app_dir, "BUSY", 0,
+                         "Another Debian/ APT operation is already running",
+                         profile=args.profile)
+            return 1
+        try:
+            if args.action == "setup":
+                image = setup(args.slot, app_dir, args.profile)
+                print("[comet-desktop] Debian Trixie prepared: {} ({})".format(
+                    image, args.profile
+                ))
+                return 0
+            result = launch(args.slot, app_dir, args.profile)
+            print("[comet-desktop] {} session returned ({})".format(
+                args.profile, result
             ))
             return 0
-        result = launch(args.slot, app_dir, args.profile)
-        print("[comet-desktop] {} session returned ({})".format(
-            args.profile, result
-        ))
-        return 0
-    except (SetupError, OSError, ValueError, urllib.error.URLError,
-            subprocess.SubprocessError, json.JSONDecodeError) as exc:
-        write_status(app_dir, "FAILED", 0, str(exc))
-        print("[comet-desktop] ERROR: {}".format(exc), file=sys.stderr)
-        return 1
+        except (SetupError, OSError, ValueError, urllib.error.URLError,
+                subprocess.SubprocessError, json.JSONDecodeError) as exc:
+            write_status(app_dir, "FAILED", 0, str(exc), profile=args.profile)
+            print("[comet-desktop] ERROR: {}".format(exc), file=sys.stderr)
+            return 1
+        finally:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_UN)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":
