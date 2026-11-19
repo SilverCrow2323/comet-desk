@@ -36,6 +36,7 @@ def _valid_entries():
         "CometDesk/love/theme.lua": b"return {}\n",
         "CometDesk/service/desktop_environment.py": b"print('integrated XFCE manager')\n",
         "CometDesk/service/uplink_status.py": b"print('uplink manager')\\n",
+        "CometDesk/service/forge_apt.py": b"print('APT software centre')\\n",
         "CometDesk/assets/backgrounds/comet-dashboard-640x480.png": _png(320, 240),
         "CometDesk/assets/icons/comet-desk-atlas.png": _png(288, 48),
         "CometDesk/assets/branding/comet-desk-logo.png": _png(160, 54),
