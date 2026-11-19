@@ -8,6 +8,7 @@ local pages = {
     { id = "setup", title = "DESKTOP SYSTEM", subtitle = "Debian Trixie ARM64 // APT + modular desktop environments.", icon = "▣", accent = {0.62, 0.43, 0.98} },
     { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions.", icon = "▤", accent = {1.0, 0.72, 0.32} },
     { id = "uplink", title = "UPLINK", subtitle = "Network, wireless radios and remote services.", icon = "◎", accent = {0.24, 0.72, 1.0} },
+    { id = "forge", title = "THE FORGE", subtitle = "Discover, install and manage curated Debian ARM64 software.", icon = "⚒", accent = {1.0, 0.48, 0.22} },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
     { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime.", icon = "⌁", accent = {0.96, 0.30, 0.70} },
 }
@@ -48,6 +49,12 @@ local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "Debian 
 local downloadPoll = 0
 local uplinkStatus = { wifi = {}, bluetooth = {}, hotspot = {}, services = {}, tailscale = {} }
 local uplinkPoll = 0
+local forgeCategories = { "ALL", "INPUT", "DESKTOP", "DEVELOPMENT", "MEDIA", "NETWORK", "UTILITIES" }
+local forgeCategoryIndex, forgeSelectedIndex = 1, 1
+local forgePackages, forgeSearch = {}, ""
+local forgeSearchActive, forgeConfirmRemove = false, nil
+local forgeStatus = { state = "IDLE", percent = 0, message = "Open THE FORGE to load the catalogue", package = "" }
+local forgePoll, forgeLoaded, forgeActionBusy = 0, false, false
 
 local function setNotice(message)
     notice = message
@@ -182,8 +189,10 @@ local function drawNavigation()
             else
                 text(page.icon, px + 9, py + 10, fonts.medium, {tint[1], tint[2], tint[3], alpha})
             end
-            local label = page.id == "setup" and "DESKTOP" or page.title:gsub("SESSION MANAGER", "SESSIONS"):gsub("SYSTEM TOOLS", "TOOLS")
-            text(label, px + 30, py + 15, fonts.tiny, {colors.white[1], colors.white[2], colors.white[3], alpha})
+            local labels = { overview = "HOME", setup = "SYSTEM", sessions = "SESS",
+                uplink = "UPLINK", forge = "FORGE", tools = "TOOLS", diagnostics = "DIAG" }
+            text(labels[page.id] or page.title, px + 30, py + 15, fonts.tiny,
+                {colors.white[1], colors.white[2], colors.white[3], alpha})
         end
     end
     text(pages[activePage].title, 22, 82, fonts.medium, active)
@@ -486,8 +495,8 @@ local function drawFooter()
     love.graphics.line(20, 425, 620, 425)
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
-    text(label, 24, 441, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
-    text("v0.5.0", 574, 441, fonts.tiny, colors.muted)
+    text(short(label, 64), 24, 439, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
+    text("v0.6.0", 574, 439, fonts.tiny, colors.muted)
 end
 
 local function drawQuickPanel()
@@ -518,11 +527,11 @@ function love.load()
     end
     -- 640x480 handheld-safe typography: status labels remain readable at
     -- native resolution instead of relying on a desktop-sized display.
-    fonts.tiny = loadFont(theme.fonts.telemetry, 12, 12)
+    fonts.tiny = loadFont(theme.fonts.telemetry, 13, 13)
     fonts.small = loadFont(theme.fonts.interface, 15, 15)
-    fonts.medium = loadFont(theme.fonts.display, 19, 19)
-    fonts.large = loadFont(theme.fonts.display, 24, 24)
-    fonts.title = loadFont(theme.fonts.display, 36, 36)
+    fonts.medium = loadFont(theme.fonts.display, 18, 18)
+    fonts.large = loadFont(theme.fonts.display, 23, 23)
+    fonts.title = loadFont(theme.fonts.display, 34, 34)
 
     local function loadImage(path)
         local ok, image = pcall(love.graphics.newImage, path)
