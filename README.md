@@ -36,7 +36,7 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
 | Desktop Input | Controller-to-desktop virtual keyboard/mouse, scroll and editable bindings | Integrated host-side bridge; hardware mapping validation pending |
-| Media Vault | IPTV source selector, local M3U/M3U8 drop folder, XMLTV Now/Next, web radio, favourites and single-owner playback | Integrated service and controller UI; player/stream/device validation pending |
+| Media Vault | IPTV source selector, local M3U/M3U8 drop folder, XMLTV Now/Next guide, web radio, favourites and single-owner playback | Integrated service and controller UI; player/stream/device validation pending |
 
 ## Safety principles
 
