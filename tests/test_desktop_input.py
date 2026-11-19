@@ -131,3 +131,35 @@ def test_disabled_binding_emits_no_key_events():
     mapper = bridge.ControllerMapper(cfg)
     assert mapper.feed(bridge.EV_KEY, bridge.BTN_EAST, 1) == []
     assert mapper.feed(bridge.EV_KEY, bridge.BTN_EAST, 0) == []
+
+
+def test_media_profile_maps_pad_for_fullscreen_player(tmp_path):
+    class FakeUInput:
+        def __init__(self, *args, **kwargs):
+            self.events = []
+        def emit(self, events):
+            self.events.extend(events)
+        def close(self):
+            pass
+
+    mapper = bridge.ControllerMapper(bridge.load_config(None), {
+        bridge.ABS_X: (-100, 100), bridge.ABS_Y: (-100, 100)
+    })
+    cfg = bridge.load_config(None)
+    cfg["bindings"].update({
+        "a": "pause", "b": "quit", "x": "fullscreen", "y": "mute",
+        "l1+a": "mouse_left", "l1+b": "mouse_right",
+    })
+    media_mapper = bridge.ControllerMapper(cfg)
+    assert media_mapper.feed(bridge.EV_KEY, bridge.BTN_SOUTH, 1) == [
+        (bridge.EV_KEY, bridge.KEY_SPACE, 1)
+    ]
+    assert media_mapper.feed(bridge.EV_KEY, bridge.BTN_EAST, 1) == [
+        (bridge.EV_KEY, bridge.KEY_Q, 1)
+    ]
+    assert media_mapper.feed(bridge.EV_KEY, bridge.BTN_WEST, 1) == [
+        (bridge.EV_KEY, bridge.KEY_F, 1)
+    ]
+    assert media_mapper.feed(bridge.EV_KEY, bridge.BTN_NORTH, 1) == [
+        (bridge.EV_KEY, bridge.KEY_M, 1)
+    ]
