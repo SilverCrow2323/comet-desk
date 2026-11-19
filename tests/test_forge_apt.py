@@ -7,6 +7,9 @@ def test_catalog_is_curated_and_input_leap_is_not_installable_from_apt():
     names = {entry[1] for entry in forge_apt.CATALOG}
     assert "qjoypad" in names
     assert "evtest" in names
+    assert "libdrm-dev" in names
+    assert "libinput-dev" in names
+    assert "libsdl2-image-dev" in names
     assert "libsdl2-dev" in names
     assert "build-essential" in names
     assert "input-leap" not in names
@@ -25,7 +28,7 @@ def test_catalog_does_not_offer_host_or_boot_critical_packages():
 
 def test_catalog_sections_have_ui_labels():
     names = {entry[0] for entry in forge_apt.CATALOG}
-    assert names == {"INPUT", "DESKTOP", "DEVELOPMENT", "MEDIA", "NETWORK", "UTILITIES"}
+    assert names == {"CORE", "INPUT", "DESKTOP", "DEVELOPMENT", "MEDIA", "NETWORK", "UTILITIES"}
     assert set(forge_apt.CATEGORIES) == {"ALL"} | names
 
 
