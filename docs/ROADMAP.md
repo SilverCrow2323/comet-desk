@@ -127,6 +127,7 @@ The product boundary and test authority are documented in [Product Blueprint](PR
 - [x] Supervise the input bridge alongside the Debian desktop session and release its controls on exit.
 - [x] Add a native Media Vault service with remote M3U/M3U8 playlists, local playlist drop-folder discovery and playlist switching.
 - [x] Add XMLTV EPG sync with bounded parsing, cached Now/Next data and status reporting.
+- [x] Add a dedicated controller-navigable EPG Now/Next view for the selected channel.
 - [x] Retain validated per-channel User-Agent, Referrer, Origin and HTTP-header metadata through the IPTV player handoff.
 - [x] Serialize catalogue, playlist activation, favourites and EPG writes with a dedicated Media Vault lock.
 - [x] Add persistent TV/radio favourites and four initial Italian web-radio presets.
