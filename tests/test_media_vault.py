@@ -292,7 +292,7 @@ def test_channel_options_are_validated_before_reaching_mpv(monkeypatch):
         "http-user-agent": "Provider/2.0",
         "http-referrer": "https://provider.example/",
         "headers": {"X-Provider": "value", "Bad Header": "not allowed",
-                    "X-Injected": "one\\r\\n--no-config"},
+                    "X-Injected": "one\r\n--no-config"},
     })
     assert player == "mpv"
     assert "--user-agent=Provider/2.0" in command
