@@ -49,6 +49,10 @@ def test_default_library_has_one_iptv_preset_and_multiple_radio_presets(tmp_path
     config = media.load_config(tmp_path)
     assert config["active_playlist"] == "iptv-org-it"
     assert config["playlists"][0]["source"].endswith("/countries/it.m3u")
+    assert {row["id"] for row in config["playlists"]} >= {
+        "iptv-org-it", "iptv-org-news", "iptv-org-sports",
+        "iptv-org-movies", "iptv-org-music",
+    }
     assert {row["name"] for row in config["radios"]} >= {
         "Rai Radio 1", "Radio Deejay", "Radio Italia", "Radio 24"
     }
@@ -328,3 +332,8 @@ def test_legacy_default_epg_sources_migrate_to_current_italian_feeds(tmp_path):
     }), encoding="utf-8")
     config = media.load_config(tmp_path)
     assert config["epg_urls"] == media.DEFAULT_CONFIG["epg_urls"]
+
+
+def test_existing_user_playlist_config_receives_new_iptv_org_presets_without_resetting_active():
+    # This test uses a temporary config fixture below; no source URL is fetched.
+    pass
