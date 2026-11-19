@@ -403,6 +403,7 @@ local function queueForgeAction(action, packageName)
     if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return end
     local slot = installedSlot or selectedSlot
     if not installedSlot then setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST"); return end
+    if forgeActionBusy then setNotice("THE FORGE IS ALREADY RUNNING AN APT OPERATION"); return end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/forge_apt.py"
     local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
