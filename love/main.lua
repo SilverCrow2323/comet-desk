@@ -169,6 +169,33 @@ local function drawGlobe(cx, cy, radius, tint, alpha)
     love.graphics.arc("line", "open", cx, cy, radius * 0.72, 0, math.pi)
 end
 
+local function drawForgeMark(cx, cy, scale, tint, alpha)
+    love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
+    love.graphics.setLineWidth(2 * scale)
+    -- Compact hammer + anvil mark, drawn with the renderer (no font glyphs).
+    love.graphics.rectangle("line", cx - 6 * scale, cy - 8 * scale, 12 * scale, 4 * scale)
+    love.graphics.line(cx, cy - 4 * scale, cx + 5 * scale, cy + 5 * scale)
+    love.graphics.line(cx - 7 * scale, cy + 6 * scale, cx + 7 * scale, cy + 6 * scale)
+    love.graphics.line(cx - 5 * scale, cy + 6 * scale, cx - 7 * scale, cy + 9 * scale)
+    love.graphics.line(cx + 5 * scale, cy + 6 * scale, cx + 7 * scale, cy + 9 * scale)
+end
+
+local function drawFallbackMark(cx, cy, scale, tint, alpha)
+    love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
+    love.graphics.setLineWidth(1.7 * scale)
+    love.graphics.circle("line", cx, cy, 6 * scale)
+    love.graphics.circle("line", cx, cy, 2 * scale)
+    for step = 0, 3 do
+        local angle = step * math.pi * 0.5
+        love.graphics.line(
+            cx + math.cos(angle) * 7 * scale,
+            cy + math.sin(angle) * 7 * scale,
+            cx + math.cos(angle) * 9 * scale,
+            cy + math.sin(angle) * 9 * scale
+        )
+    end
+end
+
 local function drawNavigation()
     local active = pageAccent(selected)
     local points = {}
@@ -204,8 +231,10 @@ local function drawNavigation()
             elseif visuals.atlas and visuals.quads[page.id] then
                 love.graphics.setColor(1, 1, 1, alpha)
                 love.graphics.draw(visuals.atlas, visuals.quads[page.id], px + 8, py + 9, 0, 0.52 * scale, 0.52 * scale)
+            elseif page.id == "forge" then
+                drawForgeMark(px + 18, py + h / 2, scale, tint, alpha)
             else
-                text(page.icon, px + 9, py + 10, fonts.medium, {tint[1], tint[2], tint[3], alpha})
+                drawFallbackMark(px + 18, py + h / 2, scale, tint, alpha)
             end
             local labels = { overview = "HOME", setup = "SYSTEM", sessions = "SESS",
                 uplink = "UPLINK", forge = "FORGE", tools = "TOOLS", diagnostics = "DIAG" }
