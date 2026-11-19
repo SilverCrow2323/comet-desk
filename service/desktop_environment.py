@@ -47,12 +47,12 @@ DEBIAN_SOURCES = """deb http://deb.debian.org/debian trixie main contrib non-fre
 deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
 deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
 """
+# First boot intentionally installs only what is required for a usable desktop.
+# Build tools, developer runtimes and archive utilities are opt-in through THE FORGE.
 BASE_PACKAGES = (
     "apt ca-certificates locales dbus dbus-x11 polkitd udisks2 gvfs gvfs-backends "
     "fonts-dejavu-core fonts-liberation nano procps sudo xdg-utils xdg-user-dirs "
-    "git curl wget python3 python3-pip python3-venv python3-dev build-essential "
-    "cmake ninja-build pkg-config file unzip zip xz-utils e2fsprogs "
-    "libinput-tools seatd"
+    "e2fsprogs libinput-tools seatd"
 )
 PROFILE_PACKAGES = {
     "labwc": "labwc waybar foot swaybg mako-notifier wofi xwayland",
