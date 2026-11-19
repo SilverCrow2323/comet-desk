@@ -1674,7 +1674,7 @@ local function drawMediaVault()
     local displayCount = count + (mediaMode == "PLAYLISTS" and 1 or 0)
     if mediaSelectedIndex > displayCount then mediaSelectedIndex = math.max(1, displayCount) end
     rounded(34, 248, 260, 148, colors.panel2, colors.line)
-    local first = math.max(1, math.min(mediaSelectedIndex - 2, math.max(1, count - 5)))
+    local first = math.max(1, math.min(mediaSelectedIndex - 2, math.max(1, displayCount - 5)))
     for visible = 1, 6 do
         local index = first + visible - 1
         local item = rows[index]
@@ -2543,6 +2543,25 @@ function love.keypressed(key)
         end
         return
     end
+    if mediaUrlDialog then
+        if key == "escape" or key == "b" then
+            closeMediaUrlDialog()
+        elseif key == "backspace" then
+            mediaUrlBackspace()
+        elseif key == "tab" or key == "y" then
+            mediaUrlField = mediaUrlField == "name" and "url" or "name"
+        elseif key == "return" then
+            if mediaUrlField == "name" then mediaUrlField = "url"
+            else commitMediaUrlDialog() end
+        elseif key == "left" then mediaUrlMove(-1)
+        elseif key == "right" then mediaUrlMove(1)
+        elseif key == "up" then mediaUrlMove(-8)
+        elseif key == "down" then mediaUrlMove(8)
+        elseif key == "lshift" or key == "rshift" then
+            mediaUrlShift = not mediaUrlShift
+        end
+        return
+    end
     if key == "m" then
         mediaSearchActive = false
         toggleQuickPanel()
@@ -2637,7 +2656,10 @@ function love.keypressed(key)
             adjustDesktopInput(1)
         elseif activePage == 9 then
             local item = selectedMediaRows()[mediaSelectedIndex]
-            if item then
+            if mediaMode == "PLAYLISTS"
+                and mediaSelectedIndex == #selectedMediaRows() + 1 then
+                openMediaUrlDialog()
+            elseif item then
                 if mediaMode == "RADIO" then queueMediaRadio(item)
                 elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
                 else queueMediaTV(item) end
@@ -2702,6 +2724,10 @@ end
 
 
 function love.textinput(value)
+    if mediaUrlDialog then
+        mediaUrlAppend(value)
+        return
+    end
     if not sectionOverlayOpen then return end
     if activePage == 5 and forgeSearchActive then
         if #forgeSearch < 40 then forgeSearch = forgeSearch .. value end
@@ -2734,6 +2760,32 @@ function love.gamepadpressed(joystick, button)
         boot.done = true
         pageChangedAt = ambientTime
         setNotice("SYSTEM READY // COMET DESK")
+        return
+    end
+
+    if mediaUrlDialog then
+        if button == "b" then
+            closeMediaUrlDialog()
+        elseif button == "a" then
+            local chars = mediaUrlCharacters()
+            mediaUrlAppend(chars:sub(mediaUrlCharIndex, mediaUrlCharIndex))
+        elseif button == "x" then
+            mediaUrlBackspace()
+        elseif button == "y" then
+            mediaUrlField = mediaUrlField == "name" and "url" or "name"
+        elseif button == "start" then
+            commitMediaUrlDialog()
+        elseif button == "leftshoulder" or button == "rightshoulder" then
+            mediaUrlShift = not mediaUrlShift
+        elseif button == "dpleft" then
+            mediaUrlMove(-1)
+        elseif button == "dpright" then
+            mediaUrlMove(1)
+        elseif button == "dpup" then
+            mediaUrlMove(-8)
+        elseif button == "dpdown" then
+            mediaUrlMove(8)
+        end
         return
     end
 
@@ -2843,7 +2895,10 @@ function love.gamepadpressed(joystick, button)
             adjustDesktopInput(1)
         elseif activePage == 9 then
             local item = selectedMediaRows()[mediaSelectedIndex]
-            if item then
+            if mediaMode == "PLAYLISTS"
+                and mediaSelectedIndex == #selectedMediaRows() + 1 then
+                openMediaUrlDialog()
+            elseif item then
                 if mediaMode == "RADIO" then queueMediaRadio(item)
                 elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
                 else queueMediaTV(item) end
