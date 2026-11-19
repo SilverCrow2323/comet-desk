@@ -78,6 +78,15 @@ A feature is not complete because its screen exists. It is complete when the und
 - [ ] Add safe APT transaction preview, including dependency impact, before destructive package changes.
 - [ ] Validate all supported display/session paths on the RG35XX H.
 
+## Phase 4.2 — muOS compatibility fixes (0.7.2-dev)
+
+- [x] Stream the verified Debian gzip rootfs into BusyBox tar without unsupported -z/-p switches or a second full-size archive.
+- [x] Package dashboard artwork and icon atlas inside the LÖVE game directory used by the runtime loader.
+- [x] Replace the Forge navigation glyph with a vector icon fallback when font glyph coverage is unavailable.
+- [x] Detect Wi-Fi using sysfs wireless interfaces and independent iw, wpa_supplicant and iwgetid signals.
+- [x] Prefer TF1 automatically when TF2 is absent or unusable; use TF2 when TF1 is unavailable.
+- [x] Add CI coverage for extraction streaming, runtime artwork placement, wireless fallbacks and storage selection.
+
 ## 0.8.0-rc — Feature freeze
 
 - [ ] Freeze the six core workflows and remove any control without a verified backend.
