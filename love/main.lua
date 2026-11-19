@@ -1604,7 +1604,7 @@ local function cycleMediaMode(direction)
 end
 
 local function drawMediaUrlEditor(tint)
-    local chars, columns = mediaUrlCharacters(), 8
+    local chars, columns = mediaUrlCharacters(), 9
     love.graphics.setColor(0.005, 0.009, 0.018, 0.94)
     love.graphics.rectangle("fill", 0, 0, W, H)
     rounded(22, 160, 596, 258, colors.panel, {tint[1], tint[2], tint[3], 0.95})
@@ -1628,9 +1628,9 @@ local function drawMediaUrlEditor(tint)
     for index = 1, #chars do
         local column = (index - 1) % columns
         local row = math.floor((index - 1) / columns)
-        local x, y = 38 + column * 70, 281 + row * 13
+        local x, y = 38 + column * 62, 281 + row * 13
         if index == mediaUrlCharIndex then
-            rounded(x - 3, y - 1, 64, 13, colors.panel2,
+            rounded(x - 3, y - 1, 58, 13, colors.panel2,
                 {tint[1], tint[2], tint[3], 0.95})
         end
         local char = chars:sub(index, index)
@@ -1822,6 +1822,11 @@ local function drawSectionOverlay()
             drawLegendItem(175, "←→", "ADJUST", page.accent)
             drawLegendItem(330, "Y", "RESET", page.accent)
             drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "media" and mediaUrlDialog then
+            drawLegendItem(20, "↑↓", "MOVE", page.accent)
+            drawLegendItem(175, "A/Y", "TYPE / FIELD", page.accent)
+            drawLegendItem(330, "ST", "SAVE", page.accent)
+            drawLegendItem(485, "B", "CANCEL", page.accent)
         elseif page.id == "media" then
             drawLegendItem(20, "↑↓", "ITEM", page.accent)
             drawLegendItem(175, "←→", "VIEW", page.accent)
@@ -2562,6 +2567,23 @@ function love.keypressed(key)
         end
         return
     end
+    if mediaUrlDialog then
+        if key == "escape" or key == "b" then
+            closeMediaUrlDialog()
+        elseif key == "backspace" then
+            mediaUrlBackspace()
+        elseif key == "tab" or key == "y" then
+            mediaUrlField = mediaUrlField == "name" and "url" or "name"
+        elseif key == "return" then
+            if mediaUrlField == "name" then mediaUrlField = "url"
+            else commitMediaUrlDialog() end
+        elseif key == "left" then mediaUrlMove(-1)
+        elseif key == "right" then mediaUrlMove(1)
+        elseif key == "up" then mediaUrlMove(-9)
+        elseif key == "down" then mediaUrlMove(9)
+        end
+        return
+    end
     if key == "m" then
         mediaSearchActive = false
         toggleQuickPanel()
@@ -2630,7 +2652,10 @@ function love.keypressed(key)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
-        elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
+        elseif activePage == 9 then
+            local rows = #selectedMediaRows()
+            mediaSelectedIndex = math.min(rows + (mediaMode == "PLAYLISTS" and 1 or 0),
+                mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif key == "/" and sectionOverlayOpen and activePage == 5 then
         forgeSearchActive = true
@@ -2782,9 +2807,9 @@ function love.gamepadpressed(joystick, button)
         elseif button == "dpright" then
             mediaUrlMove(1)
         elseif button == "dpup" then
-            mediaUrlMove(-8)
+            mediaUrlMove(-9)
         elseif button == "dpdown" then
-            mediaUrlMove(8)
+            mediaUrlMove(9)
         end
         return
     end
@@ -2860,7 +2885,10 @@ function love.gamepadpressed(joystick, button)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
-        elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
+        elseif activePage == 9 then
+            local rows = #selectedMediaRows()
+            mediaSelectedIndex = math.min(rows + (mediaMode == "PLAYLISTS" and 1 or 0),
+                mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 2 then
         selectedSlot = "tf1"
