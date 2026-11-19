@@ -240,3 +240,45 @@ def test_first_boot_is_a_light_desktop_baseline_and_dev_tools_are_optional():
     }
     assert base.isdisjoint(optional)
     assert optional <= forge
+
+
+
+def test_operation_lock_probe_distinguishes_stale_file_from_active_worker(tmp_path):
+    import fcntl
+
+    lock_path = tmp_path / "data" / "debian-system.lock"
+    lock_path.parent.mkdir(parents=True)
+    lock_path.touch()
+
+    # A leftover lock file after a crash is harmless once flock ownership is gone.
+    assert desktop.operation_lock_busy(tmp_path) is False
+    assert lock_path.exists()
+
+    with lock_path.open("a+") as active:
+        fcntl.flock(active, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        assert desktop.operation_lock_busy(tmp_path) is True
+
+    # Exiting the worker releases the kernel lock without needing to delete the file.
+    assert desktop.operation_lock_busy(tmp_path) is False
+
+
+
+def test_desktop_environment_check_action_writes_machine_readable_lock_state(tmp_path):
+    import subprocess
+    import sys
+
+    script = desktop.__file__
+    command = [
+        sys.executable, script, "check", "--slot", "tf1",
+        "--profile", "labwc", "--app-dir", str(tmp_path),
+    ]
+    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    assert result.stdout.strip() == "IDLE"
+    assert (tmp_path / "data" / "debian-lock.status").read_text().splitlines() == ["IDLE"]
+
+    lock_path = tmp_path / "data" / "debian-system.lock"
+    with lock_path.open("a+") as active:
+        fcntl.flock(active, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        busy = subprocess.run(command, check=True, capture_output=True, text=True)
+        assert busy.stdout.strip() == "BUSY"
+        assert (tmp_path / "data" / "debian-lock.status").read_text().splitlines() == ["BUSY"]
