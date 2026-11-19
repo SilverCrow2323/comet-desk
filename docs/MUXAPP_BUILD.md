@@ -16,7 +16,8 @@ CometDesk/
 │   ├── device_probe.lua
 │   └── diagnostics_report.lua
 ├── service/
-│   ├── desktop_environment.py\n│   ├── forge_apt.py
+│   ├── desktop_environment.py
+│   ├── forge_apt.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
@@ -39,13 +40,13 @@ Every push, pull request and manual workflow run builds a package after the Lua 
 
 ## Debian Trixie desktop and THE FORGE
 
-Desktop System builds one persistent Debian GNU/Linux 13 (Trixie) ARM64 rootfs with APT. The default profile is labwc; XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox can be installed as additional profiles in the same image. The rootfs is stored at `MUOS/CometDesk/Desktop/debian.img` on the explicitly selected TF1/TF2 card.
+Desktop System builds one persistent Debian GNU/Linux 13 (Trixie) ARM64 rootfs with APT. The default profile is labwc; XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox can be installed as additional profiles in the same image. The rootfs is stored at MUOS/CometDesk/Desktop/debian.img on the explicitly selected TF1/TF2 card.
 
-THE FORGE is Comet's curated APT software centre. It groups H700/muOS-oriented packages, queries live Debian APT availability and dpkg installation state, supports package search, installation, removal and index refresh. Its package allowlist excludes host muOS packages, kernel/firmware/bootloader utilities, systemd/init replacements, Snap/Flatpak, PackageKit and other unfiltered app stores. Input Leap is visible but disabled because Debian Trixie ARM64 does not currently offer it in the configured APT repositories; QJoyPad is marked X11-only.
+THE FORGE is Comet's curated APT software centre. It groups H700/muOS-oriented packages, queries live Debian APT availability and dpkg installation state, supports package search, installation, removal and index refresh. It includes a dedicated H700 CORE group for DRM/GBM/EGL, Wayland, evdev/libinput, ALSA/PulseAudio and SDL2 development libraries. Input Leap is visible but disabled because Debian Trixie ARM64 does not currently offer it in the configured APT repositories; QJoyPad is marked X11-only.
 
-All package operations run inside the mounted Debian rootfs. The host muOS APT database is never touched. Desktop setup, package operations and session launches share one lock, preventing concurrent modification/mount attempts. See [Debian Desktop Environment](DESKTOP_ENVIRONMENT.md) and [THE FORGE](FORGE.md).
+All package operations run inside the mounted Debian rootfs. The host muOS APT database is never touched. Desktop setup, package operations and session launches share one lock, preventing concurrent modification or mount attempts. See Debian Desktop Environment (DESKTOP_ENVIRONMENT.md) and THE FORGE (FORGE.md).
 
-Controls: **L1/R1** changes Comet tabs; within THE FORGE, **D-pad up/down** selects packages, **D-pad left/right** changes category, **A** installs an available package, **X twice** removes an installed package, **Y** refreshes APT indexes and **/** starts keyboard search. Package installation/removal is always limited to the bundled curated allowlist.
+Controls: L1/R1 changes Comet tabs; within THE FORGE, D-pad up/down selects packages, D-pad left/right changes category, A installs an available package, X twice removes an installed package, Y refreshes APT indexes and / starts keyboard search. Package installation/removal is limited to the bundled curated allowlist.
 
 ## Visual assets
 
