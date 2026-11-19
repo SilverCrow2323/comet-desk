@@ -136,3 +136,57 @@ def test_config_revision_marker_is_atomic_and_matches_guest_manifest_revision(tm
     marker = tmp_path / "data" / "desktop-config-revision"
     assert marker.read_text(encoding="ascii") == "2\n"
     assert not marker.with_suffix(".tmp").exists()
+
+
+def _mock_menu_binary(directory, name):
+    import os
+
+    directory.mkdir(parents=True, exist_ok=True)
+    binary = directory / name
+    binary.write_text("#!/bin/sh\nprintf '%s\\n' 'Return to Comet Desk'\n", encoding="utf-8")
+    binary.chmod(binary.stat().st_mode | 0o111)
+    return binary
+
+
+def test_x11_quick_panel_writes_clean_return_request(tmp_path):
+    import os
+    import subprocess
+
+    desktop._write_guest_configuration(tmp_path / "guest")
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    bin_dir = tmp_path / "bin"
+    _mock_menu_binary(bin_dir, "dmenu")
+    _mock_menu_binary(bin_dir, "dmenu_run")
+    env = os.environ.copy()
+    env["XDG_RUNTIME_DIR"] = str(runtime)
+    env.pop("WAYLAND_DISPLAY", None)
+    env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
+    quick_panel = tmp_path / "guest/usr/local/bin/comet-quick-panel"
+    subprocess.run([str(quick_panel)], env=env, check=True)
+    assert (runtime / "comet-return.request").is_file()
+
+
+def test_wayland_quick_panel_uses_wofi_and_writes_return_request(tmp_path):
+    import os
+    import socket
+    import subprocess
+
+    guest = tmp_path / "guest"
+    desktop._write_guest_configuration(guest)
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    socket_path = runtime / "wayland-0"
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(str(socket_path))
+    server.close()
+
+    bin_dir = tmp_path / "bin"
+    _mock_menu_binary(bin_dir, "wofi")
+    env = os.environ.copy()
+    env["XDG_RUNTIME_DIR"] = str(runtime)
+    env.pop("WAYLAND_DISPLAY", None)
+    env["PATH"] = str(bin_dir) + os.pathsep + env.get("PATH", "")
+    quick_panel = guest / "usr/local/bin/comet-quick-panel"
+    subprocess.run([str(quick_panel)], env=env, check=True)
+    assert (runtime / "comet-return.request").is_file()
