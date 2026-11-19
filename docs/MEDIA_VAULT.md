@@ -22,7 +22,7 @@ The initial remote preset is IPTV-org Italy:
 
 `https://iptv-org.github.io/iptv/countries/it.m3u`
 
-The parser supports M3U/M3U8 channels and the common `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `url-tvg` and `x-tvg-url` metadata. Per-channel user-agent/referrer and HTTP-header metadata are retained for supported VLC-style options.
+The parser supports M3U/M3U8 channels and the common `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `url-tvg` and `x-tvg-url` metadata. Per-channel User-Agent, Referrer, Origin and HTTP-header metadata are retained for supported VLC-style options, validated and passed to MPV/FFPlay.
 
 ### Add a local playlist
 
@@ -30,7 +30,7 @@ Copy `.m3u` or `.m3u8` files to:
 
 `data/media/playlists/imports/`
 
-Open Media Vault and refresh the catalogue. The files are discovered as local playlist sources and appear in **PLAYLISTS**. Use D-pad left/right to cycle TV, RADIO and PLAYLISTS, up/down to select a source and A to activate it. Local playlist files are confined to that imports directory; symbolic links and files over the size limit are rejected.
+Open Media Vault and refresh the catalogue with **Start**. The files are discovered as local playlist sources and appear in **PLAYLISTS**. Use D-pad left/right to cycle TV, RADIO and PLAYLISTS, up/down to select a source and A to activate it. Local playlist files are confined to that imports directory; symbolic links and files over the size limit are rejected. The remote default and copied local playlists share the same catalogue and EPG pipeline.
 
 ### Add a remote playlist
 
@@ -49,7 +49,7 @@ The active source can be changed from the PLAYLISTS view in Comet Desk. The serv
 
 Media Vault collects XMLTV sources from the configured EPG URL list and from playlist `url-tvg` metadata. It parses gzip XMLTV, resolves channel IDs/display names and creates an indexed programme cache. To keep memory use predictable on a 1 GB handheld, each sync is limited to four sources and 60,000 programmes per source, with a maximum document size.
 
-The current UI displays **Now** and **Next** for the selected TV channel when a reliable ID/name match exists. A complete multi-channel grid/timeline and richer channel matching remain planned work, not a claimed current feature.
+The current UI displays **Now** and **Next** for the selected TV channel when a reliable ID/name match exists. The parser uses a bounded maximum of four XMLTV sources and 60,000 programmes per source to constrain memory usage. A complete multi-channel grid/timeline and richer channel matching remain planned work, not a claimed current feature.
 
 EPG cache/status:
 - `data/media-epg-index.json`
@@ -58,7 +58,7 @@ EPG cache/status:
 
 ## Web radio
 
-The default presets include Rai Radio 1, Radio Deejay, Radio Italia and Radio 24. Users can edit the station list in `data/media-vault.json`; the service also has a Radio Browser discovery helper. Station URLs are broadcaster-controlled and may change, so a preset is not a guarantee of uninterrupted service.
+The default presets include Rai Radio 1, Radio Deejay, Radio Italia and Radio 24. Users can edit the station list in `data/media-vault.json`; the service also has a Radio Browser discovery helper. Favourites are stored in that same configuration and persist between sessions. Station URLs are broadcaster-controlled and may change, so a preset is not a guarantee of uninterrupted service.
 
 Radio streams use audio-only MPV/FFPlay options and can be paused/resumed or stopped from the Comet Quick Panel (M). TV uses the full-screen player handoff.
 
