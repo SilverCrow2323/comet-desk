@@ -29,9 +29,10 @@ If one of these jobs is unreliable, adding another module is the wrong next step
 
 - muOS remains the host and continues to boot the handheld.
 - Comet owns a persistent Debian Trixie ARM64 userspace stored as an ext4 **file** on TF1 or TF2.
+- On first run, the bootstrap may choose an existing verified guest first; otherwise it uses the first writable card with the required free space (TF1 before TF2). The chosen slot must be visible, and Desktop System must allow manual TF1/TF2 selection for later setup actions.
 - The guest shares the running H700 kernel. It is not a separate bootable image.
 - Comet must never edit boot files, U-Boot, DTBs, firmware, partition tables, or the host APT/dpkg database.
-- No raw block-device writing, formatting, repartitioning, or automatic card selection followed by destructive work.
+- No raw block-device writing, formatting or repartitioning. A storage preference must never authorize a destructive device operation.
 
 ### One guest, one package database, one operation lock
 
