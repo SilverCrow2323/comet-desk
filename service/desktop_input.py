@@ -32,6 +32,7 @@ BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT = 544, 545, 546, 547
 KEY_ESC, KEY_TAB, KEY_ENTER, KEY_BACKSPACE = 1, 15, 28, 14
 KEY_LEFTCTRL, KEY_LEFTALT, KEY_SPACE, KEY_LEFTMETA = 29, 56, 57, 125
 KEY_UP, KEY_LEFT, KEY_RIGHT, KEY_DOWN, KEY_M = 103, 105, 106, 108, 50
+KEY_Q, KEY_F = 16, 33
 
 UI_DEV_CREATE, UI_DEV_DESTROY = 0x5501, 0x5502
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_RELBIT = 0x40045564, 0x40045565, 0x40045566
@@ -158,8 +159,14 @@ class ControllerMapper:
             return self._key(KEY_BACKSPACE, value)
         if name == "tab":
             return self._key(KEY_TAB, value)
-        if name == "space":
+        if name == "space" or name == "pause":
             return self._key(KEY_SPACE, value)
+        if name == "quit":
+            return self._key(KEY_Q, value)
+        if name == "fullscreen":
+            return self._key(KEY_F, value)
+        if name == "mute":
+            return self._key(KEY_M, value)
         if name == "mouse_left":
             return self._key(272, value)
         if name == "mouse_right":
@@ -372,7 +379,7 @@ class UInputDevice:
             for code in (
                 KEY_ESC, KEY_TAB, KEY_ENTER, KEY_BACKSPACE, KEY_LEFTCTRL,
                 KEY_LEFTALT, KEY_SPACE, KEY_LEFTMETA, KEY_UP, KEY_DOWN,
-                KEY_LEFT, KEY_RIGHT, KEY_M, 272, 273,
+                KEY_LEFT, KEY_RIGHT, KEY_M, KEY_Q, KEY_F, 272, 273,
             ):
                 fcntl.ioctl(self.fd, UI_SET_KEYBIT, code)
             for code in (REL_X, REL_Y, REL_HWHEEL, REL_WHEEL):
@@ -424,10 +431,19 @@ def write_status(app_dir: Path, state: str, detail: str = "") -> None:
     os.replace(temporary, path)
 
 
-def run(app_dir: Path, config_path: Path | None = None, device: str | None = None) -> int:
+def run(app_dir: Path, config_path: Path | None = None, device: str | None = None,
+        profile: str = "desktop") -> int:
     config_path = config_path or app_dir / "data" / "desktop-input.json"
     write_default_config(config_path)
     config = load_config(config_path)
+    if profile == "media":
+        config["enabled"] = True
+        config["bindings"] = {
+            "a": "pause", "b": "quit",
+            "l1+a": "mouse_left", "l1+b": "mouse_right",
+            "x": "fullscreen", "y": "mute",
+            "r1+x": "disabled", "start": "disabled", "select": "disabled",
+        }
     if not config["enabled"]:
         write_status(app_dir, "DISABLED", "controller mouse bridge disabled in settings")
         return 0
@@ -494,11 +510,12 @@ def main() -> int:
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
     parser.add_argument("--config", default="")
     parser.add_argument("--device", default="")
+    parser.add_argument("--profile", choices=("desktop", "media"), default="desktop")
     args = parser.parse_args()
     if not args.app_dir:
         parser.error("--app-dir or COMET_DESK_APP_DIR is required")
     return run(Path(args.app_dir), Path(args.config) if args.config else None,
-               args.device or None)
+               args.device or None, args.profile)
 
 
 if __name__ == "__main__":
