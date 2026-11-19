@@ -373,7 +373,7 @@ def test_guest_child_environment_drops_muos_loader_injection(monkeypatch):
     monkeypatch.setenv("LD_AUDIT", "/opt/muos/frontend/lib/audit.so")
     monkeypatch.setenv("DISPLAY", ":0")
 
-    env = desktop.child_environment({"DEBIAN_FRONTEND": "noninteractive"})
+    env = desktop.child_environment({**desktop.APP_ENV, "DEBIAN_FRONTEND": "noninteractive"})
 
     assert "LD_PRELOAD" not in env
     assert "LD_AUDIT" not in env
