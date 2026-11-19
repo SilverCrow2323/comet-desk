@@ -27,7 +27,9 @@ Only packages present in the curated list can be installed or removed. The UI sh
 - Y refreshes Debian APT indexes.
 - / begins keyboard search; typed text filters title, package name and description.
 
-Package operations happen in the background while Comet remains responsive. A shared Debian-system lock prevents overlapping APT, setup and desktop-session operations.
+Selecting install, remove or index refresh opens a dedicated black operation console with the APT log, current task and progress percentage reported by apt/dpkg. Press **B / Esc** to hide the screen while the package worker continues. A shared Debian-system lock prevents overlapping APT, setup and desktop-session operations.
+
+The first Comet Desk launch automatically prepares the base Debian Trixie + labwc environment on the first writable TF card with at least 9 GiB available. A failed previous attempt is retried rather than being mistaken for a successful setup. Additional desktop profiles use the same operation console from Desktop System.
 
 ## Compatibility policy
 
