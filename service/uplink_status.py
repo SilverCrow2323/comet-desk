@@ -45,22 +45,54 @@ def find_rt(app_dir: Path):
     return None
 
 
-def network_snapshot(app_dir: Path):
+def _wireless_interface(name: str, sys_class_net: Path) -> bool:
+    if name.startswith(("wlan", "wl", "mlan")):
+        return True
+    interface = sys_class_net / name
+    return (interface / "wireless").exists() or (interface / "phy80211").exists()
+
+
+def _interface_value(sys_class_net: Path, name: str, field: str) -> str:
+    try:
+        return (sys_class_net / name / field).read_text(encoding="ascii").strip().lower()
+    except OSError:
+        return ""
+
+
+def network_snapshot(app_dir: Path, *, sys_class_net: Path | None = None):
+    sys_class_net = sys_class_net or Path("/sys/class/net")
     interfaces = []
     try:
-        interfaces = [p.name for p in Path("/sys/class/net").iterdir() if p.name != "lo"]
+        interfaces = sorted(p.name for p in sys_class_net.iterdir() if p.name != "lo")
     except OSError:
         pass
-    wifi_if = next((n for n in interfaces if n.startswith(("wlan", "wl"))), "")
+    wifi_if = next((n for n in interfaces if _wireless_interface(n, sys_class_net)), "")
     connected, ssid, ip = False, "", ""
     if wifi_if:
         _, link, _ = run(["iw", "dev", wifi_if, "link"])
-        connected = "Connected to" in link
+        associated = bool(re.search(r"Connected to\s+[0-9a-f:]+", link, re.I))
         match = re.search(r"SSID:\s*(.+)", link)
         ssid = match.group(1).strip() if match else ""
+
+        # muOS builds do not all expose the same wireless CLI. Fall back to
+        # wpa_supplicant and iwgetid instead of interpreting missing iw output
+        # as a disconnected radio.
+        _, wpa_state, _ = run(["wpa_cli", "-i", wifi_if, "status"])
+        values = dict(
+            line.split("=", 1) for line in wpa_state.splitlines() if "=" in line
+        )
+        wpa_connected = values.get("wpa_state", "").upper() == "COMPLETED"
+        if not ssid:
+            ssid = values.get("ssid", "").strip()
+        if not ssid:
+            _, iwgetid_ssid, _ = run(["iwgetid", "-r", wifi_if])
+            ssid = iwgetid_ssid.strip()
+
         _, addr, _ = run(["ip", "-o", "-4", "addr", "show", "dev", wifi_if])
         m = re.search(r"inet\s+([0-9.]+)", addr)
         ip = m.group(1) if m else ""
+        operstate = _interface_value(sys_class_net, wifi_if, "operstate")
+        connected = associated or wpa_connected or bool(ssid) or bool(ip and operstate == "up")
     hotspot_if = ""
     for name in interfaces:
         _, info, _ = run(["iw", "dev", name, "info"])
