@@ -1311,7 +1311,7 @@ end
 local function openMediaUrlDialog()
     mediaUrlDialog = true
     mediaUrlField = "name"
-    mediaUrlName = "Custom IPTV"
+    mediaUrlName = ""
     mediaUrlValue = ""
     mediaUrlCharIndex = 1
     mediaUrlShift = false
@@ -1614,7 +1614,8 @@ local function drawMediaUrlEditor(tint)
         mediaUrlField == "name" and tint[2] or colors.line[2],
         mediaUrlField == "name" and tint[3] or colors.line[3], 0.9,
     })
-    text("NAME  " .. short(mediaUrlName, 62), 46, 206, fonts.tiny,
+    text("NAME  " .. short(mediaUrlName ~= "" and mediaUrlName or "Custom IPTV", 62),
+        46, 206, fonts.tiny,
         mediaUrlField == "name" and colors.white or colors.muted)
     rounded(36, 230, 568, 24, colors.panel2, {
         mediaUrlField == "url" and tint[1] or colors.line[1],
@@ -2800,7 +2801,7 @@ function love.gamepadpressed(joystick, button)
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif button == "start" then
             commitMediaUrlDialog()
-        elseif button == "leftshoulder" or button == "rightshoulder" then
+        elseif button == "rightshoulder" then
             mediaUrlShift = not mediaUrlShift
         elseif button == "dpleft" then
             mediaUrlMove(-1)
