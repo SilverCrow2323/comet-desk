@@ -1038,7 +1038,9 @@ function love.gamepadpressed(joystick, button)
     end
 
     if button == "dpup" then
-        if activePage == 2 then cycleDesktopProfile(-1) else love.keypressed("up") end
+        if activePage == 2 then cycleDesktopProfile(-1)
+        elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
+        else love.keypressed("up") end
     elseif button == "dpdown" then
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
