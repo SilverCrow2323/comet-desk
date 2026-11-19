@@ -1432,6 +1432,9 @@ local function drawDesktopInput()
     text("COMET INPUT BRIDGE  //  HOST uinput", 36, 196, fonts.small, tint)
     text("One virtual keyboard + mouse. No guest-side Python/Pygame dependency.",
         36, 218, fonts.tiny, colors.muted)
+    text("BRIDGE  //  " .. desktopInput.state .. "  " .. short(desktopInput.detail, 36),
+        390, 218, fonts.tiny,
+        desktopInput.state == "READY" and colors.green or colors.muted)
     local fixedRows = {
         {"LEFT STICK", "MOUSE POINTER"}, {"RIGHT STICK", "SCROLL"},
         {"D-PAD", "ARROW KEYS"},
@@ -1476,9 +1479,6 @@ local function drawDesktopInput()
         text(item[2], x + 100, y, fonts.tiny,
             desktopInput.selectedOption == i and colors.white or tint)
     end
-    text("STATUS  //  " .. short(desktopInput.state .. " " .. desktopInput.detail, 72),
-        38, 379, fonts.tiny,
-        desktopInput.state == "READY" and colors.green or colors.muted)
 end
 
 local function selectedMediaRows()
@@ -1545,10 +1545,11 @@ local function drawMediaVault()
         .. short(mediaStatus.title ~= "" and mediaStatus.title or "NOT PLAYING", 48),
         38, 393, fonts.tiny,
         mediaStatus.state == "PLAYING" and colors.green or colors.muted)
-    text("EPG  //  " .. short(mediaEpgStatus, 58), 38, 408, fonts.tiny,
-        mediaEpgStatus:find("READY", 1, true) and colors.green or colors.muted)
     if mediaCatalog.error ~= "" then
-        text(short(mediaCatalog.error, 76), 380, 408, fonts.tiny, colors.amber)
+        text(short(mediaCatalog.error, 76), 38, 408, fonts.tiny, colors.amber)
+    else
+        text("EPG  //  " .. short(mediaEpgStatus, 58), 38, 408, fonts.tiny,
+            mediaEpgStatus:find("READY", 1, true) and colors.green or colors.muted)
     end
 end
 
