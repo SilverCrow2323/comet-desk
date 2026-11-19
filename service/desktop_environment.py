@@ -87,6 +87,22 @@ APP_ENV = {"HOME": "/root", "USER": "root", "LOGNAME": "root",
            "SHELL": "/bin/bash", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin"}
 
 
+def child_environment(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    """Create a child environment without muOS front-end loader injection.
+
+    muOS can export LD_PRELOAD for its cursor helper. That library is absent
+    inside the Debian chroot, so dpkg maintainer scripts repeatedly emit noisy
+    loader warnings. Strip loader injection only from child processes; leave
+    the running Comet/muOS process environment untouched.
+    """
+    env = dict(os.environ)
+    env.pop("LD_PRELOAD", None)
+    env.pop("LD_AUDIT", None)
+    if overrides:
+        env.update(overrides)
+    return env
+
+
 class SetupError(RuntimeError):
     pass
 
@@ -134,7 +150,7 @@ def _run(command: list[str], *, log: BinaryIO | None = None,
         result = subprocess.run(
             command, stdin=subprocess.DEVNULL, stdout=log or subprocess.PIPE,
             stderr=subprocess.STDOUT, check=False, timeout=timeout,
-            env=env,
+            env=child_environment(env),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise SetupError("{}: {}".format(command[0], exc)) from exc
@@ -204,7 +220,7 @@ def run_apt_with_progress(
             stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=subprocess.STDOUT,
-            env=env,
+            env=child_environment(env),
             pass_fds=(write_fd,),
             start_new_session=True,
         )
@@ -429,6 +445,7 @@ def extract_gzip_tar(archive_path: Path, destination: Path, *,
         process = subprocess.Popen(
             command, stdin=subprocess.PIPE, stdout=log,
             stderr=subprocess.STDOUT, close_fds=True,
+            env=child_environment(),
         )
     except OSError as exc:
         raise SetupError("could not start tar extraction: {}".format(exc)) from exc
@@ -1005,8 +1022,7 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
         policy.write_text("#!/bin/sh\nexit 101\n", encoding="ascii")
         policy.chmod(0o755)
 
-        env = dict(os.environ)
-        env.update(APP_ENV)
+        env = child_environment(APP_ENV)
         env["DEBIAN_FRONTEND"] = "noninteractive"
 
         write_status(app_dir, "APT_UPDATE", 42,
@@ -1171,8 +1187,7 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
         manager.bind_host_tree(share_storage=True)
         manager.bind(runtime_dir, mountpoint / "run/user/0")
 
-        env = dict(os.environ)
-        env.update(APP_ENV)
+        env = child_environment(APP_ENV)
         env["HOME"] = "/root"
         env["XDG_RUNTIME_DIR"] = "/run/user/0"
         env["COMET_DESKTOP_PROFILE"] = profile
