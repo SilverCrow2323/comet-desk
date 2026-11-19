@@ -120,7 +120,8 @@ def data_paths(app_dir: Path) -> dict[str, Path]:
         "supervisor_pid": data / "media-player.supervisor.pid",
         "player_pid": data / "media-player.pid",
         "log": data / "media-player.log",
-        "playlists": data / "media" / "playlists",
+        "playlists": data / "media" / "playlists" / "cache",
+        "playlist_imports": data / "media" / "playlists" / "imports",
         "epg_cache": data / "media" / "epg",
         "epg_status": data / "media-epg.status",
         "epg_catalogue": data / "media-vault.epg",
@@ -292,6 +293,41 @@ def parse_m3u(text: str) -> dict:
 def playlist_cache_path(app_dir: Path, url: str) -> Path:
     key = hashlib.sha256(url.encode("utf-8")).hexdigest()[:20]
     return data_paths(app_dir)["playlists"] / (key + ".m3u")
+
+
+def sync_import_folder(app_dir: Path, config: dict) -> bool:
+    """Discover user-copied .m3u/.m3u8 files without mixing them with URL cache."""
+    folder = data_paths(app_dir)["playlist_imports"]
+    folder.mkdir(parents=True, exist_ok=True)
+    changed = False
+    for path in sorted(folder.iterdir()):
+        if path.is_symlink() or not path.is_file():
+            continue
+        if path.suffix.lower() not in (".m3u", ".m3u8"):
+            continue
+        try:
+            size = path.stat().st_size
+            if size <= 0 or size > MAX_PLAYLIST_BYTES:
+                continue
+            resolved = path.resolve(strict=True)
+            if folder.resolve() not in resolved.parents:
+                continue
+        except OSError:
+            continue
+        entry_id = "local-" + hashlib.sha1(str(resolved).encode("utf-8")).hexdigest()[:12]
+        existing = next((row for row in config["playlists"] if row.get("id") == entry_id), None)
+        name = path.stem.replace("_", " ").replace("-", " ").strip() or "Local IPTV"
+        row = {"id": entry_id, "name": clean(name, 80), "type": "file",
+               "source": str(resolved), "enabled": True}
+        if existing is None:
+            config["playlists"].append(row)
+            changed = True
+        elif existing != row:
+            existing.update(row)
+            changed = True
+    if changed:
+        save_config(app_dir, config)
+    return changed
 
 
 def load_playlist(app_dir: Path, entry: dict, force: bool = False) -> dict:
@@ -474,6 +510,7 @@ def sync_epg(app_dir: Path, config: dict, force: bool = False) -> dict:
 
 def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = False) -> dict:
     config = load_config(app_dir)
+    sync_import_folder(app_dir, config)
     active = next((row for row in config["playlists"]
                    if row.get("id") == config.get("active_playlist")), None)
     playlist = {"channels": [], "groups": [], "epg_urls": []}
@@ -500,6 +537,11 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
             clean(playlist_error, 160),
         )
     ]
+    for item in config["playlists"]:
+        rows.append("PLAYLIST|{}|{}|{}".format(
+            clean(item.get("id"), 80), clean(item.get("name"), 100),
+            "1" if item.get("id") == config.get("active_playlist") else "0",
+        ))
     for radio in radios:
         rows.append("RADIO|{}|{}|{}|{}|{}".format(
             clean(radio["id"], 80), clean(radio.get("name"), 100),
@@ -516,6 +558,23 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
     atomic_write(data_paths(app_dir)["catalogue"], "\n".join(rows) + "\n")
     return {"playlists": len(config["playlists"]), "channels": len(channels),
             "radios": len(radios), "error": playlist_error}
+
+
+def activate_playlist(app_dir: Path, playlist_id: str) -> dict:
+    config = load_config(app_dir)
+    sync_import_folder(app_dir, config)
+    selected = next((row for row in config["playlists"]
+                     if row.get("id") == playlist_id), None)
+    if selected is None or not selected.get("enabled", True):
+        raise MediaError("playlist is unavailable or disabled")
+    # Validate and parse before changing the active source. A broken playlist
+    # must never replace a working library entry.
+    parsed = load_playlist(app_dir, selected, force=False)
+    if not parsed["channels"]:
+        raise MediaError("selected playlist has no supported channels")
+    config["active_playlist"] = playlist_id
+    save_config(app_dir, config)
+    return build_catalogue(app_dir, force=False)
 
 
 def add_playlist(app_dir: Path, name: str, url: str) -> dict:
@@ -933,7 +992,7 @@ def play_foreground(app_dir: Path) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=(
-        "init", "catalogue", "import-playlist", "refresh-epg",
+        "init", "catalogue", "import-playlist", "activate-playlist", "refresh-epg",
         "play-radio", "play-tv", "stop", "toggle", "toggle-favourite", "supervisor", "playback",
     ))
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
@@ -960,6 +1019,10 @@ def main() -> int:
             return 0
         if args.action == "import-playlist":
             result = add_playlist(app_dir, args.name, args.url)
+            print(json.dumps(result))
+            return 0
+        if args.action == "activate-playlist":
+            result = activate_playlist(app_dir, args.query)
             print(json.dumps(result))
             return 0
         if args.action == "refresh-epg":
