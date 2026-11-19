@@ -24,6 +24,7 @@ local probe, diagnosticReport
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
 local probeTimer = 0
 local theme = require("theme")
+local storageSelection = require("storage_selection")
 local colors = theme.colors
 local appRoot = os.getenv("COMET_DESK_APP_DIR") or ""
 local ambientTime, pageChangedAt = 0, 0
@@ -243,6 +244,19 @@ local function storageUsable(slot)
     local item = storageItem(slot)
     return item and item.status == "MOUNTED" and item.stats
         and not item.stats.read_only and item.stats.free_bytes
+end
+
+local function normalizeSelectedSlot(notify)
+    local nextSlot, changed = storageSelection.normalize(selectedSlot, storageUsable)
+    if changed then
+        selectedSlot = nextSlot
+        if notify then
+            setNotice(nextSlot == "tf1"
+                and "TF2 NOT AVAILABLE // USING TF1"
+                or "TF1 NOT AVAILABLE // USING TF2")
+        end
+    end
+    return changed
 end
 
 local function storageLine(label, item)
@@ -975,11 +989,7 @@ function love.load()
         local success, snapshot = pcall(probe.read)
         if success and snapshot then
             device = snapshot
-            if not storageUsable(selectedSlot) and storageUsable("tf1") then
-                selectedSlot = "tf1"
-            elseif not storageUsable(selectedSlot) and storageUsable("tf2") then
-                selectedSlot = "tf2"
-            end
+            normalizeSelectedSlot(false)
         end
     end
 end
@@ -1065,7 +1075,10 @@ function love.update(dt)
     if probe and probeTimer >= 10 then
         probeTimer = 0
         local success, snapshot = pcall(probe.read)
-        if success and snapshot then device = snapshot end
+        if success and snapshot then
+            device = snapshot
+            normalizeSelectedSlot(true)
+        end
     end
     if boot.done and maybeRunAutoBootstrap then maybeRunAutoBootstrap() end
     if operationScreen.open then
@@ -1537,11 +1550,11 @@ function love.keypressed(key)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         else cyclePage(1) end
     elseif key == "left" or key == "a" then
-        if activePage == 2 then selectedSlot = "tf1"
+        if activePage == 2 then selectedSlot = "tf1"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(-1)
         elseif activePage == 5 then cycleForgeCategory(-1) end
     elseif key == "right" or key == "d" then
-        if activePage == 2 then selectedSlot = "tf2"
+        if activePage == 2 then selectedSlot = "tf2"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(1)
         elseif activePage == 5 then cycleForgeCategory(1) end
     elseif key == "return" or key == "space" or key == "z" or key == "i" then
@@ -1652,8 +1665,10 @@ function love.gamepadpressed(joystick, button)
         cyclePage(1)
     elseif button == "dpleft" and activePage == 2 then
         selectedSlot = "tf1"
+        normalizeSelectedSlot(true)
     elseif button == "dpright" and activePage == 2 then
         selectedSlot = "tf2"
+        normalizeSelectedSlot(true)
     elseif button == "dpleft" and activePage == 3 then
         cycleAppCategory(-1)
     elseif button == "dpright" and activePage == 3 then
