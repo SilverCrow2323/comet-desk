@@ -803,7 +803,7 @@ def player_process_owned(pid: int, proc_root: Path = Path("/proc")) -> bool:
     if pid <= 1:
         return False
     try:
-        fields = (proc_root / str(pid) / "cmdline").read_bytes().split(b"\\0")
+        fields = (proc_root / str(pid) / "cmdline").read_bytes().split(b"\0")
     except OSError:
         return False
     executable = fields[0].decode("utf-8", "replace").rsplit("/", 1)[-1] if fields else ""
