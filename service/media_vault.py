@@ -1078,12 +1078,25 @@ def play_foreground(app_dir: Path) -> int:
             )
             atomic_write(paths["player_pid"], str(process.pid) + "\n")
             write_status(app_dir, "PLAYING", "tv", title, player_name)
+            launcher_pid = os.getppid()
+
+            def parent_terminated(_signum, _frame):
+                raise KeyboardInterrupt
+
+            old_term = signal.signal(signal.SIGTERM, parent_terminated)
             try:
                 while process.poll() is None:
+                    if os.getppid() != launcher_pid:
+                        # mux_launch died or was restarted. The TV child owns a
+                        # separate session, so explicitly terminate it here.
+                        _terminate(process)
+                        break
                     time.sleep(0.15)
             except KeyboardInterrupt:
                 _terminate(process)
             finally:
+                signal.signal(signal.SIGTERM, old_term)
+                _terminate(process)
                 paths["player_pid"].unlink(missing_ok=True)
                 write_status(app_dir, "STOPPED", "tv", title, player_name)
             return process.returncode or 0
