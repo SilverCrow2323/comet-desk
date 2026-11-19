@@ -62,8 +62,8 @@ def test_rootfs_extraction_streams_plain_tar_to_busybox_compatible_command(tmp_p
     assert captured.read_bytes() == raw_tar
     args = args_file.read_text(encoding="utf-8").splitlines()
     assert args == ["-x", "-f", "-", "-C", str(destination)]
-    assert "z" not in "".join(args)
-    assert "p" not in "".join(args)
+    assert "-z" not in args
+    assert "-p" not in args
 
 
 def test_rootfs_extraction_reports_tar_failure(tmp_path):
