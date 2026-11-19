@@ -131,3 +131,32 @@ def test_heartbeat_touch_updates_timestamp(tmp_path):
     media.heartbeat(tmp_path)
     assert path.is_file()
     assert abs(time.time() - path.stat().st_mtime) < 2
+
+
+def test_radio_favourite_can_be_toggled_on_and_off(tmp_path, monkeypatch):
+    monkeypatch.setattr(media, "build_catalogue", lambda *args, **kwargs: {"ok": True})
+    media.load_config(tmp_path)
+    first = media.toggle_favourite(tmp_path, "radio", "radio-deejay")
+    assert first is False
+    config = media.load_config(tmp_path)
+    assert "radio:radio-deejay" not in config["favorites"]
+
+    second = media.toggle_favourite(tmp_path, "radio", "radio-deejay")
+    assert second is True
+    assert "radio:radio-deejay" in media.load_config(tmp_path)["favorites"]
+
+
+def test_media_playlist_tv_catalogue_exports_favourite_flag(tmp_path, monkeypatch):
+    monkeypatch.setattr(media, "load_playlist", lambda *args, **kwargs: {
+        "channels": [{
+            "id": "abc123", "name": "Channel One", "group": "News",
+            "url": "https://example.org/tv.m3u8", "tvg_id": "channel.one"
+        }],
+        "groups": ["News"], "epg_urls": []
+    })
+    config = media.load_config(tmp_path)
+    config["favorites"] = ["tv:abc123"]
+    media.save_config(tmp_path, config)
+    media.build_catalogue(tmp_path)
+    rows = media.data_paths(tmp_path)["catalogue"].read_text().splitlines()
+    assert "TV|abc123|Channel One|News|https://example.org/tv.m3u8|channel.one|1" in rows
