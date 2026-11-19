@@ -9,6 +9,21 @@ import desktop_environment as desktop
 # Entries are deliberately curated for ARM64/H700. No raw package name is ever
 # accepted from UI input; unavailable upstream projects are displayed disabled.
 CATALOG = (
+("CORE","libevdev-dev","evdev development headers","Build native Linux controller and event-input integrations.","H700"),
+("CORE","libinput-dev","libinput development files","Develop input-device discovery and event-handling components.","H700"),
+("CORE","libudev-dev","udev development headers","Build applications that enumerate devices without managing host services.","H700"),
+("CORE","libdrm-dev","DRM development files","Develop Linux display and buffer-management integrations.","GPU"),
+("CORE","libgbm-dev","GBM development files","Develop graphics buffer allocation paths used by compositors.","GPU"),
+("CORE","libegl1-mesa-dev","EGL development files","Build EGL applications and graphics integrations.","GPU"),
+("CORE","libgl4es-dev","GL4ES development files","Compatibility layer for legacy OpenGL calls over GLES hardware.","GPU"),
+("CORE","libwayland-dev","Wayland development files","Build native Wayland clients and compositor integrations.","WAYLAND"),
+("CORE","wayland-protocols","Wayland protocols","Protocol definitions for Wayland application development.","WAYLAND"),
+("CORE","libxkbcommon-dev","XKB development files","Keyboard layout and keymap support for Wayland/X11 applications.","INPUT"),
+("CORE","libasound2-dev","ALSA development files","Build applications against the Linux ALSA audio API.","AUDIO"),
+("CORE","libpulse-dev","PulseAudio development files","Build applications using PulseAudio client APIs.","AUDIO"),
+("CORE","libsdl2-image-dev","SDL2 image development files","Load common image formats in SDL2-based handheld applications.","H700"),
+("CORE","libsdl2-ttf-dev","SDL2 font development files","Render TrueType fonts in SDL2 applications.","H700"),
+("CORE","libsdl2-mixer-dev","SDL2 mixer development files","Add audio mixing to SDL2 games and applications.","AUDIO"),
 ("INPUT","joystick","Joystick tools","Inspect SDL/Linux joystick devices.","INPUT"),
 ("INPUT","evtest","Input event monitor","Inspect raw Linux input events and controller buttons.","INPUT"),
 ("INPUT","inputattach","Serial input bridge","Attach supported serial input devices to Linux input.","INPUT"),
@@ -58,7 +73,7 @@ CATALOG = (
 SPECIAL = (
 ("INPUT","input-leap","Input Leap","Share one keyboard and pointer between computers. Upstream Linux/Wayland support exists, but Debian Trixie ARM64 has no package in the configured APT repositories.","UPSTREAM ONLY"),
 )
-CATEGORIES = ("ALL","INPUT","DESKTOP","DEVELOPMENT","MEDIA","NETWORK","UTILITIES")
+CATEGORIES = ("ALL","CORE","INPUT","DESKTOP","DEVELOPMENT","MEDIA","NETWORK","UTILITIES")
 
 class ForgeError(RuntimeError): pass
 
