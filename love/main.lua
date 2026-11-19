@@ -8,7 +8,7 @@ local pages = {
     { id = "sessions", title = "APP DECK", subtitle = "Discover and launch installed Debian applications through Comet.", icon = "▦", accent = {1.0, 0.72, 0.32} },
     { id = "uplink", title = "UPLINK", subtitle = "Network, wireless radios and remote services.", icon = "◎", accent = {0.24, 0.72, 1.0} },
     { id = "forge", title = "THE FORGE", subtitle = "Discover, install and manage curated Debian ARM64 software.", icon = "⚒", accent = {1.0, 0.48, 0.22} },
-    { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
+    { id = "tools", title = "SYSTEM TOOLS", subtitle = "Live guest, storage and registry state — no simulated controls.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
     { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime.", icon = "⌁", accent = {0.96, 0.30, 0.70} },
 }
 
@@ -18,6 +18,7 @@ local carouselTarget = 1
 local pageChangedDirection = 1
 local notice, noticeTimer = "SYSTEM READY // COMET DESK", 0
 local fonts = {}
+local appVersion = "dev"
 local visuals = { background = nil, atlas = nil, quads = {} }
 local probe, diagnosticReport
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
@@ -275,7 +276,17 @@ local function drawOverview()
     text("APP / RUNTIME", 413, 229, fonts.tiny, colors.muted)
     text("LÖVE 11.5  //  ARM64", 413, 246, fonts.small, colors.white)
     text("DESKTOP ENGINE", 413, 276, fonts.tiny, colors.muted)
-    text("XFCE  //  XORG", 413, 293, fonts.small, colors.green)
+    local desktopEngine, engineColor = "NOT INSTALLED", colors.amber
+    if imageDownload.state == "READY" then
+        local profile = imageDownload.profile ~= "" and imageDownload.profile or selectedProfile
+        desktopEngine = profile == "labwc" and "LABWC / WAYLAND" or (profile:upper() .. " / X11")
+        engineColor = colors.green
+    elseif imageDownload.state ~= "NOT_INSTALLED" then
+        desktopEngine = imageDownload.state
+        engineColor = imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED"
+            and colors.amber or colors.violet
+    end
+    text(short(desktopEngine, 28), 413, 293, fonts.small, engineColor)
 
     rounded(20, 343, 600, 72, colors.panel, colors.line)
     text("STORAGE  //  LIVE MOUNT STATE", 38, 355, fonts.small, colors.cyan)
@@ -795,13 +806,28 @@ end
 local function drawSystemTools()
     text("COMET // SYSTEM CONTROL AND ENVIRONMENT STATUS", 24, 180, fonts.small, colors.muted)
     rounded(20, 201, 600, 214, colors.panel, colors.line)
+    local guestState, guestColor = "NOT INSTALLED", colors.amber
+    if imageDownload.state == "READY" then
+        guestState, guestColor = "DEBIAN 13 / TRIXIE READY", colors.green
+    elseif imageDownload.state ~= "NOT_INSTALLED" then
+        guestState = imageDownload.state
+        guestColor = imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED"
+            and colors.amber or colors.violet
+    end
+    local forgeLabel = not installedSlot and "LOCKED // DEBIAN NOT READY"
+        or (forgeLoaded and (forgeStatus.state == "IDLE" and "IDLE // NO TASK" or forgeStatus.state)
+            or "NOT CHECKED")
+    local appLabel = not installedSlot and "LOCKED // DEBIAN NOT READY"
+        or (appCatalogLoaded and (tostring(#appCatalog) .. " DISCOVERED // " .. appRegistryState)
+            or "NOT SCANNED")
     local rows = {
-        { "GUEST OS", "DEBIAN GNU/LINUX 13 // TRIXIE", colors.cyan },
-        { "ARCHITECTURE", "ARM64 // SHARED MUOS H700 KERNEL", colors.white },
+        { "GUEST OS", guestState, guestColor },
+        { "ARCHITECTURE", (device.architecture or "UNKNOWN"):upper() .. " // SHARED MUOS KERNEL", colors.white },
         { "STORAGE", installedSlot and installedSlot:upper() or "NOT CONFIGURED", installedSlot and colors.green or colors.amber },
-        { "DESKTOP PROFILE", imageDownload.profile ~= "" and imageDownload.profile:upper() or "NOT INSTALLED", colors.violet },
-        { "APT / FORGE", forgeStatus.state ~= "IDLE" and forgeStatus.state or "READY WHEN ROOTFS IS INSTALLED", colors.green },
-        { "APPLICATION REGISTRY", tostring(#appCatalog) .. " DISCOVERED // " .. appRegistryState, colors.cyan },
+        { "DESKTOP PROFILE", imageDownload.state == "READY" and imageDownload.profile:upper()
+            or (imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state), colors.violet },
+        { "APT / FORGE", forgeLabel, installedSlot and colors.green or colors.amber },
+        { "APPLICATION REGISTRY", appLabel, colors.cyan },
     }
     for i, item in ipairs(rows) do
         local y = 220 + (i - 1) * 27
@@ -884,7 +910,7 @@ local function drawFooter()
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
     text(short(label, 64), 24, 439, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
-    text("v0.6.0", 574, 439, fonts.tiny, colors.muted)
+    text("v" .. appVersion, 574, 439, fonts.tiny, colors.muted)
 end
 
 local function drawQuickPanel()
@@ -906,6 +932,9 @@ local function drawQuickPanel()
 end
 
 function love.load()
+    local versionContent = love.filesystem.read("version.txt")
+    local bundledVersion = versionContent and versionContent:match("(%S+)")
+    if bundledVersion then appVersion = bundledVersion end
     love.graphics.setDefaultFilter("linear", "linear")
     local function loadFont(path, size, fallback)
         if path == "builtin" then return love.graphics.newFont(size) end
