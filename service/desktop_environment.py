@@ -531,13 +531,44 @@ def _bind_build_environment(manager: ImageMount) -> None:
     manager.bind_host_tree(share_storage=False)
 
 
-def setup(slot: str, app_dir: Path) -> Path:
+def _read_manifest(marker: Path) -> dict:
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _write_manifest(marker: Path, *, image: Path, installed_profiles: set[str],
+                    selected_profile: str) -> None:
+    payload = {
+        "distribution": "debian",
+        "release": "13",
+        "codename": "trixie",
+        "architecture": "arm64",
+        "default_profile": DEFAULT_PROFILE,
+        "selected_profile": selected_profile,
+        "installed_profiles": sorted(installed_profiles),
+        "image": str(image),
+        "rootfs_sha256": DEBIAN_ROOTFS_SHA256,
+        "seed_git_blob_sha1": IMAGE_SEED_GIT_BLOB_SHA1,
+        "updated_at": int(time.time()),
+    }
+    temporary = marker.with_suffix(".tmp")
+    temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    os.replace(temporary, marker)
+
+
+def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
     if os.geteuid() != 0:
         raise SetupError("Comet Desk needs muOS app-runner root privileges for loop mounts and chroot")
     if os.uname().machine not in ("aarch64", "arm64"):
-        raise SetupError("the XFCE desktop profile requires an ARM64 H700 host")
+        raise SetupError("Debian desktop profile requires an ARM64 H700 host")
     if slot not in SLOTS:
         raise SetupError("unknown storage slot")
+    if profile not in PROFILE_PACKAGES:
+        raise SetupError("unknown desktop profile: " + profile)
+
     mounted, writable = mounted_slot(slot)
     if not mounted:
         raise SetupError(slot.upper() + " is not mounted")
@@ -546,167 +577,283 @@ def setup(slot: str, app_dir: Path) -> Path:
     root = SLOTS[slot].resolve(strict=True)
     if root != SLOTS[slot] or not root.is_dir():
         raise SetupError("selected storage root is not a trusted mount")
-    stage = safe_staging_directory(root)
-    stats = os.statvfs(str(stage))
-    free = stats.f_bavail * stats.f_frsize
-    if free < MIN_FREE_BYTES:
-        raise SetupError("XFCE setup needs at least 5 GiB free on the selected card")
 
-    image = stage / "xfce.img"
-    seed = stage / "xfce.img.gz"
-    rootfs = stage / "ubuntu-base-24.04.3-base-arm64.tar.gz"
-    marker = stage / ".comet-xfce-ready"
+    stage = safe_staging_directory(root)
+    free = os.statvfs(str(stage)).f_bavail * os.statvfs(str(stage)).f_frsize
+    if free < MIN_FREE_BYTES:
+        raise SetupError("Debian environment setup requires at least 9 GiB free")
+
+    image = stage / "debian.img"
+    seed = stage / "h700-ext4-seed.img.gz"
+    rootfs = stage / "debian-trixie-arm64-rootfs.tar.gz"
+    marker = stage / ".comet-debian-ready"
     mountpoint = app_dir / "data" / "desktop-mnt"
     log_path = app_dir / "data" / "desktop-environment.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     for protected in (image, seed, rootfs, marker, mountpoint):
         if protected.is_symlink():
             raise SetupError("refusing symbolic-link desktop path: " + str(protected))
-    if image.is_file() and marker.is_file():
-        try:
-            saved = json.loads(marker.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            saved = {}
-        if saved.get("profile") == "ubuntu-24.04-arm64-xfce":
-            write_status(app_dir, "READY", 100, "XFCE image already installed", str(image))
-            return image
 
-    write_status(app_dir, "DOWNLOADING_TEMPLATE", 2, "Fetching the pinned H700 XFCE image seed")
-    if not seed.exists() or seed.stat().st_size != IMAGE_SEED_SIZE:
-        download_verified(IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
-                          expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
-                          status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading XFCE image seed"))
+    manifest = _read_manifest(marker)
+    if image.is_file() and manifest.get("distribution") == "debian":
+        installed = set(manifest.get("installed_profiles", []))
+        if profile in installed:
+            write_status(app_dir, "READY", 100,
+                         "Debian Trixie ready // " + profile.upper(),
+                         str(image), profile)
+            return image
     else:
-        data = seed.read_bytes()
-        if git_blob_sha1(data) != IMAGE_SEED_GIT_BLOB_SHA1:
-            seed.unlink()
-            download_verified(IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
-                              expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
-                              status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading XFCE image seed"))
+        installed = set()
+
     if not image.exists():
+        write_status(app_dir, "DOWNLOADING_TEMPLATE", 2,
+                     "Downloading the pinned H700 ext4 filesystem seed",
+                     str(image), profile)
+        if not seed.exists() or seed.stat().st_size != IMAGE_SEED_SIZE:
+            download_verified(
+                IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
+                expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
+                status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading ext4 seed"),
+            )
+        elif git_blob_sha1(seed.read_bytes()) != IMAGE_SEED_GIT_BLOB_SHA1:
+            seed.unlink()
+            download_verified(
+                IMAGE_SEED_URL, seed, expected_size=IMAGE_SEED_SIZE,
+                expected_git_blob_sha1=IMAGE_SEED_GIT_BLOB_SHA1,
+                status=(app_dir, "DOWNLOADING_TEMPLATE", 3, 12, "Downloading ext4 seed"),
+            )
         _extract_gzip_image(seed, image, app_dir)
+        # Keep the container large enough for Debian, APT caches and several
+        # optional environments. The filesystem itself is grown after e2fsprogs
+        # has been installed in the guest.
+        os.truncate(image, DESKTOP_IMAGE_BYTES)
     else:
         with image.open("rb") as stream:
             stream.seek(1080)
             if stream.read(2) != b"\x53\xef":
-                raise SetupError("existing desktop image is not an ext4 filesystem")
+                raise SetupError("existing Debian image is not an ext4 filesystem")
 
-    manager = ImageMount(image, mountpoint, log_path.open("ab"))
+    log_stream = log_path.open("ab")
+    manager = ImageMount(image, mountpoint, log_stream)
     try:
-        write_status(app_dir, "PREPARING_ROOTFS", 42, "Mounting the XFCE filesystem image")
+        write_status(app_dir, "PREPARING_ROOTFS", 18,
+                     "Mounting the Debian filesystem container",
+                     str(image), profile)
         manager.mount_image()
+
         if not (mountpoint / "etc/os-release").exists():
-            write_status(app_dir, "DOWNLOADING_ROOTFS", 46, "Downloading official Ubuntu Base ARM64 root filesystem")
-            if not rootfs.exists() or file_sha256(rootfs) != UBUNTU_BASE_SHA256:
-                download_verified(UBUNTU_BASE_URL, rootfs, expected_size=UBUNTU_BASE_SIZE,
-                                  expected_sha256=UBUNTU_BASE_SHA256,
-                                  status=(app_dir, "DOWNLOADING_ROOTFS", 46, 55, "Downloading verified Ubuntu Base ARM64"),
-                                  max_bytes=40 * 1024 * 1024)
-            write_status(app_dir, "EXTRACTING_ROOTFS", 55, "Extracting the verified ARM64 root filesystem")
+            write_status(app_dir, "DOWNLOADING_ROOTFS", 23,
+                         "Downloading verified Debian Trixie ARM64 rootfs",
+                         str(image), profile)
+            if (not rootfs.is_file()
+                    or rootfs.stat().st_size != DEBIAN_ROOTFS_SIZE
+                    or file_sha256(rootfs) != DEBIAN_ROOTFS_SHA256):
+                download_verified(
+                    DEBIAN_ROOTFS_URL, rootfs,
+                    expected_size=DEBIAN_ROOTFS_SIZE,
+                    expected_sha256=DEBIAN_ROOTFS_SHA256,
+                    status=(app_dir, "DOWNLOADING_ROOTFS", 23, 34,
+                            "Downloading Debian Trixie ARM64"),
+                    max_bytes=64 * 1024 * 1024,
+                )
+            write_status(app_dir, "EXTRACTING_ROOTFS", 36,
+                         "Extracting the Debian ARM64 root filesystem",
+                         str(image), profile)
             _run(["tar", "-xzpf", str(rootfs), "-C", str(mountpoint)],
                  log=manager.log, timeout=900)
-            (mountpoint / ".comet-rootfs-extracted").write_text("verified\n")
-        os_release = (mountpoint / "etc/os-release").read_text(errors="replace")
-        if "ID=ubuntu" not in os_release or "VERSION_ID=\"24.04\"" not in os_release:
-            raise SetupError("root filesystem is not the expected Ubuntu 24.04 ARM64 base")
+            os_release = (mountpoint / "etc/os-release").read_text(errors="replace")
+            if ("ID=debian" not in os_release
+                    or 'VERSION_ID="13"' not in os_release
+                    or "VERSION_CODENAME=trixie" not in os_release):
+                raise SetupError("downloaded rootfs is not Debian 13 Trixie")
+            _write_guest_configuration(mountpoint)
+            (mountpoint / "etc/fstab").write_text("", encoding="ascii")
+
         _write_guest_configuration(mountpoint)
+        # Disable service autostart while apt unpacks: the guest shares muOS's
+        # running kernel and must not start independent host-level daemons.
         _bind_build_environment(manager)
         policy = mountpoint / "usr/sbin/policy-rc.d"
+        policy.parent.mkdir(parents=True, exist_ok=True)
         policy.write_text("#!/bin/sh\nexit 101\n", encoding="ascii")
         policy.chmod(0o755)
+
         env = dict(os.environ)
         env.update(APP_ENV)
         env["DEBIAN_FRONTEND"] = "noninteractive"
-        write_status(app_dir, "INSTALLING_XFCE", 63, "Installing Xorg, XFCE and handheld input/audio packages")
+
+        write_status(app_dir, "APT_UPDATE", 42,
+                     "Refreshing Debian Trixie package indexes",
+                     str(image), profile)
         _run(["chroot", str(mountpoint), "/usr/bin/env",
               "DEBIAN_FRONTEND=noninteractive",
               "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-              "apt-get", "-o", "Acquire::ForceIPv4=true", "-o", "Acquire::Retries=2",
-              "update"], log=manager.log, timeout=900, env=env)
+              "apt-get", "-o", "Acquire::Retries=2", "update"],
+             log=manager.log, timeout=1200, env=env)
+
+        packages = BASE_PACKAGES.split() + PROFILE_PACKAGES[DEFAULT_PROFILE].split()
+        if profile != DEFAULT_PROFILE:
+            packages += PROFILE_PACKAGES[profile].split()
+        packages = list(dict.fromkeys(packages))
+        write_status(app_dir, "INSTALLING_PROFILE", 58,
+                     "Installing APT profile // " + profile.upper(),
+                     str(image), profile)
         _run(["chroot", str(mountpoint), "/usr/bin/env",
               "DEBIAN_FRONTEND=noninteractive",
-              "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-              "apt-get", "-o", "Acquire::ForceIPv4=true", "-o", "Acquire::Retries=2",
-              "install", "-y", "--no-install-recommends"] + PACKAGES.split(),
-             log=manager.log, timeout=2400, env=env)
+              "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+              "apt-get", "-o", "Acquire::Retries=2",
+              "install", "-y", "--no-install-recommends"] + packages,
+             log=manager.log, timeout=3600, env=env)
         _run(["chroot", str(mountpoint), "/usr/bin/env",
               "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "apt-get", "clean"],
-             log=manager.log, timeout=120, env=env)
+             log=manager.log, timeout=180, env=env)
+
+        # Resize the mounted ext4 guest to the full sparse container size.
+        loop = manager.loop
+        if not loop:
+            raise SetupError("desktop loop device was lost before filesystem expansion")
+        _run(["chroot", str(mountpoint), "/usr/sbin/resize2fs", loop],
+             log=manager.log, timeout=900, env=env)
+
         policy.unlink(missing_ok=True)
-        required = ("/usr/bin/startx", "/usr/bin/startxfce4", "/usr/bin/Xorg")
-        missing = [item for item in required if not (mountpoint / item.lstrip("/")).exists()]
+        required = {
+            "labwc": ("/usr/bin/labwc",),
+            "xfce": ("/usr/bin/startxfce4",),
+            "lxde": ("/usr/bin/startlxde",),
+            "lxqt": ("/usr/bin/startlxqt",),
+            "icewm": ("/usr/bin/icewm-session",),
+            "fluxbox": ("/usr/bin/startfluxbox",),
+            "openbox": ("/usr/bin/openbox-session",),
+        }
+        missing = [path for path in required[profile]
+                   if not (mountpoint / path.lstrip("/")).exists()]
         if missing:
-            raise SetupError("XFCE image verification failed; missing " + ", ".join(missing))
-        marker.write_text(json.dumps({
-            "profile": "ubuntu-24.04-arm64-xfce",
-            "image": str(image),
-            "template_git_blob_sha1": IMAGE_SEED_GIT_BLOB_SHA1,
-            "rootfs_sha256": UBUNTU_BASE_SHA256,
-            "created_at": int(time.time()),
-        }, sort_keys=True), encoding="utf-8")
-        write_status(app_dir, "READY", 100, "XFCE image prepared and verified", str(image))
+            raise SetupError("profile installation incomplete: " + ", ".join(missing))
+
+        installed.add(DEFAULT_PROFILE)
+        installed.add(profile)
+        _write_manifest(marker, image=image,
+                        installed_profiles=installed,
+                        selected_profile=profile)
+        write_status(app_dir, "READY", 100,
+                     "Debian Trixie ready // " + profile.upper(),
+                     str(image), profile)
         return image
     except Exception as exc:
-        write_status(app_dir, "FAILED", 0, str(exc))
+        write_status(app_dir, "FAILED", 0, str(exc), str(image), profile)
         raise
     finally:
         if not manager.cleanup():
             write_status(app_dir, "CLEANUP_REQUIRED", 0,
-                         "Desktop image mount cleanup could not be verified; check the log")
-        manager.log.close()
+                         "Debian image mount cleanup could not be verified; check the log",
+                         str(image), profile)
+        log_stream.close()
 
 
-def launch(slot: str, app_dir: Path) -> int:
+def _x11_profile_command(profile: str) -> str:
+    commands = {
+        "xfce": "/usr/bin/startxfce4",
+        "lxde": "/usr/bin/startlxde",
+        "lxqt": "/usr/bin/startlxqt",
+        "icewm": "/usr/bin/icewm-session",
+        "fluxbox": "/usr/bin/startfluxbox",
+        "openbox": "/usr/bin/openbox-session",
+    }
+    if profile not in commands:
+        raise SetupError("profile does not use the X11 backend: " + profile)
+    return commands[profile]
+
+
+def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> int:
     if os.geteuid() != 0:
-        raise SetupError("Comet Desk needs muOS app-runner root privileges to launch XFCE")
+        raise SetupError("Comet Desk needs muOS app-runner root privileges to launch a desktop")
     if slot not in SLOTS:
         raise SetupError("unknown storage slot")
-    mounted, writable = mounted_slot(slot)
+    if profile not in PROFILE_PACKAGES:
+        raise SetupError("unknown desktop profile: " + profile)
+    mounted, _writable = mounted_slot(slot)
     if not mounted:
         raise SetupError(slot.upper() + " is not mounted")
+
     root = SLOTS[slot].resolve(strict=True)
     stage = safe_staging_directory(root)
-    image = stage / "xfce.img"
-    marker = stage / ".comet-xfce-ready"
-    if not image.is_file() or not marker.is_file():
-        raise SetupError("XFCE has not been installed yet; run Desktop Setup first")
-    state = json.loads(marker.read_text(encoding="utf-8"))
-    if state.get("profile") != "ubuntu-24.04-arm64-xfce":
-        raise SetupError("installed XFCE image profile is not recognized")
+    image = stage / "debian.img"
+    marker = stage / ".comet-debian-ready"
+    if image.is_symlink() or marker.is_symlink():
+        raise SetupError("refusing symbolic-link Debian image or manifest")
+    manifest = _read_manifest(marker)
+    if (manifest.get("distribution") != "debian"
+            or manifest.get("codename") != "trixie"
+            or profile not in set(manifest.get("installed_profiles", []))):
+        raise SetupError("Debian profile is not installed; run Desktop Setup first")
 
     mountpoint = app_dir / "data" / "desktop-mnt"
     log_path = app_dir / "data" / "desktop-environment.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    runtime_dir = app_dir / "data" / "desktop-runtime"
+    if runtime_dir.is_symlink():
+        raise SetupError("desktop runtime directory is a symbolic link")
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    runtime_dir.chmod(0o700)
+
     log_stream = log_path.open("ab")
     manager = ImageMount(image, mountpoint, log_stream)
     try:
         manager.mount_image()
-        # Network, sound, input, and the user's selected SD cards are exposed
-        # to the chroot. No other MUX app or desktop manager is started.
         manager.bind_host_tree(share_storage=True)
-        write_status(app_dir, "RUNNING", 100, "XFCE desktop is running", str(image))
+        manager.bind(runtime_dir, mountpoint / "run/user/0")
+
         env = dict(os.environ)
         env.update(APP_ENV)
-        env["DISPLAY"] = ":0"
-        env["XAUTHORITY"] = "/root/.Xauthority"
+        env["HOME"] = "/root"
+        env["XDG_RUNTIME_DIR"] = "/run/user/0"
+        env["COMET_DESKTOP_PROFILE"] = profile
+        write_status(app_dir, "RUNNING", 100,
+                     "Debian desktop running // " + profile.upper(),
+                     str(image), profile)
+
+        if profile == "labwc":
+            drm = Path("/dev/dri")
+            drm_devices = list(drm.glob("card*")) if drm.is_dir() else []
+            if not drm_devices:
+                raise SetupError(
+                    "labwc requires a DRM/KMS device at /dev/dri/card*. "
+                    "Choose an X11 profile (IceWM, Fluxbox, Openbox, LXDE, LXQt or XFCE) "
+                    "until the muOS H700 DRM path is available."
+                )
+            command = [
+                "chroot", str(mountpoint), "/usr/bin/env",
+                "HOME=/root", "USER=root", "LOGNAME=root",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "XDG_RUNTIME_DIR=/run/user/0", "WLR_BACKENDS=drm",
+                "LIBSEAT_BACKEND=builtin", "/usr/bin/labwc",
+            ]
+        else:
+            command = [
+                "chroot", str(mountpoint), "/usr/bin/env",
+                "HOME=/root", "USER=root", "LOGNAME=root", "SHELL=/bin/bash",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "XDG_RUNTIME_DIR=/run/user/0",
+                "COMET_DESKTOP_PROFILE=" + profile,
+                "/usr/bin/startx", "/usr/local/bin/comet-session-x11", "--",
+                ":0", "vt1", "-novtswitch", "-keeptty",
+            ]
         result = subprocess.run(
-            ["chroot", str(mountpoint), "/usr/bin/env",
-             "HOME=/root", "USER=root", "LOGNAME=root", "SHELL=/bin/bash",
-             "PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-             "/usr/bin/startx", "/root/.xinitrc", "--",
-             ":0", "vt1", "-novtswitch", "-keeptty"],
-            stdin=subprocess.DEVNULL, stdout=log_stream,
+            command, stdin=subprocess.DEVNULL, stdout=log_stream,
             stderr=subprocess.STDOUT, env=env, check=False,
         )
         write_status(app_dir, "READY", 100,
-                     "Desktop session ended; returned to Comet Desk", str(image))
+                     "Desktop session ended; returned to Comet Desk",
+                     str(image), profile)
         return result.returncode
     finally:
         clean = manager.cleanup()
         log_stream.close()
         if not clean:
             write_status(app_dir, "CLEANUP_REQUIRED", 0,
-                         "Desktop returned but one or more mounts remain; inspect the log")
+                         "Desktop returned but one or more mounts remain; inspect the log",
+                         str(image), profile)
+
 
 
 def main() -> int:
