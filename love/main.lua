@@ -1852,9 +1852,18 @@ function love.keypressed(key)
         return
     end
 
+    if forgeSearchActive or appSearchActive then
+        if key == "escape" then
+            forgeSearchActive, appSearchActive = false, false
+        elseif key == "backspace" then
+            if forgeSearchActive then forgeSearch = forgeSearch:sub(1, math.max(0, #forgeSearch - 1)) end
+            if appSearchActive then appSearch = appSearch:sub(1, math.max(0, #appSearch - 1)) end
+        end
+        return
+    end
     if key == "pageup" and sectionOverlayOpen then scrollSectionOverlay(-1); return end
     if key == "pagedown" and sectionOverlayOpen then scrollSectionOverlay(1); return end
-    if key == "left" or key == "a" then
+    if key == "left" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf1"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(-1)
@@ -1882,7 +1891,7 @@ function love.keypressed(key)
     elseif key == "/" and sectionOverlayOpen and activePage == 3 then
         appSearchActive = true
         setNotice("APP DECK SEARCH // TYPE TO FILTER")
-    elseif key == "return" or key == "space" or key == "z" or key == "i" then
+    elseif key == "a" or key == "return" or key == "space" or key == "z" or key == "i" then
         if not sectionOverlayOpen then
             activate()
             return
