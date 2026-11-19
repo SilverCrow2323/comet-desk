@@ -274,51 +274,26 @@ end
 local function drawSetup()
     local tint = pages[activePage].accent
     text(pages[activePage].subtitle, 24, 180, fonts.small, colors.muted)
-    rounded(20, 205, 600, 210, colors.panel, {tint[1], tint[2], tint[3], 0.75})
+    rounded(20, 203, 600, 212, colors.panel, {tint[1], tint[2], tint[3], 0.75})
 
-    text("DEBIAN GNU/LINUX 13  //  TRIXIE ARM64", 36, 218, fonts.medium, colors.white)
-    text("APT SYSTEM  //  ONE ROOTFS  //  COMET-MANAGED APPS", 36, 244, fonts.tiny, colors.cyan)
-
-    text("DESKTOP PROFILE  //  UP / DOWN TO SELECT", 36, 269, fonts.tiny, colors.violet)
+    text("DEBIAN GNU/LINUX 13  //  TRIXIE ARM64", 34, 214, fonts.medium, colors.white)
+    text("APT SYSTEM  /  ONE ROOTFS  /  COMET-MANAGED SOFTWARE", 34, 239, fonts.tiny, colors.cyan)
+    text("DESKTOP ENVIRONMENTS", 34, 265, fonts.small, colors.violet)
     for i, profile in ipairs(desktopProfiles) do
         local col = (i - 1) % 4
         local row = math.floor((i - 1) / 4)
-        local x = 36 + col * 84
-        local y = 284 + row * 43
+        local x, y = 34 + col * 83, 287 + row * 39
         local active = i == selectedProfileIndex
         local accent = profile.accent
-        rounded(x, y, 78, 37, active and colors.panel2 or colors.bg,
-            active and accent or colors.line)
-        if active then
-            love.graphics.setColor(accent[1], accent[2], accent[3], 0.9)
-            love.graphics.rectangle("fill", x + 7, y + 31, 64, 2, 1, 1)
-        end
-        text(profile.label, x + 6, y + 6, fonts.tiny,
-            active and colors.white or colors.muted)
-        text(profile.detail, x + 6, y + 21, fonts.tiny,
-            active and accent or colors.muted)
+        rounded(x, y, 78, 34, active and colors.panel2 or colors.bg, active and accent or colors.line)
+        text(profile.label, x + 7, y + 4, fonts.tiny, active and colors.white or colors.muted)
+        text(profile.detail, x + 7, y + 19, fonts.tiny, active and accent or colors.muted)
     end
 
-    text("INSTALL LOCATION", 36, 378, fonts.tiny, colors.violet)
-    local function targetCard(slot, x, label)
-        local item = storageItem(slot)
-        local usable = storageUsable(slot)
-        local active = selectedSlot == slot
-        rounded(x, 394, 151, 0 + 1, colors.bg, colors.line)
-        text(label, x, 382, fonts.tiny, active and colors.cyan or colors.muted)
-        local state = item and item.status == "MOUNTED" and item.stats
-            and (item.stats.read_only and "READ ONLY" or formatBytes(item.stats.free_bytes) .. " FREE")
-            or "NOT DETECTED"
-        text(state, x + 42, 382, fonts.tiny, usable and colors.green or colors.amber)
-    end
-    targetCard("tf1", 36, "TF1")
-    targetCard("tf2", 207, "TF2")
-
-    rounded(386, 260, 218, 142, colors.panel2, colors.line)
-    text("APT / ENVIRONMENT", 400, 273, fonts.small, colors.cyan)
+    rounded(376, 260, 228, 142, colors.panel2, colors.line)
+    text("DEBIAN / APT STATUS", 391, 272, fonts.small, colors.cyan)
     local stateColor = colors.cyan
-    if imageDownload.state == "READY" and imageDownload.profile == selectedProfile
-        and installedSlot == selectedSlot then
+    if imageDownload.state == "READY" and installedSlot == selectedSlot and imageDownload.profile == selectedProfile then
         stateColor = colors.green
     elseif imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED" then
         stateColor = colors.amber
@@ -326,28 +301,27 @@ local function drawSetup()
         stateColor = colors.violet
     end
     local stateLabel = imageDownload.state
-    if imageDownload.state == "READY" then
-        stateLabel = imageDownload.profile ~= "" and imageDownload.profile:upper() .. " READY" or "DEBIAN READY"
-    end
-    text(stateLabel, 400, 300, fonts.medium, stateColor)
-    text(short(imageDownload.message, 27), 400, 326, fonts.tiny, colors.white)
-    drawProgress(400, 349, 188, 10, imageDownload.percent, stateColor)
-    text(string.format("%d%%", imageDownload.percent), 400, 365, fonts.tiny, colors.muted)
-    local installedHere = imageDownload.state == "READY"
-        and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
-    if installedHere then
-        text("A  LAUNCH " .. selectedProfile:upper(), 400, 385, fonts.small, colors.green)
-    elseif imageDownload.state == "INSTALLING_PROFILE" or imageDownload.state == "APT_UPDATE"
-        or imageDownload.state == "DOWNLOADING_ROOTFS" or imageDownload.state == "DOWNLOADING_TEMPLATE"
-        or imageDownload.state == "EXTRACTING_ROOTFS" or imageDownload.state == "PREPARING_ROOTFS" then
-        text("APT IS WORKING  //  KEEP POWER ON", 400, 385, fonts.tiny, colors.violet)
-    elseif imageDownload.state == "FAILED" then
-        text("A  RETRY PROFILE INSTALL", 400, 385, fonts.tiny, colors.amber)
-    else
-        text("A  INSTALL " .. selectedProfile:upper(), 400, 385, fonts.small, tint)
-    end
-end
+    if imageDownload.state == "READY" then stateLabel = "DEBIAN READY / " .. (imageDownload.profile or "APT"):upper() end
+    text(short(stateLabel, 24), 391, 299, fonts.medium, stateColor)
+    text(short(imageDownload.message, 28), 391, 324, fonts.tiny, colors.white)
+    drawProgress(391, 349, 196, 10, imageDownload.percent, stateColor)
+    text(string.format("%d%% COMPLETE", imageDownload.percent), 391, 363, fonts.tiny, colors.muted)
 
+    local function slotLabel(label, slot, x)
+        local item = storageItem(slot)
+        local usable = storageUsable(slot)
+        local state = item and item.status == "MOUNTED" and item.stats
+            and (item.stats.read_only and "READ ONLY" or formatBytes(item.stats.free_bytes) .. " FREE")
+            or "NOT DETECTED"
+        text(label, x, 382, fonts.tiny, selectedSlot == slot and colors.cyan or colors.muted)
+        text(state, x + 34, 382, fonts.tiny, usable and colors.green or colors.amber)
+    end
+    slotLabel("TF1", "tf1", 34)
+    slotLabel("TF2", "tf2", 214)
+    local ready = imageDownload.state == "READY" and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+    text(ready and ("A  LAUNCH " .. selectedProfile:upper()) or ("A  INSTALL " .. selectedProfile:upper()),
+        391, 383, fonts.small, ready and colors.green or tint)
+end
 
 local function queueUplinkAction(action)
     if appRoot == "" then setNotice("COMET APP PATH UNAVAILABLE"); return end
