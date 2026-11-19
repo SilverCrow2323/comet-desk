@@ -161,7 +161,7 @@ def test_media_playlist_tv_catalogue_exports_favourite_flag(tmp_path, monkeypatc
     media.save_config(tmp_path, config)
     media.build_catalogue(tmp_path)
     rows = media.data_paths(tmp_path)["catalogue"].read_text().splitlines()
-    assert "TV|abc123|Channel One|News|https://example.org/tv.m3u8|channel.one|1" in rows
+    assert "TV|abc123|Channel One|News|https://example.org/tv.m3u8|channel.one|1|e30" in rows
 
 
 def test_epg_sync_exports_compact_now_next_rows_and_status(tmp_path, monkeypatch):
