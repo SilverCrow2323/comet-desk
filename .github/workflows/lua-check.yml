@@ -38,7 +38,7 @@ jobs:
         run: python -m pip install pytest
       - name: Validate source and package tooling
         run: |
-          python -m py_compile service/device_probe.py service/desktop_environment.py service/uplink_status.py service/forge_apt.py service/app_registry.py tools/build_muxapp.py
+          python -m py_compile service/device_probe.py service/desktop_environment.py service/desktop_input.py service/uplink_status.py service/forge_apt.py service/app_registry.py tools/build_muxapp.py
           python -m pytest -q
 
   muxapp:
