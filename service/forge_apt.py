@@ -100,8 +100,9 @@ def run(command, log, timeout=900, capture=False):
 
 def locate(slot):
     if slot not in desktop.SLOTS: raise ForgeError("unknown storage slot")
-    mounted,_=desktop.mounted_slot(slot)
+    mounted,writable=desktop.mounted_slot(slot)
     if not mounted: raise ForgeError(slot.upper()+" is not mounted")
+    if not writable: raise ForgeError(slot.upper()+" is mounted read-only")
     root=desktop.SLOTS[slot].resolve(strict=True)
     if root != desktop.SLOTS[slot] or not root.is_dir():
         raise ForgeError("selected storage root is not a trusted mount")
@@ -203,7 +204,7 @@ def main():
     if not args.app_dir:
         print("COMET_DESK_APP_DIR is required",file=sys.stderr); return 2
     app_dir=Path(args.app_dir).resolve()
-    lock_path=app_dir/"data"/"forge.lock"; lock_path.parent.mkdir(parents=True,exist_ok=True)
+    lock_path=app_dir/"data"/"debian-system.lock"; lock_path.parent.mkdir(parents=True,exist_ok=True)
     with lock_path.open("a+") as lock:
         try: fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:
