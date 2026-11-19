@@ -553,10 +553,10 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
     favourites = set(config.get("favorites", []))
     channels = playlist["channels"]
     rows = [
-        "META|{}|{}|{}|{}|{}".format(
+        "META|{}|{}|{}|{}|{}|{}".format(
             len(config["playlists"]), len(channels), len(radios),
             clean(active.get("name", "") if active else "NO PLAYLIST", 80),
-            clean(playlist_error, 160),
+            clean(playlist_error, 160), int(time.time()),
         )
     ]
     for item in config["playlists"]:
