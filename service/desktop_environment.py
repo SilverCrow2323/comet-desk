@@ -413,6 +413,88 @@ def download_verified(url: str, destination: Path, *, expected_size: int | None,
         raise
 
 
+def extract_gzip_tar(archive_path: Path, destination: Path, *,
+                     log: BinaryIO, timeout: int = 900,
+                     tar_command: str = "tar") -> None:
+    """Stream a verified gzip-compressed tar into tar via stdin.
+
+    muOS ships a BusyBox tar build without the gzip (-z) and preserve (-p)
+    switches. Python handles gzip decompression; tar receives a plain stream.
+    The archive is checksum-pinned before this function is called, so tar keeps
+    responsibility for restoring the Debian filesystem's ownership, modes,
+    links and timestamps without buffering the whole rootfs in memory.
+    """
+    command = [tar_command, "-x", "-f", "-", "-C", str(destination)]
+    try:
+        process = subprocess.Popen(
+            command, stdin=subprocess.PIPE, stdout=log,
+            stderr=subprocess.STDOUT, close_fds=True,
+        )
+    except OSError as exc:
+        raise SetupError("could not start tar extraction: {}".format(exc)) from exc
+
+    deadline = time.monotonic() + timeout
+    try:
+        if process.stdin is None:
+            raise SetupError("tar extraction stdin is unavailable")
+        descriptor = process.stdin.fileno()
+        os.set_blocking(descriptor, False)
+        with gzip.open(archive_path, "rb") as source:
+            while True:
+                chunk = source.read(1024 * 1024)
+                if not chunk:
+                    break
+                view = memoryview(chunk)
+                while view:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise SetupError("Debian rootfs extraction timed out")
+                    writable, _, _ = select.select(
+                        [process.stdin] if False else [], [process.stdin], [],
+                        min(1.0, remaining),
+                    )
+                    if not writable:
+                        if process.poll() is not None:
+                            raise SetupError(
+                                "tar stopped during Debian rootfs extraction "
+                                "(exit {})".format(process.returncode)
+                            )
+                        continue
+                    try:
+                        written = os.write(descriptor, view)
+                    except BlockingIOError:
+                        continue
+                    if written <= 0:
+                        raise SetupError("tar closed the Debian rootfs input stream")
+                    view = view[written:]
+        process.stdin.close()
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise SetupError("Debian rootfs extraction timed out")
+        try:
+            return_code = process.wait(timeout=remaining)
+        except subprocess.TimeoutExpired as exc:
+            raise SetupError("Debian rootfs extraction timed out") from exc
+        if return_code != 0:
+            raise SetupError(
+                "tar extraction exited with status {}".format(return_code)
+            )
+    except Exception as exc:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        if isinstance(exc, SetupError):
+            raise
+        raise SetupError("Debian rootfs decompression/extraction failed: {}".format(exc)) from exc
+    finally:
+        if process.stdin is not None and not process.stdin.closed:
+            process.stdin.close()
+
+
 def _extract_gzip_image(seed: Path, image: Path, app_dir: Path) -> None:
     part = image.with_name(image.name + ".part")
     part.unlink(missing_ok=True)
@@ -891,8 +973,7 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
             write_status(app_dir, "EXTRACTING_ROOTFS", 36,
                          "Extracting the Debian ARM64 root filesystem",
                          str(image), profile)
-            _run(["tar", "-xzpf", str(rootfs), "-C", str(mountpoint)],
-                 log=manager.log, timeout=900)
+            extract_gzip_tar(rootfs, mountpoint, log=manager.log, timeout=900)
             os_release = (mountpoint / "etc/os-release").read_text(errors="replace")
             if ("ID=debian" not in os_release
                     or 'VERSION_ID="13"' not in os_release
