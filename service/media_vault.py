@@ -59,7 +59,7 @@ DEFAULT_CONFIG = {
             "country": "Italy",
             "url": "http://icestreaming.rai.it/1.mp3",
             "homepage": "https://www.raiplaysound.it/",
-            "favorite": True,
+            "favorite": False,
         },
         {
             "id": "radio-deejay",
@@ -89,7 +89,10 @@ DEFAULT_CONFIG = {
             "favorite": True,
         },
     ],
-    "favorites": [],
+    "favorites": [
+        "radio:rai-radio-1", "radio:radio-deejay",
+        "radio:radio-italia", "radio:radio-24",
+    ],
     "player": "auto",
     "last_playlist_sync": {},
     "last_epg_sync": 0,
@@ -119,6 +122,7 @@ def data_paths(app_dir: Path) -> dict[str, Path]:
         "log": data / "media-player.log",
         "playlists": data / "media" / "playlists",
         "epg_cache": data / "media" / "epg",
+        "epg_status": data / "media-epg.status",
         "recordings": data / "media" / "recordings",
     }
 
@@ -439,6 +443,10 @@ def sync_epg(app_dir: Path, config: dict, force: bool = False) -> dict:
     # sources remain untouched and the index is capped by parse_epg().
     atomic_write(paths["data"] / "media-epg-index.json",
                  json.dumps(index, ensure_ascii=False, separators=(",", ":")))
+    state = "READY" if sources_ok and not sources_error else ("DEGRADED" if sources_ok else "FAILED")
+    atomic_write(paths["epg_status"], "{}|{}|{}|{}\n".format(
+        state, len(sources_ok), len(sources_error), int(time.time())
+    ))
     return {"index": index, "ok": sources_ok, "errors": sources_error}
 
 
