@@ -190,3 +190,37 @@ def test_wayland_quick_panel_uses_wofi_and_writes_return_request(tmp_path):
     quick_panel = guest / "usr/local/bin/comet-quick-panel"
     subprocess.run([str(quick_panel)], env=env, check=True)
     assert (runtime / "comet-return.request").is_file()
+
+
+
+def test_apt_status_event_decodes_dpkg_and_download_progress():
+    assert desktop.apt_status_event("pmstatus:base:42:Unpacking base") == (
+        42.0, "Unpacking base"
+    )
+    event = desktop.apt_status_event("dlstatus:https://mirror/pkg.deb:25:100")
+    assert event == (25.0, "Downloading Debian packages")
+    assert desktop.apt_status_event("pmerror:base:10:failed") is None
+
+
+def test_apt_progress_runner_reports_status_fd_events(tmp_path):
+    import os
+
+    fake_apt = tmp_path / "apt-get"
+    fake_apt.write_text(
+        "#!/usr/bin/env python3\n"
+        "import os, sys\n"
+        "fd = int(next(arg.split('=', 1)[1] for arg in sys.argv "
+        "if arg.startswith('APT::Status-Fd=')))\n"
+        "os.write(fd, b'pmstatus:base:42:Unpacking base\\n')\n"
+        "os.write(fd, b'pmstatus:base:100:Installed base\\n')\n",
+        encoding="utf-8",
+    )
+    fake_apt.chmod(0o755)
+    events = []
+    with (tmp_path / "apt.log").open("ab") as log:
+        desktop.run_apt_with_progress(
+            [str(fake_apt), "install", "base"], log=log, timeout=5,
+            on_progress=lambda percent, message: events.append((percent, message)),
+        )
+    assert events == [(42, "Unpacking base"), (100, "Installed base")]
+
