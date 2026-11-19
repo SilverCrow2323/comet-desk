@@ -71,7 +71,7 @@ def test_wifi_device_is_found_by_sysfs_even_with_nonstandard_name(tmp_path, monk
     def fake_run(args, timeout=4):
         if args[:4] == ["iw", "dev", "radio0", "link"]:
             return 0, "Not connected.", ""
-        if args[:2] == ["wpa_cli", "-i"] or args[:2] == ["wpa_cli", "-i"]:
+        if args[:3] == ["wpa_cli", "-i", "radio0"]:
             return 127, "", ""
         if args[:3] == ["iwgetid", "-r", "radio0"]:
             return 0, "OfficeNet", ""
