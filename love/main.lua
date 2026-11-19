@@ -225,7 +225,7 @@ local function drawNavigation()
 
     -- The fascia is a real curved structure, not a single decorative stroke.
     love.graphics.setColor(0.006, 0.012, 0.024, 0.98)
-    love.graphics.setLineWidth(28)
+    love.graphics.setLineWidth(68)
     love.graphics.line(points)
     love.graphics.setColor(0.10, 0.16, 0.24, 1)
     love.graphics.setLineWidth(2.4)
@@ -234,8 +234,8 @@ local function drawNavigation()
     -- Two parallel guide rails and short cross ties make the tab travel path visible.
     local upper, lower = {}, {}
     for x = 10, W - 10, 4 do
-        upper[#upper + 1] = x; upper[#upper + 1] = curveY(x) - 10
-        lower[#lower + 1] = x; lower[#lower + 1] = curveY(x) + 10
+        upper[#upper + 1] = x; upper[#upper + 1] = curveY(x) - 34
+        lower[#lower + 1] = x; lower[#lower + 1] = curveY(x) + 34
     end
     love.graphics.setColor(0.36, 0.48, 0.62, 0.95)
     love.graphics.setLineWidth(2)
@@ -249,7 +249,7 @@ local function drawNavigation()
         local y = curveY(x)
         love.graphics.setColor(0.42, 0.54, 0.67, 0.7)
         love.graphics.setLineWidth(1)
-        love.graphics.line(x, y - 8, x, y + 8)
+        love.graphics.line(x, y - 32, x, y + 32)
     end
 
     local labels = {
@@ -260,7 +260,7 @@ local function drawNavigation()
     for offset = -2, 2 do
         local raw = carouselTarget + offset
         local index = ((raw - 1) % #pages) + 1
-        local x = W * 0.5 + (raw - carouselPosition) * 105
+        local x = W * 0.5 + (raw - carouselPosition) * 112
         if x > -68 and x < W + 68 then
             local page = pages[index]
             local distance = math.abs(x - W * 0.5) / 210
