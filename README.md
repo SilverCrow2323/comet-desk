@@ -7,7 +7,7 @@
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It owns a persistent Debian GNU/Linux 13 (Trixie) ARM64 root filesystem with APT, a default labwc session and optional X11/Wayland desktop profiles. Its software centre, THE FORGE, manages curated packages inside that Debian environment while muOS remains the host.
 
-> **Project status:** `0.9.0-dev` controller-first desktop input and Media Vault integration line. The UI includes editable desktop controller bindings, a host-side virtual mouse/keyboard bridge, IPTV playlists with XMLTV Now/Next, web radio and one supervised player owner. CI validates Lua/Python sources and builds the installable RG35XX H `.muxapp`; physical-device validation remains outstanding.
+> **Project status:** `0.9.0-dev` controller-first desktop input and Media Vault integration line. The UI includes editable desktop controller bindings, a host-side virtual mouse/keyboard bridge, IPTV country/genre/custom playlists, a controller-operated remote URL editor, XMLTV Now/Next, web radio and one supervised player owner. CI validates Lua/Python sources and builds the installable RG35XX H `.muxapp`; physical-device validation remains outstanding.
 
 ## What it is
 
