@@ -87,6 +87,7 @@ local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
 local mediaEpgStatus = "NOT SYNCED"
 local mediaCatalog = {playlists = 0, channels = 0, radios = 0, name = "IPTV-org // ITALIA", error = ""}
 local mediaItemsTV, mediaItemsRadio = {}, {}
+local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
 
@@ -1201,6 +1202,15 @@ local function readMediaCatalog()
         end
     end
     mediaItemsRadio, mediaItemsTV = radios, channels
+    mediaEpgById = {}
+    local epgCatalog = io.open(appRoot .. "/data/media-vault.epg", "r")
+    if epgCatalog then
+        for row in (epgCatalog:read("*a") .. "\n"):gmatch("(.-)\n") do
+            local id, current, following = row:match("^EPG|([^|]*)|([^|]*)|(.*)$")
+            if id then mediaEpgById[id] = {current = current, next = following} end
+        end
+        epgCatalog:close()
+    end
     mediaCatalogLoaded, mediaCatalogBusy = true, false
     local epg = io.open(appRoot .. "/data/media-epg.status", "r")
     if epg then
@@ -1452,13 +1462,23 @@ local function drawMediaVault()
     local chosen = rows[mediaSelectedIndex]
     if chosen then
         text(short(chosen.name, 31), 320, 259, fonts.medium, colors.white)
-        text(mediaMode == "RADIO" and short(chosen.genre, 36)
-            or short(chosen.group, 36), 320, 284, fonts.tiny, tint)
-        text(mediaMode == "RADIO" and "WEB RADIO STREAM" or "IPTV / M3U CHANNEL",
-            320, 306, fonts.tiny, colors.muted)
-        text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
-        text("Y  " .. (chosen.favorite and "UNFAVOURITE" or "FAVOURITE") .. "   X STOP",
-            320, 354, fonts.tiny, colors.amber)
+        if mediaMode == "RADIO" then
+            text(short(chosen.genre, 36), 320, 284, fonts.tiny, tint)
+            text("WEB RADIO STREAM", 320, 306, fonts.tiny, colors.muted)
+            text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
+            text("Y  " .. (chosen.favorite and "UNFAVOURITE" or "FAVOURITE") .. "   X STOP",
+                320, 354, fonts.tiny, colors.amber)
+        else
+            local epg = mediaEpgById[chosen.id] or {}
+            text(short(chosen.group, 36), 320, 281, fonts.tiny, tint)
+            text("NOW  " .. short(epg.current or "NO EPG DATA", 34), 320, 303,
+                fonts.tiny, colors.white)
+            text("NEXT " .. short(epg.next or "NOT AVAILABLE", 34), 320, 324,
+                fonts.tiny, colors.muted)
+            text("A  PLAY IPTV", 320, 350, fonts.small, tint)
+            text("Y  " .. (chosen.favorite and "UNFAV" or "FAV") .. "   X STOP",
+                320, 373, fonts.tiny, colors.amber)
+        end
     else
         text("NO ITEMS IN THIS VIEW", 320, 270, fonts.small, colors.amber)
         text("Refresh the catalogue or select RADIO.", 320, 298, fonts.tiny, colors.muted)
