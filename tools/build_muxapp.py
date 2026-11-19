@@ -22,7 +22,7 @@ RUNTIME_FILES = {
     "lib/libluajit-5.1.so.2": "lib/libluajit-5.1.so.2",
 }
 REQUIRED = (
-    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/theme.lua", "love/version.txt", "love/device_probe.lua", "love/diagnostics_report.lua",
+    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/theme.lua", "love/version.txt", "love/device_probe.lua", "love/diagnostics_report.lua", "love/storage_selection.lua",
     "assets/backgrounds/comet-dashboard-640x480.png",
     "assets/icons/comet-desk-atlas.png",
     "assets/branding/comet-desk-logo.png",
