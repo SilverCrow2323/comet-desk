@@ -458,7 +458,7 @@ def run(app_dir: Path, config_path: Path | None = None, device: str | None = Non
                 for offset in range(0, size, EVENT_SIZE):
                     _, _, event_type, code, value = EVENT_STRUCT.unpack_from(payload, offset)
                     if event_type == EV_SYN and code == SYN_DROPPED:
-                        mapper.release_all()
+                        uinput.emit(mapper.release_all())
                         continue
                     uinput.emit(mapper.feed(event_type, code, value))
             dt = now - last
