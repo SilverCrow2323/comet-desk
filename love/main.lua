@@ -121,7 +121,7 @@ local function drawHeader()
     text("QWASAR  /  FIELD SYSTEMS", 66, 12, fonts.tiny, colors.muted)
     text("COMET", 66, 29, fonts.title, colors.white)
     text("DESK", 174, 38, fonts.medium, colors.cyan)
-    text("DEBIAN APT CONTROL DECK  //  v0.5.0-dev", 67, 70, fonts.tiny, colors.muted)
+    text("DEBIAN APT CONTROL DECK  //  v0.6.0-dev", 67, 70, fonts.tiny, colors.muted)
 
     rounded(438, 17, 182, 56, colors.panel, colors.line)
     text("RG35XX H  //  H700", 451, 23, fonts.small, colors.cyan)
