@@ -73,6 +73,10 @@ local operationScreen = {
 }
 local autoBootstrapChecked = false
 local maybeRunAutoBootstrap
+local sectionOverlayOpen = false
+local sectionOverlayProgress = 0
+local overlayScroll = 0
+local overlayScrollLimit = 160
 
 local function setNotice(message)
     notice = message
@@ -146,7 +150,7 @@ local function drawHeader()
     local probeStatus = device.handheld ~= "Unknown" and "DEVICE LINK  ONLINE" or "DEVICE LINK  LIMITED"
     text(probeStatus, 451, 44, fonts.tiny,
         device.handheld ~= "Unknown" and colors.green or colors.amber)
-    text("L1 / R1  CHANGE SECTION", 451, 59, fonts.tiny, colors.muted)
+    text("L1 / R1 NAV  //  SELECT CONSOLE", 451, 59, fonts.tiny, colors.muted)
 end
 
 
@@ -156,7 +160,7 @@ end
 
 local function curveY(x)
     local d = (x - W * 0.5) / (W * 0.5)
-    return 122 + 15 * d * d
+    return 139 + 10 * d * d
 end
 
 local function drawGlobe(cx, cy, radius, tint, alpha)
@@ -196,58 +200,101 @@ local function drawFallbackMark(cx, cy, scale, tint, alpha)
     end
 end
 
+local function drawPageIcon(page, x, y, scale, alpha)
+    local tint = page.accent
+    if page.id == "uplink" then
+        drawGlobe(x, y, 9 * scale, tint, alpha)
+    elseif page.id == "forge" then
+        drawForgeMark(x, y, scale, tint, alpha)
+    elseif visuals.atlas and visuals.quads[page.id] then
+        love.graphics.setColor(1, 1, 1, alpha or 1)
+        love.graphics.draw(visuals.atlas, visuals.quads[page.id],
+            x - 12 * scale, y - 12 * scale, 0, 0.50 * scale, 0.50 * scale)
+    else
+        drawFallbackMark(x, y, scale, tint, alpha)
+    end
+end
+
 local function drawNavigation()
     local active = pageAccent(selected)
     local points = {}
-    for x = 12, W - 12, 4 do points[#points + 1] = x; points[#points + 1] = curveY(x) end
-    love.graphics.setColor(0.015, 0.025, 0.043, 0.96)
-    love.graphics.setLineWidth(22); love.graphics.line(points)
-    love.graphics.setColor(0.16, 0.23, 0.32, 0.95)
-    love.graphics.setLineWidth(1.5); love.graphics.line(points)
-    love.graphics.setColor(active[1], active[2], active[3], 0.34)
-    love.graphics.setLineWidth(2.2); love.graphics.line(points)
+    for x = 10, W - 10, 4 do
+        points[#points + 1] = x
+        points[#points + 1] = curveY(x)
+    end
+
+    -- The fascia is a real curved structure, not a single decorative stroke.
+    love.graphics.setColor(0.006, 0.012, 0.024, 0.98)
+    love.graphics.setLineWidth(28)
+    love.graphics.line(points)
+    love.graphics.setColor(0.10, 0.16, 0.24, 1)
+    love.graphics.setLineWidth(2.4)
+    love.graphics.line(points)
+
+    -- Two parallel guide rails and short cross ties make the tab travel path visible.
+    local upper, lower = {}, {}
+    for x = 10, W - 10, 4 do
+        upper[#upper + 1] = x; upper[#upper + 1] = curveY(x) - 10
+        lower[#lower + 1] = x; lower[#lower + 1] = curveY(x) + 10
+    end
+    love.graphics.setColor(0.36, 0.48, 0.62, 0.95)
+    love.graphics.setLineWidth(2)
+    love.graphics.line(upper)
+    love.graphics.line(lower)
+    love.graphics.setColor(active[1], active[2], active[3], 0.55)
+    love.graphics.setLineWidth(1)
+    love.graphics.line(upper)
+    love.graphics.line(lower)
+    for x = 28, W - 28, 26 do
+        local y = curveY(x)
+        love.graphics.setColor(0.42, 0.54, 0.67, 0.7)
+        love.graphics.setLineWidth(1)
+        love.graphics.line(x, y - 8, x, y + 8)
+    end
+
+    local labels = {
+        overview = "HOME", setup = "DESKTOP", sessions = "APPS",
+        uplink = "UPLINK", forge = "FORGE", tools = "TOOLS",
+        diagnostics = "DIAG",
+    }
     for offset = -2, 2 do
         local raw = carouselTarget + offset
         local index = ((raw - 1) % #pages) + 1
-        local x = W * 0.5 + (raw - carouselPosition) * 108
-        if x > -65 and x < W + 65 then
+        local x = W * 0.5 + (raw - carouselPosition) * 105
+        if x > -68 and x < W + 68 then
             local page = pages[index]
-            local distance = math.abs(x - W * 0.5) / 216
-            local y = curveY(x) - 17
-            local isActive = math.abs(x - W * 0.5) < 48
-            local scale = isActive and 1 or (0.84 - distance * 0.06)
-            local w, h = 92 * scale, 43 * scale
-            local px, py = x - w / 2, y - h / 2
+            local distance = math.abs(x - W * 0.5) / 210
+            local isActive = index == selected
+            local scale = isActive and 1 or math.max(0.82, 0.96 - distance * 0.08)
+            local w, h = 102 * scale, 52 * scale
+            local px = x - w / 2
+            local py = curveY(x) - h / 2 - 4
             local tint = page.accent
-            local alpha = isActive and 1 or math.max(0.42, 0.84 - distance * 0.16)
+            local alpha = isActive and 1 or math.max(0.5, 0.88 - distance * 0.15)
+
             rounded(px, py, w, h, isActive and colors.panel2 or colors.panel,
-                {tint[1], tint[2], tint[3], (isActive and 0.95 or 0.35) * alpha})
+                {tint[1], tint[2], tint[3], (isActive and 1 or 0.55) * alpha})
             if isActive then
-                love.graphics.setColor(tint[1], tint[2], tint[3], 0.16 + 0.08 * math.sin(ambientTime * 4))
-                love.graphics.rectangle("fill", px + 3, py + h - 4, w - 6, 2, 1, 1)
+                love.graphics.setColor(tint[1], tint[2], tint[3],
+                    0.18 + 0.12 * math.sin(ambientTime * 4.2))
+                love.graphics.rectangle("fill", px + 5, py + h - 4, w - 10, 2, 1, 1)
+                love.graphics.setColor(tint[1], tint[2], tint[3], 0.20)
+                love.graphics.rectangle("fill", px + 2, py + 2, w - 4, h - 4, 6, 6)
             end
-            if page.id == "uplink" then
-                drawGlobe(px + 18, py + h / 2, 8 * scale, tint, alpha)
-            elseif visuals.atlas and visuals.quads[page.id] then
-                love.graphics.setColor(1, 1, 1, alpha)
-                love.graphics.draw(visuals.atlas, visuals.quads[page.id], px + 8, py + 9, 0, 0.52 * scale, 0.52 * scale)
-            elseif page.id == "forge" then
-                drawForgeMark(px + 18, py + h / 2, scale, tint, alpha)
-            else
-                drawFallbackMark(px + 18, py + h / 2, scale, tint, alpha)
-            end
-            local labels = { overview = "HOME", setup = "SYSTEM", sessions = "SESS",
-                uplink = "UPLINK", forge = "FORGE", tools = "TOOLS", diagnostics = "DIAG" }
-            text(labels[page.id] or page.title, px + 30, py + 15, fonts.tiny,
-                {colors.white[1], colors.white[2], colors.white[3], alpha})
+
+            -- Icon and label have reserved columns: they cannot collide at 640x480.
+            drawPageIcon(page, px + 20 * scale, py + h * 0.5, 1.0 * scale, alpha)
+            text(labels[page.id] or page.title, px + 39 * scale, py + 18 * scale,
+                fonts.tiny, {colors.white[1], colors.white[2], colors.white[3], alpha})
         end
     end
-    text(pages[activePage].title, 22, 82, fonts.medium, active)
-    text(string.format("%02d  /  %02d", activePage, #pages), 555, 84, fonts.tiny, colors.muted)
+
+    text(pages[activePage].title, 22, 80, fonts.medium, pageAccent(activePage))
+    text(string.format("%02d  /  %02d", activePage, #pages), 558, 82, fonts.tiny, colors.muted)
     for i = 1, #pages do
-        local x = 294 + (i - 1) * 11
-        love.graphics.setColor(active[1], active[2], active[3], i == selected and 1 or 0.22)
-        love.graphics.circle("fill", x, 165, i == selected and 3 or 1.5)
+        local x = 264 + (i - 1) * 19
+        love.graphics.setColor(active[1], active[2], active[3], i == selected and 1 or 0.25)
+        love.graphics.circle("fill", x, 173, i == selected and 3.5 or 2)
     end
 end
 
@@ -925,6 +972,219 @@ local function drawModule()
     text("FEATURE SLOT  //  AVAILABLE IN A LATER VERIFIED BUILD", 58, 374, fonts.tiny, colors.violet)
 end
 
+local function drawSectionStructure(x, y, w, h, page, alpha)
+    local tint = page.accent
+    alpha = alpha or 1
+    rounded(x, y, w, h, colors.panel,
+        {tint[1], tint[2], tint[3], 0.72 * alpha})
+    love.graphics.setColor(tint[1], tint[2], tint[3], 0.80 * alpha)
+    love.graphics.setLineWidth(2)
+
+    -- Every section gets its own frame language, not merely a different colour.
+    if page.id == "overview" then
+        love.graphics.arc("line", "open", x + 22, y + 22, 13, math.pi, math.pi * 1.5)
+        love.graphics.arc("line", "open", x + w - 22, y + h - 22, 13, 0, math.pi * 0.5)
+        love.graphics.line(x + 38, y + 5, x + w - 38, y + 5)
+    elseif page.id == "setup" then
+        love.graphics.line(x + 5, y + 24, x + 5, y + 5, x + 24, y + 5)
+        love.graphics.line(x + w - 24, y + h - 5, x + w - 5, y + h - 5, x + w - 5, y + h - 24)
+        love.graphics.line(x + 18, y + h - 5, x + 38, y + h - 5)
+    elseif page.id == "sessions" then
+        love.graphics.rectangle("line", x + 7, y + 7, w - 14, h - 14, 4, 4)
+        love.graphics.line(x + 18, y + 5, x + 86, y + 5)
+        love.graphics.line(x + w - 86, y + h - 5, x + w - 18, y + h - 5)
+    elseif page.id == "uplink" then
+        love.graphics.arc("line", "open", x + 52, y + h - 4, 26, math.pi, math.pi * 2)
+        love.graphics.arc("line", "open", x + 52, y + h - 4, 14, math.pi, math.pi * 2)
+        love.graphics.line(x + 96, y + 5, x + w - 18, y + 5)
+    elseif page.id == "forge" then
+        for i = 0, 3 do
+            love.graphics.line(x + w - 94 + i * 20, y + 5, x + w - 114 + i * 20, y + 25)
+            love.graphics.line(x + 8 + i * 18, y + h - 5, x + 26 + i * 18, y + h - 23)
+        end
+    elseif page.id == "tools" then
+        for i = 0, 3 do
+            love.graphics.rectangle("line", x + 14 + i * 9, y + 5, 4, 4)
+            love.graphics.rectangle("line", x + w - 18 - i * 9, y + h - 9, 4, 4)
+        end
+        love.graphics.line(x + 5, y + 30, x + 5, y + h - 30)
+    else
+        love.graphics.circle("line", x + w - 28, y + 28, 13)
+        love.graphics.circle("line", x + w - 28, y + 28, 7)
+        love.graphics.line(x + 5, y + 18, x + 20, y + 18)
+        love.graphics.line(x + 5, y + 25, x + 13, y + 25)
+        love.graphics.line(x + w - 20, y + h - 18, x + w - 5, y + h - 18)
+    end
+end
+
+local function drawMetricCard(x, y, w, label, value, detail, tint)
+    rounded(x, y, w, 76, colors.panel2, colors.line)
+    text(short(label, 22), x + 12, y + 8, fonts.tiny, colors.muted)
+    text(short(value, 20), x + 12, y + 28, fonts.medium, colors.white)
+    text(short(detail, 24), x + 12, y + 54, fonts.tiny, tint or colors.muted)
+end
+
+local function drawSectionWidget()
+    local page = pages[activePage]
+    local tint = page.accent
+    drawSectionStructure(20, 184, 600, 232, page, 1)
+    text("SECTION SNAPSHOT", 36, 196, fonts.tiny, tint)
+    text(short(page.subtitle, 76), 36, 218, fonts.small, colors.muted)
+
+    local a, b, c = {}, {}, {}
+    local lowerLine, lowerDetail = "", ""
+    if page.id == "overview" then
+        a = {"DEVICE", device.handheld or "Unknown", "RG35XX / HANDHELD"}
+        b = {"SOC / ARCH", short(device.soc or "Unknown", 14), device.architecture or "Unknown"}
+        c = {"MEMORY", device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown", device.firmware or "muOS"}
+        lowerLine = storageLine("TF1", storageItem("tf1"))
+        lowerDetail = storageLine("TF2", storageItem("tf2"))
+    elseif page.id == "setup" then
+        local state = imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state
+        a = {"DEBIAN GUEST", state, short(imageDownload.message, 22)}
+        b = {"DESKTOP PROFILE", selectedProfile:upper(), "SELECTED ENVIRONMENT"}
+        c = {"TARGET STORAGE", selectedSlot:upper(), installedSlot and ("INSTALLED: " .. installedSlot:upper()) or "NO ROOTFS YET"}
+        lowerLine = "DEBIAN TRIXIE ARM64  //  ONE ROOTFS  //  APT INSIDE THE GUEST"
+        lowerDetail = imageDownload.message or "Select a profile and open the section to install"
+    elseif page.id == "sessions" then
+        local chosen = filteredApps()[appSelectedIndex]
+        a = {"APPLICATIONS", tostring(#appCatalog), appRegistryState or "NOT SCANNED"}
+        b = {"SELECTED APP", chosen and short(chosen.name, 18) or "NONE", chosen and chosen.category or "OPEN APP DECK"}
+        c = {"DESKTOP", selectedProfile:upper(), installedSlot and installedSlot:upper() or "DEBIAN NOT READY"}
+        lowerLine = "APP DECK  //  VALIDATED GUI APPLICATIONS ONLY"
+        lowerDetail = appRegistryMessage or "Open the section to browse the installed application registry"
+    elseif page.id == "uplink" then
+        local wifi, hot, bt = uplinkStatus.wifi or {}, uplinkStatus.hotspot or {}, uplinkStatus.bluetooth or {}
+        a = {"WI-FI", wifi.connected and short(wifi.ssid or "CONNECTED", 18) or "OFFLINE", wifi.ip or "NO ADDRESS"}
+        b = {"HOTSPOT", hot.active and short(hot.ssid or "ACTIVE", 18) or "INACTIVE", hot.interface or "NO AP INTERFACE"}
+        c = {"BLUETOOTH", bt.powered and "POWERED ON" or "POWERED OFF", tostring(bt.devices or 0) .. " PAIRED / SEEN"}
+        local ts = uplinkStatus.tailscale or {}
+        lowerLine = "MUOS SERVICES  //  SSH " .. ((uplinkStatus.services or {}).ssh and "ON" or "OFF")
+            .. "  //  SFTP " .. ((uplinkStatus.services or {}).sftp and "ON" or "OFF")
+        lowerDetail = "TAILSCALE  //  " .. (ts.installed and (ts.backend or "INSTALLED") or "NOT INSTALLED")
+    elseif page.id == "forge" then
+        local rows = forgeFilteredPackages()
+        local chosen = rows[forgeSelectedIndex]
+        local installed = 0
+        for _, item in ipairs(rows) do if item.installed then installed = installed + 1 end end
+        a = {"CATALOGUE", tostring(#rows) .. " PACKAGES", forgeLoaded and "INDEX READY" or "NOT LOADED"}
+        b = {"INSTALLED", tostring(installed), "IN CURRENT FILTER"}
+        c = {"APT OPERATION", forgeStatus.state or "IDLE", short(forgeStatus.message, 22)}
+        lowerLine = chosen and ("SELECTED  //  " .. short(chosen.title, 52)) or "THE FORGE  //  CURATED DEBIAN ARM64 PACKAGES"
+        lowerDetail = "A INSTALL  /  X REMOVE  /  Y REFRESH INDEX"
+    elseif page.id == "tools" then
+        local guest = imageDownload.state == "READY" and "DEBIAN 13 READY"
+            or (imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state)
+        a = {"GUEST OS", guest, installedSlot and installedSlot:upper() or "NO STORAGE"}
+        b = {"ARCHITECTURE", device.architecture or "Unknown", "SHARED MUOS KERNEL"}
+        c = {"APP REGISTRY", appCatalogLoaded and tostring(#appCatalog) .. " APPS" or "NOT SCANNED", appRegistryState or "IDLE"}
+        lowerLine = "APT / THE FORGE  //  " .. (forgeStatus.state or "IDLE")
+        lowerDetail = "System state is read-only here; use DESKTOP SYSTEM and THE FORGE for actions"
+    else
+        a = {"HANDHELD", device.handheld or "Unknown", device.firmware or "muOS"}
+        b = {"SOC / ARCH", device.soc or "Unknown", device.architecture or "Unknown"}
+        c = {"MEMORY", device.memory_mb and (tostring(device.memory_mb) .. " MB") or "Unknown", "DEVICE SNAPSHOT"}
+        lowerLine = storageLine("TF1", storageItem("tf1"))
+        lowerDetail = storageLine("TF2", storageItem("tf2"))
+    end
+
+    drawMetricCard(36, 253, 178, a[1], a[2], a[3], tint)
+    drawMetricCard(231, 253, 178, b[1], b[2], b[3], tint)
+    drawMetricCard(426, 253, 178, c[1], c[2], c[3], tint)
+    if page.id == "setup" then
+        drawProgress(38, 355, 564, 12, imageDownload.percent or 0, tint)
+        text(short(lowerLine, 82), 38, 375, fonts.tiny, colors.white)
+        text(short(lowerDetail, 82), 38, 394, fonts.tiny,
+            imageDownload.state == "FAILED" and colors.amber or colors.muted)
+    else
+        text(short(lowerLine, 82), 38, 356, fonts.tiny, colors.white)
+        text(short(lowerDetail, 82), 38, 380, fonts.tiny, colors.muted)
+    end
+    text("A  OPEN SECTION", 482, 396, fonts.tiny, tint)
+end
+
+local function drawPageContent()
+    if activePage == 1 then drawOverview()
+    elseif activePage == 2 then drawSetup()
+    elseif activePage == 3 then drawAppDeck()
+    elseif activePage == 4 then drawUplink()
+    elseif activePage == 5 then drawForge()
+    elseif activePage == 6 then drawSystemTools()
+    elseif activePage == 7 then drawDiagnostics()
+    else drawModule() end
+end
+
+local function drawLegendItem(x, key, label, tint)
+    rounded(x, 434, 34, 22, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
+    love.graphics.setFont(fonts.tiny)
+    setColor(colors.white)
+    love.graphics.printf(key, x, 438, 34, "center")
+    text(label, x + 41, 438, fonts.tiny, colors.muted)
+end
+
+local function drawSectionOverlay()
+    if sectionOverlayProgress <= 0.01 then return end
+    local p = math.max(0, math.min(1, sectionOverlayProgress))
+    local t = 1 - math.pow(1 - p, 3)
+    love.graphics.setColor(0.002, 0.006, 0.014, 0.72 * t)
+    love.graphics.rectangle("fill", 0, 0, W, H)
+
+    local x = 20 - 12 * t
+    local y = 184 - 108 * t
+    local w = 600 + 24 * t
+    local h = 232 + 156 * t
+    local page = pages[activePage]
+    drawSectionStructure(x, y, w, h, page, t)
+
+    if p > 0.72 then
+        drawPageIcon(page, 34, 98, 0.9, 1)
+        text(page.title, 58, 82, fonts.medium, page.accent)
+        text(short(page.subtitle, 78), 58, 105, fonts.tiny, colors.muted)
+        love.graphics.setColor(page.accent[1], page.accent[2], page.accent[3], 0.72)
+        love.graphics.setLineWidth(1)
+        love.graphics.line(24, 124, 616, 124)
+
+        love.graphics.setScissor(16, 128, 608, 290)
+        love.graphics.push()
+        love.graphics.translate(0, -overlayScroll * t)
+        drawPageContent()
+        love.graphics.pop()
+        love.graphics.setScissor()
+
+        love.graphics.setColor(page.accent[1], page.accent[2], page.accent[3], 0.7)
+        love.graphics.line(18, 425, 622, 425)
+        if page.id == "setup" then
+            drawLegendItem(20, "↑↓", "PROFILE", page.accent)
+            drawLegendItem(175, "←→", "TF SLOT", page.accent)
+            drawLegendItem(330, "A", "INSTALL / LAUNCH", page.accent)
+            drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "sessions" then
+            drawLegendItem(20, "↑↓", "APP", page.accent)
+            drawLegendItem(175, "←→", "CATEGORY", page.accent)
+            drawLegendItem(330, "A", "LAUNCH", page.accent)
+            drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "forge" then
+            drawLegendItem(20, "↑↓", "PACKAGE", page.accent)
+            drawLegendItem(175, "←→", "CATEGORY", page.accent)
+            drawLegendItem(330, "A/X/Y", "APT", page.accent)
+            drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "diagnostics" then
+            drawLegendItem(20, "Y", "EXPORT", page.accent)
+            drawLegendItem(175, "B", "CLOSE", page.accent)
+            drawLegendItem(330, "L1/R1", "SECTION", page.accent)
+            drawLegendItem(485, "SEL", "CONSOLE", page.accent)
+        else
+            drawLegendItem(20, "A", "ACTION", page.accent)
+            drawLegendItem(175, "B", "CLOSE", page.accent)
+            drawLegendItem(330, "↑↓", "SCROLL", page.accent)
+            drawLegendItem(485, "SEL", "CONSOLE", page.accent)
+        end
+    end
+end
+
+local function scrollSectionOverlay(direction)
+    overlayScroll = math.max(0, math.min(overlayScrollLimit, overlayScroll + direction * 26))
+end
 
 local function drawBoot()
     drawBackground()
@@ -954,8 +1214,9 @@ local function drawFooter()
     love.graphics.line(20, 425, 620, 425)
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
-    text(short(label, 64), 24, 439, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
-    text("v" .. appVersion, 574, 439, fonts.tiny, colors.muted)
+    text(short(label, 48), 24, 439, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
+    text("A OPEN  /  SELECT LOG", 430, 439, fonts.tiny, colors.muted)
+    text("v" .. appVersion, 594, 439, fonts.tiny, colors.muted)
 end
 
 local function drawQuickPanel()
@@ -1068,6 +1329,12 @@ function love.update(dt)
     ambientTime = ambientTime + dt
     local delta = carouselTarget - carouselPosition
     carouselPosition = carouselPosition + delta * math.min(1, dt * 9.5)
+    local overlayTarget = sectionOverlayOpen and 1 or 0
+    sectionOverlayProgress = sectionOverlayProgress
+        + (overlayTarget - sectionOverlayProgress) * math.min(1, dt * 10)
+    if math.abs(overlayTarget - sectionOverlayProgress) < 0.002 then
+        sectionOverlayProgress = overlayTarget
+    end
     if not boot.done then
         boot.elapsed = math.min(boot.duration, boot.elapsed + dt)
         if boot.elapsed >= boot.duration then
@@ -1154,8 +1421,8 @@ local function drawOperationScreen()
         love.graphics.rectangle("fill", pulseX, 412, 92, 10, 3, 3)
     end
     text(string.format("%d%%", operationScreen.percent), 28, 432, fonts.tiny, colors.cyan)
-    local action = operationScreen.done and "B / A  RETURN TO COMET DESK"
-        or "B / ESC  HIDE CONSOLE  //  TASK CONTINUES"
+    local action = operationScreen.done and "SELECT / A  CLOSE CONSOLE"
+        or "SELECT / B  HIDE CONSOLE  //  TASK CONTINUES"
     text(action, 270, 432, fonts.tiny, colors.muted)
     if operationScreen.done then
         local resultLine = operationScreen.state == "FAILED"
@@ -1203,27 +1470,15 @@ function love.draw()
         if installedSlot then queueForgeAction("catalog") end
         forgeLoaded = true
     end
-    local transition = math.min(1, math.max(0, (ambientTime - pageChangedAt) / 0.34))
-    love.graphics.push()
-    love.graphics.translate((1 - transition) * 26 * pageChangedDirection, (1 - transition) * 5)
-    local accent = pageAccent(activePage)
-    love.graphics.setColor(accent[1], accent[2], accent[3], 0.82)
-    love.graphics.rectangle("fill", 20, 202, 3, 212, 1, 1)
-    love.graphics.setScissor(18, 176, 604, 244)
-    if activePage == 1 then drawOverview()
-    elseif activePage == 2 then drawSetup()
-    elseif activePage == 3 then drawAppDeck()
-    elseif activePage == 4 then drawUplink()
-    elseif activePage == 5 then drawForge()
-    elseif activePage == 6 then drawSystemTools()
-    elseif activePage == 7 then drawDiagnostics()
-    else drawModule() end
-    love.graphics.setScissor()
-    love.graphics.pop()
+
+    drawSectionWidget()
     drawFooter()
     drawQuickPanel()
+    drawSectionOverlay()
     love.graphics.pop()
 end
+
+
 
 local function exportDiagnostics()
     if activePage ~= 7 then
@@ -1257,6 +1512,8 @@ local function cyclePage(direction)
     selected = ((selected - 1 + direction) % #pages) + 1
     carouselTarget = carouselTarget + direction
     activePage = selected
+    sectionOverlayOpen = false
+    overlayScroll = 0
     pageChangedDirection = direction
     pageChangedAt = ambientTime
     setNotice("TAB // " .. pages[activePage].title)
@@ -1264,19 +1521,14 @@ end
 
 local function activate()
     activePage = selected
+    if sectionOverlayOpen then return end
+    sectionOverlayOpen = true
+    overlayScroll = 0
     pageChangedAt = ambientTime
-    if activePage == 1 then
-        setNotice("OVERVIEW // READ-ONLY")
-    elseif activePage == 2 then
-        setNotice("DEBIAN TRIXIE // DESKTOP PROFILES")
-    elseif activePage == 3 then
-        setNotice("APP DECK // COMET-MANAGED APPLICATIONS")
-    elseif activePage == 6 then
-        setNotice("SYSTEM TOOLS // READ-ONLY ENVIRONMENT STATUS")
-    else
-        setNotice(pages[activePage].title .. " // READY")
-    end
+    setNotice(pages[activePage].title .. " // SECTION OPEN")
 end
+
+
 
 local function shellQuote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
@@ -1518,6 +1770,46 @@ local function toggleQuickPanel()
     quickPanelAge = 0
 end
 
+local function toggleOperationScreen()
+    if operationScreen.kind == "" and appRoot ~= "" then
+        local statusPath = appRoot .. "/data/desktop-environment.status"
+        local status = io.open(statusPath, "r")
+        if status then
+            local line = status:read("*l") or ""
+            status:close()
+            local state, percent, message =
+                line:match("^([^|]+)|(%d+)|([^|]*)|([^|]*)|(.*)$")
+            if state then
+                openOperationScreen("DESKTOP", "DEBIAN TRIXIE // TASK",
+                    appRoot .. "/data/desktop-environment.log", message, state)
+                operationScreen.percent = tonumber(percent) or 0
+                operationScreen.done = state == "READY" or state == "FAILED"
+                    or state == "CLEANUP_REQUIRED" or state == "BUSY"
+            end
+        end
+        if operationScreen.kind == "" then
+            local logPath = appRoot .. "/data/desktop-environment.log"
+            local log = io.open(logPath, "rb")
+            if log then
+                log:close()
+                openOperationScreen("DESKTOP", "DEBIAN TRIXIE // CONSOLE",
+                    logPath, "Latest Debian bootstrap output", imageDownload.state)
+            end
+        end
+    end
+    if operationScreen.kind == "" then
+        setNotice("NO DESKTOP / APT TASK CONSOLE AVAILABLE")
+        return
+    end
+    operationScreen.open = not operationScreen.open
+    if operationScreen.open then
+        refreshOperationLog()
+        setNotice("TASK CONSOLE SHOWN")
+    else
+        setNotice("CONSOLE HIDDEN // TASK CONTINUES")
+    end
+end
+
 local function maybeExitKeyboard()
     if keyboardHeld.start and keyboardHeld.select and not exitRequested then
         exitRequested = true
@@ -1532,62 +1824,71 @@ function love.keypressed(key)
         setNotice("SYSTEM READY // COMET DESK")
         return
     end
+    if key == "f9" then
+        keyboardHeld.start = true
+        maybeExitKeyboard()
+        return
+    end
+    if key == "f8" then
+        keyboardHeld.select = true
+        if keyboardHeld.start then
+            maybeExitKeyboard()
+        else
+            toggleOperationScreen()
+        end
+        return
+    end
     if operationScreen.open then
-        local hide = key == "escape" or key == "backspace" or key == "x"
-        local accept = operationScreen.done and
-            (key == "a" or key == "return" or key == "space")
-        if hide or accept then
+        if key == "escape" or key == "backspace" or key == "x" or key == "b" then
             operationScreen.open = false
             setNotice(operationScreen.done and "SYSTEM TASK CLOSED"
                 or "TASK CONTINUES IN BACKGROUND")
         end
         return
     end
-    if key == "f9" then keyboardHeld.start = true; maybeExitKeyboard(); return end
-    if key == "pageup" then cyclePage(-1); return end
-    if key == "pagedown" then cyclePage(1); return end
-    if key == "f8" then keyboardHeld.select = true; maybeExitKeyboard(); return end
     if key == "m" then toggleQuickPanel(); return end
-    if activePage == 5 and forgeSearchActive then
-        if key == "escape" then forgeSearchActive = false
-        elseif key == "backspace" then forgeSearch = forgeSearch:sub(1, math.max(0, #forgeSearch - 1)) end
-        return
-    elseif activePage == 3 and appSearchActive then
-        if key == "escape" then appSearchActive = false
-        elseif key == "backspace" then appSearch = appSearch:sub(1, math.max(0, #appSearch - 1)) end
-        return
-    end
     if quickPanelOpen then
-        if key == "escape" or key == "backspace" then toggleQuickPanel() end
+        if key == "escape" or key == "backspace" or key == "b" then toggleQuickPanel() end
         return
     end
 
-    if key == "/" and activePage == 5 then
-        forgeSearchActive = true
-        setNotice("THE FORGE SEARCH // TYPE TO FILTER")
-    elseif key == "/" and activePage == 3 then
-        appSearchActive = true
-        setNotice("APP DECK SEARCH // TYPE TO FILTER")
-    elseif key == "up" or key == "w" then
-        if activePage == 2 then cycleDesktopProfile(-1)
-        elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
-        elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
-        else cyclePage(-1) end
-    elseif key == "down" or key == "s" then
-        if activePage == 2 then cycleDesktopProfile(1)
-        elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
-        elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
-        else cyclePage(1) end
-    elseif key == "left" or key == "a" then
+    if key == "pageup" and sectionOverlayOpen then scrollSectionOverlay(-1); return end
+    if key == "pagedown" and sectionOverlayOpen then scrollSectionOverlay(1); return end
+    if key == "left" or key == "a" then
+        if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf1"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(-1)
         elseif activePage == 5 then cycleForgeCategory(-1) end
     elseif key == "right" or key == "d" then
+        if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf2"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(1)
         elseif activePage == 5 then cycleForgeCategory(1) end
+    elseif key == "up" or key == "w" then
+        if not sectionOverlayOpen then return end
+        if activePage == 2 then cycleDesktopProfile(-1)
+        elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
+        elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
+        else scrollSectionOverlay(-1) end
+    elseif key == "down" or key == "s" then
+        if not sectionOverlayOpen then return end
+        if activePage == 2 then cycleDesktopProfile(1)
+        elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
+        elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
+        else scrollSectionOverlay(1) end
+    elseif key == "/" and sectionOverlayOpen and activePage == 5 then
+        forgeSearchActive = true
+        setNotice("THE FORGE SEARCH // TYPE TO FILTER")
+    elseif key == "/" and sectionOverlayOpen and activePage == 3 then
+        appSearchActive = true
+        setNotice("APP DECK SEARCH // TYPE TO FILTER")
     elseif key == "return" or key == "space" or key == "z" or key == "i" then
-        if activePage == 2 then startDesktopEnvironment()
+        if not sectionOverlayOpen then
+            activate()
+            return
+        end
+        if activePage == 2 then
+            startDesktopEnvironment()
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
             if item then startDesktopApplication(item.id) end
@@ -1601,8 +1902,10 @@ function love.keypressed(key)
             else
                 queueUplinkAction("install")
             end
-        else activate() end
-    elseif key == "r" and activePage == 5 then
+        else
+            setNotice(pages[activePage].title .. " // NO PRIMARY ACTION")
+        end
+    elseif key == "r" and sectionOverlayOpen and activePage == 5 then
         local item = forgeFilteredPackages()[forgeSelectedIndex]
         if item and item.installed then
             if forgeConfirmRemove == item.package then
@@ -1613,27 +1916,31 @@ function love.keypressed(key)
                 setNotice("PRESS R AGAIN TO REMOVE " .. item.package)
             end
         end
-    elseif key == "y" and activePage == 3 then
+    elseif key == "y" and sectionOverlayOpen and activePage == 3 then
         appCatalogLoaded = false
         queueAppCatalog()
         appCatalogLoaded = true
-    elseif key == "y" and activePage == 5 then
+    elseif key == "y" and sectionOverlayOpen and activePage == 5 then
         queueForgeAction("update")
-    elseif key == "y" and activePage == 6 then
+    elseif key == "y" and sectionOverlayOpen and activePage == 6 then
         queueAppCatalog()
-    elseif key == "e" or key == "y" then
+    elseif (key == "e" or key == "y") and sectionOverlayOpen then
         exportDiagnostics()
-    elseif key == "escape" or key == "x" or key == "backspace" then
-        activePage = 1
-        selected = 1
-        carouselTarget = 1
-        pageChangedDirection = 1
-        pageChangedAt = ambientTime
-        setNotice("RETURNED TO OVERVIEW")
+    elseif key == "escape" or key == "x" or key == "b" or key == "backspace" then
+        if sectionOverlayOpen then
+            sectionOverlayOpen = false
+            overlayScroll = 0
+            setNotice("SECTION CLOSED")
+        else
+            setNotice("COMET DESK // READY")
+        end
     end
 end
 
+
+
 function love.textinput(value)
+    if not sectionOverlayOpen then return end
     if activePage == 5 and forgeSearchActive then
         if #forgeSearch < 40 then forgeSearch = forgeSearch .. value end
     elseif activePage == 3 and appSearchActive then
@@ -1661,8 +1968,14 @@ function love.gamepadpressed(joystick, button)
         setNotice("SYSTEM READY // COMET DESK")
         return
     end
+
+    -- SELECT is a dedicated show/hide switch for the live download/APT console.
+    if button == "select" or button == "back" then
+        toggleOperationScreen()
+        return
+    end
     if operationScreen.open then
-        if button == "b" or button == "back" or (operationScreen.done and button == "a") then
+        if button == "b" or (operationScreen.done and button == "a") then
             operationScreen.open = false
             setNotice(operationScreen.done and "SYSTEM TASK CLOSED"
                 or "TASK CONTINUES IN BACKGROUND")
@@ -1674,39 +1987,55 @@ function love.gamepadpressed(joystick, button)
         return
     end
     if quickPanelOpen then
-        if button == "b" or button == "back" then toggleQuickPanel() end
+        if button == "b" then toggleQuickPanel() end
+        return
+    end
+    if button == "leftshoulder" then
+        cyclePage(-1)
+        return
+    elseif button == "rightshoulder" then
+        cyclePage(1)
+        return
+    elseif button == "b" then
+        if sectionOverlayOpen then
+            sectionOverlayOpen = false
+            overlayScroll = 0
+            setNotice("SECTION CLOSED")
+        end
         return
     end
 
     if button == "dpup" then
+        if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(-1)
         elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
         elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
-        else love.keypressed("up") end
+        else scrollSectionOverlay(-1) end
     elseif button == "dpdown" then
+        if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
-        else love.keypressed("down") end
-    elseif button == "leftshoulder" then
-        cyclePage(-1)
-    elseif button == "rightshoulder" then
-        cyclePage(1)
-    elseif button == "dpleft" and activePage == 2 then
+        else scrollSectionOverlay(1) end
+    elseif button == "dpleft" and sectionOverlayOpen and activePage == 2 then
         selectedSlot = "tf1"
         normalizeSelectedSlot(true)
-    elseif button == "dpright" and activePage == 2 then
+    elseif button == "dpright" and sectionOverlayOpen and activePage == 2 then
         selectedSlot = "tf2"
         normalizeSelectedSlot(true)
-    elseif button == "dpleft" and activePage == 3 then
+    elseif button == "dpleft" and sectionOverlayOpen and activePage == 3 then
         cycleAppCategory(-1)
-    elseif button == "dpright" and activePage == 3 then
+    elseif button == "dpright" and sectionOverlayOpen and activePage == 3 then
         cycleAppCategory(1)
-    elseif button == "dpleft" and activePage == 5 then
+    elseif button == "dpleft" and sectionOverlayOpen and activePage == 5 then
         cycleForgeCategory(-1)
-    elseif button == "dpright" and activePage == 5 then
+    elseif button == "dpright" and sectionOverlayOpen and activePage == 5 then
         cycleForgeCategory(1)
     elseif button == "a" then
+        if not sectionOverlayOpen then
+            activate()
+            return
+        end
         if activePage == 2 then
             startDesktopEnvironment()
         elseif activePage == 3 then
@@ -1716,10 +2045,16 @@ function love.gamepadpressed(joystick, button)
             local item = forgeFilteredPackages()[forgeSelectedIndex]
             if item and item.available and not item.installed then queueForgeAction("install", item.package)
             elseif item and item.installed then setNotice(item.title .. " IS ALREADY INSTALLED") end
+        elseif activePage == 4 then
+            if uplinkStatus.tailscale and uplinkStatus.tailscale.installed then
+                queueUplinkAction(uplinkStatus.tailscale.online and "status" or "start")
+            else
+                queueUplinkAction("install")
+            end
         else
-            activate()
+            setNotice(pages[activePage].title .. " // NO PRIMARY ACTION")
         end
-    elseif button == "x" and activePage == 5 then
+    elseif button == "x" and sectionOverlayOpen and activePage == 5 then
         local item = forgeFilteredPackages()[forgeSelectedIndex]
         if item and item.installed then
             if forgeConfirmRemove == item.package then
@@ -1730,24 +2065,28 @@ function love.gamepadpressed(joystick, button)
                 setNotice("PRESS X AGAIN TO REMOVE " .. item.package)
             end
         end
-    elseif button == "y" and activePage == 3 then
+    elseif button == "y" and sectionOverlayOpen and activePage == 3 then
         appCatalogLoaded = false
         queueAppCatalog()
         appCatalogLoaded = true
-    elseif button == "y" and activePage == 5 then
+    elseif button == "y" and sectionOverlayOpen and activePage == 5 then
         queueForgeAction("update")
-    elseif button == "y" and activePage == 6 then
+    elseif button == "y" and sectionOverlayOpen and activePage == 6 then
         queueAppCatalog()
-    elseif button == "y" then
+    elseif button == "y" and sectionOverlayOpen then
         exportDiagnostics()
-    elseif button == "b" or button == "back" then
-        love.keypressed("escape")
     end
 end
+
+
 
 function love.gamepadreleased(joystick, button)
     local held = gamepadHeld[joystick]
     if not held then return end
     if button == "start" then held.start = false end
     if button == "back" or button == "select" then held.select = false end
+end
+
+function love.wheelmoved(x, y)
+    if sectionOverlayOpen then scrollSectionOverlay(y > 0 and -1 or 1) end
 end
