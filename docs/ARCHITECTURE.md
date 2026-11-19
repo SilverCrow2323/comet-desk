@@ -35,6 +35,10 @@ Long-running operations must preflight their target, acquire the shared lock, ex
 
 APT progress is driven by APT/dpkg Status-Fd events. Download progress is based on transferred bytes. UI animation must never be substituted for worker progress.
 
+## Uplink host integration
+
+Uplink reads radio/network state from the muOS host; it does not create a second guest network manager. Wi-Fi interfaces are discovered from sysfs as well as common `wlan*`, `wl*` and `mlan*` names. Association state is cross-checked through `iw`, `wpa_cli` and `iwgetid`, with the interface address and operational state as supporting signals. A missing or unavailable `iw` command alone must not force a false OFFLINE result.
+
 ## muOS host boundary
 
 - No host muOS APT or dpkg operations.
