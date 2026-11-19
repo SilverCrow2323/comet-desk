@@ -26,7 +26,8 @@ REQUIRED = (
     "assets/backgrounds/comet-dashboard-640x480.png",
     "assets/icons/comet-desk-atlas.png",
     "assets/branding/comet-desk-logo.png",
-    "service/desktop_environment.py", "service/uplink_status.py", "service/forge_apt.py",
+    "service/desktop_environment.py", "service/desktop_input.py",
+    "service/media_vault.py", "service/uplink_status.py", "service/forge_apt.py",
     "service/app_registry.py",
 )
 AARCH64_MACHINE = 183
