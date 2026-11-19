@@ -48,7 +48,11 @@ while :; do
     fi
     if [ -f "$REQUEST" ]; then
         SLOT=""
-        IFS= read -r SLOT < "$REQUEST" || true
+        PROFILE="labwc"
+        {
+            IFS= read -r SLOT || true
+            IFS= read -r PROFILE || true
+        } < "$REQUEST"
         rm -f "$REQUEST"
         case "$SLOT" in
             tf1|tf2)
@@ -56,8 +60,12 @@ while :; do
                     echo "$(date) ERROR: integrated desktop manager is missing" >> "$LOG_FILE"
                     break
                 fi
-                echo "$(date) Comet Desk starting its XFCE session from $SLOT" >> "$LOG_FILE"
-                python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+                case "$PROFILE" in
+                    labwc|xfce|lxde|lxqt|icewm|fluxbox|openbox) ;;
+                    *) echo "$(date) ERROR: invalid desktop profile request" >> "$LOG_FILE"; break ;;
+                esac
+                echo "$(date) Comet Desk starting Debian desktop profile $PROFILE from $SLOT" >> "$LOG_FILE"
+                python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --profile "$PROFILE" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
                 SESSION_RC=$?
                 echo "$(date) XFCE session returned rc=$SESSION_RC; resuming Comet Desk" >> "$LOG_FILE"
                 continue
