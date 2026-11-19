@@ -1828,6 +1828,11 @@ local function drawSectionOverlay()
             drawLegendItem(175, "A/Y", "TYPE / FIELD", page.accent)
             drawLegendItem(330, "ST", "SAVE", page.accent)
             drawLegendItem(485, "B", "CANCEL", page.accent)
+        elseif page.id == "media" and mediaUrlDialog then
+            drawLegendItem(20, "↑↓", "MOVE", page.accent)
+            drawLegendItem(175, "A/Y", "TYPE / FIELD", page.accent)
+            drawLegendItem(330, "ST", "SAVE", page.accent)
+            drawLegendItem(485, "B", "CANCEL", page.accent)
         elseif page.id == "media" then
             drawLegendItem(20, "↑↓", "ITEM", page.accent)
             drawLegendItem(175, "←→", "VIEW", page.accent)
@@ -2574,6 +2579,23 @@ function love.keypressed(key)
         elseif key == "backspace" then
             mediaUrlBackspace()
         elseif key == "tab" or key == "y" then
+            mediaUrlField = mediaUrlField == "name" and "url" or "name"
+        elseif key == "return" then
+            if mediaUrlField == "name" then mediaUrlField = "url"
+            else commitMediaUrlDialog() end
+        elseif key == "left" then mediaUrlMove(-1)
+        elseif key == "right" then mediaUrlMove(1)
+        elseif key == "up" then mediaUrlMove(-9)
+        elseif key == "down" then mediaUrlMove(9)
+        end
+        return
+    end
+    if mediaUrlDialog then
+        if key == "escape" then
+            closeMediaUrlDialog()
+        elseif key == "backspace" then
+            mediaUrlBackspace()
+        elseif key == "tab" then
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif key == "return" then
             if mediaUrlField == "name" then mediaUrlField = "url"
