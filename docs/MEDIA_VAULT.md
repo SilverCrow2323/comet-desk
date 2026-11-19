@@ -18,9 +18,17 @@ Radio can play in the background while Comet is visible. TV hands the display to
 
 ## IPTV playlists
 
-The initial remote preset is IPTV-org Italy:
+The default library ships five IPTV-org presets:
 
-`https://iptv-org.github.io/iptv/countries/it.m3u`
+| Preset | Playlist |
+| --- | --- |
+| Italy | `https://iptv-org.github.io/iptv/countries/it.m3u` |
+| News | `https://iptv-org.github.io/iptv/categories/news.m3u` |
+| Sports | `https://iptv-org.github.io/iptv/categories/sports.m3u` |
+| Movies | `https://iptv-org.github.io/iptv/categories/movies.m3u` |
+| Music | `https://iptv-org.github.io/iptv/categories/music.m3u`
+
+Italy remains the initial active source. Each source can be activated independently, and custom remote/local playlists are added to the same list.
 
 The parser supports M3U/M3U8 channels and the common `tvg-id`, `tvg-name`, `tvg-logo`, `group-title`, `url-tvg` and `x-tvg-url` metadata. Per-channel User-Agent, Referrer, Origin and HTTP-header metadata are retained for supported VLC-style options, validated and passed to MPV/FFPlay.
 
@@ -30,11 +38,13 @@ Copy `.m3u` or `.m3u8` files to:
 
 `data/media/playlists/imports/`
 
-Open Media Vault and refresh the catalogue with **Start**. The files are discovered as local playlist sources and appear in **PLAYLISTS**. Use D-pad left/right to cycle TV, RADIO and PLAYLISTS, up/down to select a source and A to activate it. Local playlist files are confined to that imports directory; symbolic links and files over the size limit are rejected. The remote default and copied local playlists share the same catalogue and EPG pipeline.
+Open Media Vault and refresh the catalogue with **Start**. The files are discovered as local playlist sources and appear in **PLAYLISTS**. Use D-pad left/right to cycle TV, RADIO, PLAYLISTS and EPG, up/down to select a source and A to activate it. Local playlist files are confined to that imports directory; symbolic links and files over the size limit are rejected. The remote default and copied local playlists share the same catalogue and EPG pipeline.
 
 ### Add a remote playlist
 
-A remote HTTP/HTTPS playlist can also be registered with the service CLI:
+In **PLAYLISTS**, move to **+ ADD REMOTE PLAYLIST** and press A. The editor has a controller-operated character grid: D-pad moves, A inserts, Y switches Name/URL, X deletes, R1 toggles letter case, Start validates/saves and B cancels. A physical keyboard can also type directly into the active field.
+
+The service command remains available for automation:
 
 ```sh
 python3 service/media_vault.py import-playlist \
@@ -47,7 +57,13 @@ The active source can be changed from the PLAYLISTS view in Comet Desk. The serv
 
 ## XMLTV EPG
 
-Media Vault collects XMLTV sources from the configured EPG URL list and from playlist `url-tvg` metadata. It parses gzip XMLTV, resolves channel IDs/display names and creates an indexed programme cache. To keep memory use predictable on a 1 GB handheld, each sync is limited to four sources and 60,000 programmes per source, with a maximum document size.
+Media Vault collects XMLTV sources from the configured EPG URL list and from playlist `url-tvg` metadata. The initial Italian feeds are XMLTV.live Italy, EPGShare IT1 and Open-EPG Italy3:
+
+- `https://xmltv.live/epg/it.xml.gz`
+- `https://epgshare01.online/epgshare01/epg_ripper_IT1.xml.gz`
+- `https://www.open-epg.com/files/italy3.xml.gz`
+
+Feeds are replaceable in `data/media-vault.json`; they are external services and their content/availability can change. Media Vault parses gzip XMLTV, resolves channel IDs/display names and creates an indexed programme cache. To keep memory use predictable on a 1 GB handheld, each sync is limited to four sources and 60,000 programmes per source, with a maximum document size.
 
 The current UI includes a dedicated **EPG** mode that displays **Now** and **Next** for the selected TV channel when a reliable ID/name match exists. The parser uses a bounded maximum of four XMLTV sources and 60,000 programmes per source to constrain memory usage. A complete multi-channel grid/timeline and richer channel matching remain planned work, not a claimed current feature.
 
@@ -72,7 +88,9 @@ Radio streams use audio-only MPV/FFPlay options and can be paused/resumed or sto
 - **Y** toggles a radio/TV favourite.
 - **X** stops playback.
 - **Start** refreshes the playlist catalogue and EPG.
-- The dedicated TV player mapping is documented in [Desktop Input](DESKTOP_INPUT.md).
+- **Left stick click** opens/closes the channel search field; type on a connected keyboard to filter channel name, group, EPG ID or radio genre.
+- The **EPG** view displays Now/Next for the selected TV channel.
+- The remote playlist editor controls are documented above; the dedicated TV player mapping is in [Desktop Input](DESKTOP_INPUT.md).
 
 ## Files and safety
 
