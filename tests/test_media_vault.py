@@ -334,6 +334,27 @@ def test_legacy_default_epg_sources_migrate_to_current_italian_feeds(tmp_path):
     assert config["epg_urls"] == media.DEFAULT_CONFIG["epg_urls"]
 
 
-def test_existing_user_playlist_config_receives_new_iptv_org_presets_without_resetting_active():
-    # This test uses a temporary config fixture below; no source URL is fetched.
-    pass
+def test_existing_user_playlist_config_receives_new_presets_without_resetting_active(tmp_path):
+    paths = media.data_paths(tmp_path)
+    paths["data"].mkdir(parents=True)
+    custom = {
+        "id": "custom-existing",
+        "name": "My Playlist",
+        "type": "url",
+        "source": "https://example.org/custom.m3u",
+        "enabled": True,
+    }
+    stored = json.loads(json.dumps(media.DEFAULT_CONFIG))
+    stored["playlists"] = [stored["playlists"][0], custom]
+    stored["active_playlist"] = "custom-existing"
+    paths["config"].write_text(json.dumps(stored), encoding="utf-8")
+
+    config = media.load_config(tmp_path)
+    ids = {row["id"] for row in config["playlists"]}
+    assert {
+        "iptv-org-it", "iptv-org-news", "iptv-org-sports",
+        "iptv-org-movies", "iptv-org-music", "custom-existing",
+    } <= ids
+    assert config["active_playlist"] == "custom-existing"
+    assert next(row for row in config["playlists"]
+                if row["id"] == "custom-existing")["source"] == "https://example.org/custom.m3u"
