@@ -54,6 +54,8 @@ Installing another profile adds its packages to the existing rootfs; it does not
 2. Download the pinned ext4 seed and Debian Trixie ARM64 rootfs.
 3. Verify exact asset size and SHA-256 before extraction.
 4. Expand the persistent image container and extract Debian into it.
+
+The muOS host includes a BusyBox 1.36.1 `tar` build without the gzip (`-z`) option. Comet uses Python's gzip stream reader and pipes the decompressed tar stream directly to `tar -x -f - -C <guest>`. This avoids unsupported BusyBox flags and avoids writing a second, uncompressed copy of the Debian archive to the card. The source archive is size- and SHA-256-verified before extraction.
 5. Write Debian Trixie APT sources and the Comet H700 display/input profile.
 6. Install the minimal APT baseline plus labwc and the selected environment profile.
 7. Verify the installed session entry points and persist a profile manifest.
@@ -130,6 +132,8 @@ CI verifies syntax, package structure and service logic, but not a real display 
 On the first Comet Desk launch, the application checks whether Debian is already ready. If not, it selects a writable TF card with at least 9 GiB free and automatically prepares the default **labwc** base desktop. A previous failed/interrupted status is not treated as a successful install; setup is retried and resumes from the verified image/rootfs stages where possible. If no suitable card is available, Comet opens Desktop System and reports the storage requirement instead of attempting a partial install.
 
 Bootstrap, desktop-profile additions, THE FORGE package install/remove/index refresh and APP DECK indexing use a dedicated black console screen. It shows the worker log, current APT status and progress percentage where the underlying APT operation reports one. The screen is separate from the catalogue navigation. Press **B / Esc** to hide it while the worker continues. Re-select the active operation (A on Desktop System or THE FORGE; Y while APP DECK is scanning) to reopen its console. A completed or failed task remains visible until dismissed.
+
+Uplink Wi-Fi detection accepts the wireless interfaces exposed by sysfs and cross-checks association state from `iw`, `wpa_cli` or `iwgetid`; an unavailable `iw` binary alone must not force a false OFFLINE result. The UI uses the live result, not a cached network toggle.
 
 APT progress is read from `APT::Status-Fd` events emitted by apt/dpkg; it is not an elapsed-time animation. Dpkg can restart the percentage for a new package, and download status can restart for each file, so the percentage reflects the current reported package/file stage rather than claiming a fabricated aggregate of all dependencies.
 
