@@ -741,7 +741,11 @@ def _safe_stream_options(options: dict | None) -> dict:
         for key, value in list(headers.items())[:24]:
             key = str(key)[:80]
             value = str(value)[:300]
-            if (re.fullmatch(r"[A-Za-z0-9!#$%&'*+.^_\x60|~-]+", key)
+            token_chars = "!#$%&'*+-.^_`|~"
+            valid_name = bool(key) and all(
+                (ch.isascii() and ch.isalnum()) or ch in token_chars for ch in key
+            )
+            if (valid_name
                     and not any(ch in value for ch in ("\r", "\n", chr(0)))):
                 safe_headers[key] = value
         if safe_headers:
