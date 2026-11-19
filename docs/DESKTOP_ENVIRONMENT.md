@@ -134,3 +134,6 @@ Bootstrap, desktop-profile additions, THE FORGE package install/remove/index ref
 APT progress is read from `APT::Status-Fd` events emitted by apt/dpkg; it is not an elapsed-time animation. Dpkg can restart the percentage for a new package, and download status can restart for each file, so the percentage reflects the current reported package/file stage rather than claiming a fabricated aggregate of all dependencies.
 
 Large package/application catalogues are parsed only when their backing catalogue file changes, and filtered result lists are cached until the category, search query or catalogue changes.
+
+
+The first-boot package baseline is deliberately lean: it includes APT, D-Bus, policy/device helpers, GVFS, fonts, desktop integration and the ext4 utilities required by Comet. Development toolchains and archive/network utilities (Git, compilers, CMake, Python packaging, unzip/zip and related tools) remain optional packages in THE FORGE instead of delaying the first usable desktop.
