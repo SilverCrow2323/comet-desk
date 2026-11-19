@@ -117,6 +117,7 @@ local mediaCatalogRaw, mediaEpgRaw = nil, nil
 local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
+local mediaCatalogBusyAge = 0
 
 local function setNotice(message)
     notice = message
@@ -1257,6 +1258,7 @@ local function readMediaCatalog()
         end
         mediaItemsRadio, mediaItemsTV, mediaItemsPlaylists = radios, channels, playlists
         mediaCatalogLoaded, mediaCatalogBusy = true, false
+        mediaCatalogBusyAge = 0
     end
     local epgCatalog = io.open(appRoot .. "/data/media-vault.epg", "r")
     if epgCatalog then
@@ -1271,7 +1273,6 @@ local function readMediaCatalog()
             end
         end
     end
-    mediaCatalogLoaded, mediaCatalogBusy = true, false
     local epg = io.open(appRoot .. "/data/media-epg.status", "r")
     if epg then
         local state, ok, failed = (epg:read("*l") or ""):match("^([^|]+)|(%d+)|(%d+)")
@@ -1286,6 +1287,7 @@ end
 local function queueMediaCatalogue(force)
     if mediaCatalogBusy or appRoot == "" then return end
     mediaCatalogBusy = true
+    mediaCatalogBusyAge = 0
     queueMediaTask(force and "catalogue" or "init", force and "--force" or nil)
 end
 
@@ -1297,7 +1299,8 @@ end
 local function queueMediaActivatePlaylist(item)
     if not item then return end
     queueMediaTask("activate-playlist", "--query " .. shellQuoteMedia(item.id))
-    mediaCatalogLoaded, mediaCatalogBusy = false, false
+    mediaCatalogLoaded, mediaCatalogBusy = false, true
+    mediaCatalogBusyAge = 0
 end
 
 local function queueMediaFavourite(item)
@@ -1883,6 +1886,15 @@ function love.update(dt)
     if quickPanelOpen then quickPanelAge = quickPanelAge + dt end
     if noticeTimer > 0 then noticeTimer = math.max(0, noticeTimer - dt) end
 
+    if mediaCatalogBusy then
+        mediaCatalogBusyAge = mediaCatalogBusyAge + dt
+        if mediaCatalogBusyAge > 90 then
+            mediaCatalogBusy = false
+            mediaCatalogBusyAge = 0
+            mediaCatalog.error = "Catalogue task timed out; open the Media Vault log"
+            setNotice("MEDIA CATALOGUE TASK TIMED OUT")
+        end
+    end
     mediaHeartbeat = mediaHeartbeat + dt
     if mediaHeartbeat >= 1 then
         mediaHeartbeat = 0
