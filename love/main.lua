@@ -1224,22 +1224,63 @@ local function desktopConfigReady()
     return revision == DESKTOP_CONFIG_REVISION
 end
 
-local function startDesktopEnvironment()
-    if imageDownload.state == "STARTING" or imageDownload.state == "RUNNING"
-        or imageDownload.state == "APT_UPDATE" or imageDownload.state == "INSTALLING_PROFILE"
-        or imageDownload.state == "DOWNLOADING_ROOTFS" or imageDownload.state == "DOWNLOADING_TEMPLATE"
-        or imageDownload.state == "EXPANDING_IMAGE" or imageDownload.state == "PREPARING_ROOTFS"
-        or imageDownload.state == "EXTRACTING_ROOTFS" then
-        openOperationScreen("DESKTOP", "DEBIAN TRIXIE // ACTIVE TASK",
-            appRoot .. "/data/desktop-environment.log",
-            imageDownload.message, imageDownload.state)
-        operationScreen.percent = imageDownload.percent or 0
-        setNotice("REOPENED THE DESKTOP BOOTSTRAP CONSOLE")
-        return
+local function debianOperationBusy()
+    if appRoot == "" then return nil end
+    local statusPath = appRoot .. "/data/debian-lock.status"
+    os.remove(statusPath)
+    local script = appRoot .. "/service/desktop_environment.py"
+    local command = "cd " .. shellQuote(appRoot) .. " && python3 "
+        .. shellQuote(script) .. " check --slot " .. selectedSlot
+        .. " --profile " .. selectedProfile
+        .. " --app-dir " .. shellQuote(appRoot)
+        .. " >/dev/null 2>&1"
+    local result = os.execute(command)
+    local stream = io.open(statusPath, "r")
+    if not stream then return nil end
+    local state = stream:read("*l")
+    stream:close()
+    os.remove(statusPath)
+    if state == "BUSY" then return true end
+    if state == "IDLE" and (result == 0 or result == true) then return false end
+    return nil
+end
+
+local function clearStaleDesktopStatus()
+    os.remove(appRoot .. "/data/desktop-environment.status")
+    if imageDownload.state ~= "READY" then
+        imageDownload.state = "FAILED"
+        imageDownload.percent = 0
+        imageDownload.message = "Recovered stale setup state; no Debian worker owns the system lock"
     end
+end
+
+local function startDesktopEnvironment()
     if appRoot == "" then
         setNotice("COMET DESK APP RUNNER PATH UNAVAILABLE")
         return
+    end
+    local busy = debianOperationBusy()
+    if busy == nil then
+        setNotice("COULD NOT VERIFY DEBIAN WORKER LOCK // CHECK LOG")
+        return
+    elseif busy then
+        openOperationScreen("DESKTOP", "DEBIAN SYSTEM // BUSY",
+            appRoot .. "/data/desktop-environment.log",
+            "Another Comet Debian/APT worker still owns the shared system lock",
+            imageDownload.state)
+        setNotice("A REAL DEBIAN OPERATION IS STILL RUNNING")
+        return
+    end
+
+    local runningStates = {
+        STARTING = true, RUNNING = true, APT_UPDATE = true,
+        INSTALLING_PROFILE = true, DOWNLOADING_ROOTFS = true,
+        DOWNLOADING_TEMPLATE = true, EXPANDING_IMAGE = true,
+        PREPARING_ROOTFS = true, EXTRACTING_ROOTFS = true,
+    }
+    if runningStates[imageDownload.state] then
+        clearStaleDesktopStatus()
+        setNotice("RECOVERED STALE DEBIAN STATUS // RETRYING")
     end
     local item = storageItem(selectedSlot)
     if not item or item.status ~= "MOUNTED" then
@@ -1299,17 +1340,26 @@ maybeRunAutoBootstrap = function()
     if autoBootstrapChecked or not boot.done then return end
     autoBootstrapChecked = true
     if appRoot == "" then return end
-    local runningStates = {
-        STARTING = true, DOWNLOADING_TEMPLATE = true, PREPARING_ROOTFS = true,
-        DOWNLOADING_ROOTFS = true, EXTRACTING_ROOTFS = true, APT_UPDATE = true,
-        INSTALLING_PROFILE = true, EXPANDING_IMAGE = true,
-    }
-    if imageDownload.state == "READY" and desktopConfigReady() then return end
-    if runningStates[imageDownload.state] then
+    local busy = debianOperationBusy()
+    if busy == nil then
+        activePage, selected, carouselTarget = 2, 2, 2
+        setNotice("COULD NOT VERIFY DEBIAN WORKER LOCK // CHECK LOG")
+        return
+    elseif busy then
         openOperationScreen("DESKTOP", "DEBIAN TRIXIE // RESUME",
             appRoot .. "/data/desktop-environment.log",
             imageDownload.message, imageDownload.state)
         return
+    end
+    local runningStates = {
+        STARTING = true, RUNNING = true, DOWNLOADING_TEMPLATE = true,
+        PREPARING_ROOTFS = true, DOWNLOADING_ROOTFS = true,
+        EXTRACTING_ROOTFS = true, APT_UPDATE = true,
+        INSTALLING_PROFILE = true, EXPANDING_IMAGE = true,
+    }
+    if imageDownload.state == "READY" and desktopConfigReady() then return end
+    if runningStates[imageDownload.state] then
+        clearStaleDesktopStatus()
     end
 
     local roots = {
