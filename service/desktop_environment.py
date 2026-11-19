@@ -1181,6 +1181,21 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
     runtime_dir.chmod(0o700)
 
     log_stream = log_path.open("ab")
+    # Media output and desktop sessions share the same host display/audio
+    # devices. Stop the Media Vault owner before mounting and starting a
+    # desktop; no player process is allowed to survive this transition.
+    media_script = Path(__file__).with_name("media_vault.py")
+    if media_script.is_file():
+        try:
+            subprocess.run(
+                [sys.executable, str(media_script), "stop", "--app-dir", str(app_dir)],
+                stdin=subprocess.DEVNULL, stdout=log_stream,
+                stderr=subprocess.STDOUT, check=False, timeout=5,
+                env=child_environment(),
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            print("[comet-desktop] media stop request: {}".format(exc),
+                  file=log_stream, flush=True)
     manager = ImageMount(image, mountpoint, log_stream)
     try:
         manager.mount_image()
