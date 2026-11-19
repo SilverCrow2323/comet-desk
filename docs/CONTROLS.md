@@ -40,3 +40,31 @@ The old `desktop-download.status` belongs to the separate MUX package-download f
 ## Keyboard preview
 
 For desktop LÖVE preview, Enter/Space/A expands a section, Escape/B closes it, F8 toggles the task console and F9+F8 exits. Arrow keys navigate the current expanded section; they do not switch tabs. The app's controller behaviour remains the reference for the RG35XX H.
+
+
+## Desktop Input
+
+The Debian desktop receives one virtual host-side keyboard/mouse device. The default profile is:
+
+| Controller input | Desktop action |
+| --- | --- |
+| Left stick | Mouse pointer |
+| A / B | Enter / Escape |
+| L1 + A / L1 + B | Left / right mouse click |
+| Right stick | Vertical / horizontal scroll |
+| D-pad | Arrow keys |
+| X / Y | Backspace / Tab |
+| R1 + X | Alt + Tab |
+| Start / Select | Super / Comet Quick Panel (M) |
+
+Open **DESKTOP INPUT** to change pointer speed, scroll speed, deadzone, bridge enablement and the action bound to each supported button. Changes are saved to `data/desktop-input.json` and applied on the next desktop session. The media player uses a separate mapping: A pause, B quit, X fullscreen, Y mute.
+
+## Media Vault
+
+M opens the Comet Quick Panel. It displays Now Playing and provides A pause/resume, X stop and Y open Media Vault. Inside Media Vault, D-pad left/right cycles **TV**, **RADIO** and **PLAYLISTS**; up/down selects an item; A plays or activates it; Y toggles a TV/radio favourite; X stops playback; Start refreshes the IPTV catalogue and EPG.
+
+For IPTV, copy local `.m3u` or `.m3u8` files to `data/media/playlists/imports`. They appear under PLAYLISTS after the catalogue refresh. The default remote source is IPTV-org Italy. TV entries show XMLTV Now/Next when a matching EPG source is available. Custom HTTP/HTTPS playlist sources can also be added with the service command documented in [Media Vault](MEDIA_VAULT.md).
+
+Web radio presets include Rai Radio 1, Radio Deejay, Radio Italia and Radio 24. They are editable in `data/media-vault.json`; stream availability is controlled by each broadcaster and may change.
+
+A single Media Vault supervisor owns playback. Starting another stream stops the previous one. Comet stops playback before launching Debian, on normal frontend exit, and when the foreground IPTV player returns. The heartbeat watchdog also stops playback when the frontend disappears unexpectedly.
