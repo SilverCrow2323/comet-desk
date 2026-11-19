@@ -1680,7 +1680,7 @@ local function drawSectionOverlay()
             drawLegendItem(485, "B", "CLOSE", page.accent)
         elseif page.id == "media" then
             drawLegendItem(20, "↑↓", "ITEM", page.accent)
-            drawLegendItem(175, "←→", "TV / RADIO / LIST / EPG", page.accent)
+            drawLegendItem(175, "←→", "VIEW", page.accent)
             drawLegendItem(330, "A/Y", "PLAY / FAV", page.accent)
             drawLegendItem(485, "X", "STOP", page.accent)
         elseif page.id == "diagnostics" then
