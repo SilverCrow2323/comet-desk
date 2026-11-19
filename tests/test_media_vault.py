@@ -162,3 +162,51 @@ def test_media_playlist_tv_catalogue_exports_favourite_flag(tmp_path, monkeypatc
     media.build_catalogue(tmp_path)
     rows = media.data_paths(tmp_path)["catalogue"].read_text().splitlines()
     assert "TV|abc123|Channel One|News|https://example.org/tv.m3u8|channel.one|1" in rows
+
+
+def test_epg_sync_exports_compact_now_next_rows_and_status(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    start = (now - timedelta(minutes=5)).strftime("%Y%m%d%H%M%S +0000")
+    stop = (now + timedelta(minutes=25)).strftime("%Y%m%d%H%M%S +0000")
+    next_start = (now + timedelta(minutes=25)).strftime("%Y%m%d%H%M%S +0000")
+    next_stop = (now + timedelta(minutes=55)).strftime("%Y%m%d%H%M%S +0000")
+    xml = (
+        '<tv><channel id="test.channel"><display-name>Test Channel</display-name></channel>'
+        '<programme start="' + start + '" stop="' + stop + '" channel="test.channel">'
+        '<title>Current Show</title></programme>'
+        '<programme start="' + next_start + '" stop="' + next_stop + '" channel="test.channel">'
+        '<title>Next Show</title></programme></tv>'
+    ).encode()
+    monkeypatch.setattr(media, "fetch_bytes", lambda *args, **kwargs: xml)
+    monkeypatch.setattr(media, "load_playlist", lambda *args, **kwargs: {
+        "channels": [{
+            "id": "stream-1", "name": "Test Channel", "tvg_id": "test.channel",
+            "tvg_name": "Test Channel", "url": "https://example.org/live.m3u8"
+        }],
+        "groups": ["News"], "epg_urls": []
+    })
+    config = {
+        "epg_urls": ["https://example.org/guide.xml"],
+        "playlists": [{"id": "test", "name": "Test", "source": "https://example.org/list.m3u"}],
+        "active_playlist": "test",
+        "last_epg_sync": 0,
+    }
+    result = media.sync_epg(tmp_path, config, force=True)
+
+    assert len(result["ok"]) == 1
+    status = media.data_paths(tmp_path)["epg_status"].read_text().split("|")
+    assert status[0] == "READY"
+    rows = media.data_paths(tmp_path)["epg_catalogue"].read_text().splitlines()
+    assert rows == ["EPG|stream-1|Current Show|Next Show"]
+
+
+def test_foreground_tv_request_rejects_symbolic_link(tmp_path):
+    paths = media.data_paths(tmp_path)
+    paths["data"].mkdir(parents=True)
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"kind":"tv","url":"https://example.org/live.m3u8"}')
+    paths["data"].joinpath("media-session.request").symlink_to(outside)
+    with pytest.raises(media.MediaError, match="symbolic-link"):
+        media.play_foreground(tmp_path)
