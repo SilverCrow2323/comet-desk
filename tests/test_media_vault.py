@@ -210,3 +210,48 @@ def test_foreground_tv_request_rejects_symbolic_link(tmp_path):
     paths["data"].joinpath("media-session.request").symlink_to(outside)
     with pytest.raises(media.MediaError, match="symbolic-link"):
         media.play_foreground(tmp_path)
+
+
+def test_local_drop_folder_playlist_is_discovered_and_selectable(tmp_path, monkeypatch):
+    folder = media.data_paths(tmp_path)["playlist_imports"]
+    folder.mkdir(parents=True)
+    (folder / "My Local TV.m3u").write_text(
+        "#EXTM3U\n#EXTINF:-1 group-title=\"News\",News One\n"
+        "https://example.org/news.m3u8\n",
+        encoding="utf-8",
+    )
+    config = media.load_config(tmp_path)
+    media.sync_import_folder(tmp_path, config)
+    local = next(row for row in config["playlists"] if row.get("type") == "file")
+    assert local["name"] == "My Local TV"
+    parsed = media.load_playlist(tmp_path, local)
+    assert parsed["channels"][0]["name"] == "News One"
+
+    result = media.activate_playlist(tmp_path, local["id"])
+    assert result["channels"] == 1
+    assert media.load_config(tmp_path)["active_playlist"] == local["id"]
+
+
+def test_local_drop_folder_rejects_symbolic_link(tmp_path):
+    folder = media.data_paths(tmp_path)["playlist_imports"]
+    folder.mkdir(parents=True)
+    outside = tmp_path / "outside.m3u"
+    outside.write_text("#EXTM3U\nhttps://example.org/live.m3u8\n")
+    link = folder / "link.m3u"
+    link.symlink_to(outside)
+    config = media.load_config(tmp_path)
+    media.sync_import_folder(tmp_path, config)
+    assert not any(row.get("source") == str(link) for row in config["playlists"])
+
+
+def test_load_playlist_rejects_configured_symlink_even_when_target_is_inside(tmp_path):
+    folder = media.data_paths(tmp_path)["playlist_imports"]
+    folder.mkdir(parents=True)
+    target = folder / "real.m3u"
+    target.write_text("#EXTM3U\nhttps://example.org/live.m3u8\n")
+    link = folder / "linked.m3u"
+    link.symlink_to(target)
+    with pytest.raises(media.MediaError, match="symbolic link"):
+        media.load_playlist(tmp_path, {
+            "id": "local-link", "type": "file", "source": str(link)
+        })
