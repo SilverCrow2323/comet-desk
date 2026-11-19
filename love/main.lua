@@ -1259,6 +1259,7 @@ local function readMediaCatalog()
             end
         end
         mediaItemsRadio, mediaItemsTV, mediaItemsPlaylists = radios, channels, playlists
+        mediaFilterCacheKey = ""
         mediaCatalogLoaded, mediaCatalogBusy = true, false
         mediaCatalogBusyAge = 0
     end
@@ -2436,7 +2437,11 @@ function love.keypressed(key)
         end
         return
     end
-    if key == "m" then toggleQuickPanel(); return end
+    if key == "m" then
+        mediaSearchActive = false
+        toggleQuickPanel()
+        return
+    end
     if quickPanelOpen then
         if key == "escape" or key == "backspace" or key == "b" then
             toggleQuickPanel()
@@ -2579,6 +2584,7 @@ function love.keypressed(key)
     elseif key == "escape" or key == "x" or key == "b" or key == "backspace" then
         if sectionOverlayOpen then
             sectionOverlayOpen = false
+            mediaSearchActive = false
             overlayScroll = 0
             setNotice("SECTION CLOSED")
         else
@@ -2665,8 +2671,12 @@ function love.gamepadpressed(joystick, button)
         cyclePage(1)
         return
     elseif button == "b" then
-        if sectionOverlayOpen then
+        if activePage == 9 and mediaSearchActive then
+            mediaSearchActive = false
+            setNotice("MEDIA SEARCH CLOSED")
+        elseif sectionOverlayOpen then
             sectionOverlayOpen = false
+            mediaSearchActive = false
             overlayScroll = 0
             setNotice("SECTION CLOSED")
         end
