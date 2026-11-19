@@ -61,6 +61,16 @@ local appCatalog, appSearch = {}, ""
 local appSearchActive, appCatalogLoaded = false, false
 local appRegistryState, appRegistryMessage = "IDLE", "Open APP DECK to scan installed Debian applications"
 local appRegistryPoll, appRegistryBusy = 0, false
+local forgeCatalogRaw, forgeCatalogVersion = nil, 0
+local appCatalogRaw, appCatalogVersion = nil, 0
+local forgeFilterCache, forgeFilterKey = {}, ""
+local appFilterCache, appFilterKey = {}, ""
+local operationScreen = {
+    open = false, kind = "", title = "", logPath = "", state = "IDLE",
+    percent = 0, message = "", lines = {}, poll = 0, done = false,
+}
+local autoBootstrapChecked = false
+local maybeRunAutoBootstrap
 
 local function setNotice(message)
     notice = message
@@ -405,6 +415,48 @@ local function drawUplink()
     if uplinkStatus.error then text(short(uplinkStatus.error, 72), 38, 410, fonts.tiny, colors.amber) end
 end
 
+local function openOperationScreen(kind, title, logPath, message, state)
+    operationScreen.open = true
+    operationScreen.kind = kind
+    operationScreen.title = title
+    operationScreen.logPath = logPath
+    operationScreen.message = message or "Starting operation..."
+    operationScreen.state = state or "STARTING"
+    operationScreen.percent = 0
+    operationScreen.lines = {}
+    operationScreen.poll = 0
+    operationScreen.done = false
+end
+
+local function updateOperationScreen(kind, state, percent, message, done)
+    if operationScreen.kind ~= kind then return end
+    operationScreen.state = state or operationScreen.state
+    operationScreen.percent = math.max(0, math.min(100, tonumber(percent) or operationScreen.percent))
+    if message and message ~= "" then operationScreen.message = message end
+    if done ~= nil then operationScreen.done = done end
+end
+
+local function refreshOperationLog()
+    if not operationScreen.open or operationScreen.logPath == "" then return end
+    local stream = io.open(operationScreen.logPath, "rb")
+    if not stream then return end
+    local size = stream:seek("end") or 0
+    stream:seek("set", math.max(0, size - 8192))
+    local content = stream:read("*a") or ""
+    stream:close()
+    local lines = {}
+    for line in (content .. "\n"):gmatch("(.-)\n") do
+        line = line:gsub("\27%[[%d;?]*[%a]", "")
+        line = line:gsub("[%z\1-\8\11\12\14-\31]", " ")
+        line = line:gsub("%s+", " "):match("^%s*(.-)%s*$") or ""
+        if line ~= "" then
+            lines[#lines + 1] = line
+            if #lines > 9 then table.remove(lines, 1) end
+        end
+    end
+    operationScreen.lines = lines
+end
+
 local function queueForgeAction(action, packageName)
     if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return end
     local slot = installedSlot or selectedSlot
@@ -412,6 +464,7 @@ local function queueForgeAction(action, packageName)
     if forgeActionBusy then setNotice("THE FORGE IS ALREADY RUNNING AN APT OPERATION"); return end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/forge_apt.py"
+    if action ~= "catalog" then os.remove(appRoot .. "/data/forge-operation.status") end
     local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
         .. " " .. action .. " --slot " .. slot
         .. (packageName and (" --package " .. quote(packageName)) or "")
@@ -425,6 +478,12 @@ local function queueForgeAction(action, packageName)
             (string.upper(action) .. " // " .. (packageName or "DEBIAN INDEXES"))
         forgeStatus.package = packageName or ""
         forgeActionBusy = action ~= "catalog"
+        if action ~= "catalog" then
+            openOperationScreen("FORGE", "THE FORGE // " .. string.upper(action),
+                appRoot .. "/data/forge-apt.log",
+                string.upper(action) .. " // " .. (packageName or "DEBIAN INDEXES"),
+                string.upper(action))
+        end
         setNotice("THE FORGE // " .. string.upper(action))
     else
         forgeStatus.state = "FAILED"; forgeStatus.message = "Could not start APT worker"
@@ -436,16 +495,22 @@ local function readForgeFiles()
     if appRoot == "" then return end
     local catalog = io.open(appRoot .. "/data/forge-catalog.txt", "r")
     if catalog then
-        local rows = {}
-        for line in catalog:lines() do
-            local category, packageName, title, summary, installed, available, size, tag =
-                line:match("^PKG|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
-            if packageName then rows[#rows + 1] = {
-                category = category, package = packageName, title = title, summary = summary,
-                installed = installed == "1", available = available == "1", size = size, tag = tag,
-            } end
+        local raw = catalog:read("*a") or ""
+        catalog:close()
+        if raw ~= forgeCatalogRaw then
+            forgeCatalogRaw = raw
+            forgeCatalogVersion = forgeCatalogVersion + 1
+            local rows = {}
+            for line in (raw .. "\n"):gmatch("(.-)\n") do
+                local category, packageName, title, summary, installed, available, size, tag =
+                    line:match("^PKG|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
+                if packageName then rows[#rows + 1] = {
+                    category = category, package = packageName, title = title, summary = summary,
+                    installed = installed == "1", available = available == "1", size = size, tag = tag,
+                } end
+            end
+            forgePackages = rows
         end
-        catalog:close(); forgePackages = rows
     end
     local status = io.open(appRoot .. "/data/forge-operation.status", "r")
     if status then
@@ -456,6 +521,12 @@ local function readForgeFiles()
             forgeStatus.state = state; forgeStatus.percent = tonumber(percent) or 0
             forgeStatus.message = message; forgeStatus.package = packageName or ""
             forgeActionBusy = state == "INSTALLING" or state == "REMOVING" or state == "UPDATING"
+            if operationScreen.kind == "FORGE" then
+                local finished = state == "DONE" or state == "REFRESHED"
+                    or state == "FAILED" or state == "CLEANUP_REQUIRED" or state == "BUSY"
+                updateOperationScreen("FORGE", state, tonumber(percent) or 0,
+                    message or "", finished)
+            end
             if state == "DONE" and previousState ~= "DONE" then
                 appCatalogLoaded = false
             end
@@ -464,6 +535,8 @@ local function readForgeFiles()
 end
 
 local function forgeFilteredPackages()
+    local key = tostring(forgeCatalogVersion) .. ":" .. tostring(forgeCategoryIndex) .. ":" .. forgeSearch
+    if key == forgeFilterKey then return forgeFilterCache end
     local category = forgeCategories[forgeCategoryIndex]
     local query = forgeSearch:lower()
     local rows = {}
@@ -473,7 +546,8 @@ local function forgeFilteredPackages()
             or item.package:lower():find(query, 1, true) or item.summary:lower():find(query, 1, true)
         if categoryMatch and textMatch then rows[#rows + 1] = item end
     end
-    return rows
+    forgeFilterKey, forgeFilterCache = key, rows
+    return forgeFilterCache
 end
 
 local function queueAppCatalog()
@@ -491,6 +565,7 @@ local function queueAppCatalog()
     end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/app_registry.py"
+    os.remove(appRoot .. "/data/app-registry.status")
     local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
         .. " catalog --slot " .. installedSlot
         .. " --app-dir " .. quote(appRoot)
@@ -500,6 +575,9 @@ local function queueAppCatalog()
         appRegistryState = "SCANNING"
         appRegistryMessage = "Discovering installed Debian applications"
         appRegistryBusy = true
+        openOperationScreen("APP DECK", "APP DECK // INDEXING",
+            appRoot .. "/data/app-registry.log",
+            "Discovering installed Debian applications", "SCANNING")
         setNotice("APP DECK // SCANNING DEBIAN")
     else
         appRegistryState = "FAILED"
@@ -512,20 +590,25 @@ local function readAppFiles()
     if appRoot == "" then return end
     local catalog = io.open(appRoot .. "/data/app-catalog.txt", "r")
     if catalog then
-        local rows = {}
-        for line in catalog:lines() do
-            local id, name, category, icon, executable =
-                line:match("^APP|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
-            if id then
-                rows[#rows + 1] = {
-                    id = id, name = name, category = category,
-                    icon = icon, executable = executable,
-                }
-            end
-        end
+        local raw = catalog:read("*a") or ""
         catalog:close()
-        appCatalog = rows
-        if appSelectedIndex > #appCatalog then appSelectedIndex = math.max(1, #appCatalog) end
+        if raw ~= appCatalogRaw then
+            appCatalogRaw = raw
+            appCatalogVersion = appCatalogVersion + 1
+            local rows = {}
+            for line in (raw .. "\n"):gmatch("(.-)\n") do
+                local id, name, category, icon, executable =
+                    line:match("^APP|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
+                if id then
+                    rows[#rows + 1] = {
+                        id = id, name = name, category = category,
+                        icon = icon, executable = executable,
+                    }
+                end
+            end
+            appCatalog = rows
+            if appSelectedIndex > #appCatalog then appSelectedIndex = math.max(1, #appCatalog) end
+        end
     end
     local status = io.open(appRoot .. "/data/app-registry.status", "r")
     if status then
@@ -536,6 +619,11 @@ local function readAppFiles()
             local previousState = appRegistryState
             appRegistryState, appRegistryMessage = state, message or ""
             appRegistryBusy = state == "SCANNING"
+            if operationScreen.kind == "APP DECK" then
+                local finished = state == "READY" or state == "FAILED" or state == "CLEANUP_REQUIRED"
+                updateOperationScreen("APP DECK", state, state == "READY" and 100 or 0,
+                    message or "", finished)
+            end
             if state == "READY" and previousState ~= "READY" then
                 setNotice("APP DECK // " .. tostring(#appCatalog) .. " APPS")
             elseif state == "FAILED" and previousState ~= "FAILED" then
@@ -546,6 +634,8 @@ local function readAppFiles()
 end
 
 local function filteredApps()
+    local key = tostring(appCatalogVersion) .. ":" .. tostring(appCategoryIndex) .. ":" .. appSearch
+    if key == appFilterKey then return appFilterCache end
     local category = appCategories[appCategoryIndex]
     local query = appSearch:lower()
     local rows = {}
@@ -556,7 +646,8 @@ local function filteredApps()
             or item.executable:lower():find(query, 1, true)
         if categoryMatch and textMatch then rows[#rows + 1] = item end
     end
-    return rows
+    appFilterKey, appFilterCache = key, rows
+    return appFilterCache
 end
 
 local function cycleAppCategory(direction)
@@ -869,6 +960,11 @@ local function readImageDownloadStatus()
     imageDownload.message = message
     imageDownload.location = location or ""
     imageDownload.profile = profile or ""
+    if operationScreen.kind == "DESKTOP" then
+        local finished = state == "READY" or state == "FAILED"
+            or state == "CLEANUP_REQUIRED" or state == "BUSY"
+        updateOperationScreen("DESKTOP", state, imageDownload.percent, message or "", finished)
+    end
     if location and location:find("/mnt/mmc/", 1, true) then
         installedSlot = "tf1"
     elseif location and location:find("/mnt/sdcard/", 1, true) then
@@ -931,6 +1027,64 @@ function love.update(dt)
         local success, snapshot = pcall(probe.read)
         if success and snapshot then device = snapshot end
     end
+    if boot.done and maybeRunAutoBootstrap then maybeRunAutoBootstrap() end
+    if operationScreen.open then
+        operationScreen.poll = operationScreen.poll + dt
+        if operationScreen.poll >= 0.35 then
+            operationScreen.poll = 0
+            refreshOperationLog()
+        end
+    end
+end
+
+local function drawOperationScreen()
+    love.graphics.clear(0.006, 0.009, 0.013, 1)
+    setColor(colors.cyan)
+    love.graphics.rectangle("fill", 0, 0, W, 3)
+    setColor(colors.green)
+    love.graphics.rectangle("fill", 20, 24, 4, 42)
+    text("COMET DESK  //  SYSTEM CONSOLE", 34, 22, fonts.tiny, colors.muted)
+    text(short(operationScreen.title, 42), 34, 42, fonts.medium, colors.white)
+    text(operationScreen.state, 500, 28, fonts.tiny,
+        operationScreen.state == "FAILED" and colors.amber or colors.green)
+    rounded(20, 82, 600, 288, {0.008, 0.014, 0.018, 1}, colors.line)
+    text("ROOT TASK  /  LIVE OUTPUT", 36, 96, fonts.tiny, colors.cyan)
+    setColor({0.10, 0.22, 0.18, 0.55})
+    love.graphics.line(36, 119, 604, 119)
+    local rows = operationScreen.lines or {}
+    local first = math.max(1, #rows - 8)
+    local shown = 0
+    for index = first, #rows do
+        shown = shown + 1
+        text("> " .. short(rows[index], 78), 38, 130 + (shown - 1) * 24,
+            fonts.tiny, colors.green)
+    end
+    if shown == 0 then
+        text("> " .. short(operationScreen.message, 76), 38, 136, fonts.small, colors.green)
+        text("> Waiting for the bootstrap worker...", 38, 165, fonts.tiny, colors.muted)
+    end
+    love.graphics.line(36, 344, 604, 344)
+    text(short(operationScreen.message, 74), 28, 382, fonts.small, colors.white)
+    drawProgress(28, 410, 584, 14, operationScreen.percent, colors.cyan)
+    if operationScreen.percent == 0 and not operationScreen.done then
+        local pulseX = 30 + (ambientTime * 150) % 480
+        setColor(colors.cyan)
+        love.graphics.rectangle("fill", pulseX, 412, 92, 10, 3, 3)
+    end
+    text(string.format("%d%%", operationScreen.percent), 28, 432, fonts.tiny, colors.cyan)
+    local action = operationScreen.done and "B / A  RETURN TO COMET DESK"
+        or "B / ESC  HIDE CONSOLE  //  TASK CONTINUES"
+    text(action, 270, 432, fonts.tiny, colors.muted)
+    if operationScreen.done then
+        local resultLine = operationScreen.state == "FAILED"
+            and "TASK FAILED // CHECK THE LOG ABOVE"
+            or (operationScreen.state == "CLEANUP_REQUIRED"
+                and "TASK FINISHED // CHECK MOUNT CLEANUP"
+                or "TASK FINISHED // COMET DESK READY")
+        text(resultLine,
+            28, 456, fonts.tiny,
+            operationScreen.state == "FAILED" and colors.amber or colors.green)
+    end
 end
 
 function love.draw()
@@ -942,6 +1096,12 @@ function love.draw()
 
     if not boot.done then
         drawBoot()
+        love.graphics.pop()
+        return
+    end
+
+    if operationScreen.open then
+        drawOperationScreen()
         love.graphics.pop()
         return
     end
@@ -1100,6 +1260,7 @@ local function startDesktopEnvironment()
         return
     end
     local script = appRoot .. "/service/desktop_environment.py"
+    os.remove(appRoot .. "/data/desktop-environment.status")
     local command = "cd " .. shellQuote(appRoot) .. " && python3 "
         .. shellQuote(script) .. " setup --slot " .. selectedSlot
         .. " --profile " .. selectedProfile
@@ -1112,10 +1273,68 @@ local function startDesktopEnvironment()
         imageDownload.percent = 0
         imageDownload.profile = selectedProfile
         imageDownload.message = "Preparing Debian Trixie // " .. selectedProfile
+        openOperationScreen("DESKTOP", "DEBIAN TRIXIE // BOOTSTRAP",
+            appRoot .. "/data/desktop-environment.log",
+            "Preparing Debian GNU/Linux 13 ARM64", "STARTING")
         setNotice("DEBIAN APT SETUP // " .. selectedProfile:upper())
     else
         setNotice("COULD NOT START DEBIAN ENVIRONMENT MANAGER")
     end
+end
+
+maybeRunAutoBootstrap = function()
+    if autoBootstrapChecked or not boot.done then return end
+    autoBootstrapChecked = true
+    if appRoot == "" then return end
+    local runningStates = {
+        STARTING = true, DOWNLOADING_TEMPLATE = true, PREPARING_ROOTFS = true,
+        DOWNLOADING_ROOTFS = true, EXTRACTING_ROOTFS = true, APT_UPDATE = true,
+        INSTALLING_PROFILE = true, EXPANDING_IMAGE = true,
+    }
+    if imageDownload.state == "READY" and desktopConfigReady() then return end
+    if runningStates[imageDownload.state] then
+        openOperationScreen("DESKTOP", "DEBIAN TRIXIE // RESUME",
+            appRoot .. "/data/desktop-environment.log",
+            imageDownload.message, imageDownload.state)
+        return
+    end
+
+    local roots = {
+        tf1 = "/mnt/mmc/MUOS/CometDesk/Desktop/.comet-debian-ready",
+        tf2 = "/mnt/sdcard/MUOS/CometDesk/Desktop/.comet-debian-ready",
+    }
+    local preferred = nil
+    local minimum = 9 * 1024 * 1024 * 1024
+    local function hasSpace(slot)
+        local item = storageItem(slot)
+        return storageUsable(slot) and item.stats.free_bytes >= minimum
+    end
+    for _, slot in ipairs({"tf1", "tf2"}) do
+        local marker = io.open(roots[slot], "r")
+        if marker then
+            marker:close()
+            if hasSpace(slot) then preferred = slot; break end
+        end
+    end
+    if not preferred then
+        if hasSpace(selectedSlot) then
+            preferred = selectedSlot
+        else
+            local other = selectedSlot == "tf1" and "tf2" or "tf1"
+            if hasSpace(other) then preferred = other end
+        end
+    end
+    if not preferred then
+        activePage, selected, carouselTarget = 2, 2, 2
+        setNotice("BOOTSTRAP NEEDS A WRITABLE CARD WITH 9 GB FREE")
+        return
+    end
+
+    selectedSlot = preferred
+    activePage, selected, carouselTarget = 2, 2, 2
+    pageChangedAt = ambientTime
+    selectedProfileIndex, selectedProfile = 1, "labwc"
+    startDesktopEnvironment()
 end
 
 local function startDesktopApplication(appId)
@@ -1175,6 +1394,17 @@ function love.keypressed(key)
         boot.done = true
         pageChangedAt = ambientTime
         setNotice("SYSTEM READY // COMET DESK")
+        return
+    end
+    if operationScreen.open then
+        local hide = key == "escape" or key == "backspace" or key == "x"
+        local accept = operationScreen.done and
+            (key == "a" or key == "return" or key == "space")
+        if hide or accept then
+            operationScreen.open = false
+            setNotice(operationScreen.done and "SYSTEM TASK CLOSED"
+                or "TASK CONTINUES IN BACKGROUND")
+        end
         return
     end
     if key == "f9" then keyboardHeld.start = true; maybeExitKeyboard(); return end
@@ -1293,6 +1523,14 @@ function love.gamepadpressed(joystick, button)
         boot.done = true
         pageChangedAt = ambientTime
         setNotice("SYSTEM READY // COMET DESK")
+        return
+    end
+    if operationScreen.open then
+        if button == "b" or button == "back" or (operationScreen.done and button == "a") then
+            operationScreen.open = false
+            setNotice(operationScreen.done and "SYSTEM TASK CLOSED"
+                or "TASK CONTINUES IN BACKGROUND")
+        end
         return
     end
     if button == "guide" then
