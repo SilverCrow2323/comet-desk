@@ -1292,6 +1292,10 @@ local function queueMediaActivatePlaylist(item)
 end
 
 local function queueMediaFavourite(item)
+    if mediaMode == "PLAYLISTS" then
+        setNotice("SELECT A TV OR RADIO ITEM TO CHANGE FAVOURITES")
+        return
+    end
     if not item then return end
     local kind = mediaMode:lower()
     queueMediaTask("toggle-favourite", "--kind " .. kind
