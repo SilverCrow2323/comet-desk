@@ -798,6 +798,18 @@ def _player_command(kind: str, url: str, options: dict | None = None) -> tuple[l
     raise MediaError("no media player found (mpv or ffplay)")
 
 
+def player_process_owned(pid: int, proc_root: Path = Path("/proc")) -> bool:
+    """Return true only when PID still belongs to an MPV or FFPlay process."""
+    if pid <= 1:
+        return False
+    try:
+        fields = (proc_root / str(pid) / "cmdline").read_bytes().split(b"\\0")
+    except OSError:
+        return False
+    executable = fields[0].decode("utf-8", "replace").rsplit("/", 1)[-1] if fields else ""
+    return executable in ("mpv", "ffplay")
+
+
 def _terminate(process: subprocess.Popen | None) -> None:
     if process is None or process.poll() is not None:
         return
@@ -993,7 +1005,8 @@ def stop_playback(app_dir: Path, timeout: float = 3.0) -> None:
 
     try:
         player_pid = int(paths["player_pid"].read_text().strip())
-        os.killpg(player_pid, signal.SIGTERM)
+        if player_process_owned(player_pid):
+            os.killpg(player_pid, signal.SIGTERM)
     except (OSError, ValueError, ProcessLookupError):
         pass
     try:
@@ -1099,7 +1112,6 @@ def main() -> int:
         if args.action == "supervisor":
             return _supervisor(app_dir)
         if args.action == "init":
-            config = load_config(app_dir)
             result = with_catalogue_lock(app_dir, lambda: build_catalogue(app_dir, force=False))
             print(json.dumps(result))
             return 0
@@ -1116,8 +1128,9 @@ def main() -> int:
             print(json.dumps(result))
             return 0
         if args.action == "refresh-epg":
-            config = load_config(app_dir)
-            result = with_catalogue_lock(app_dir, lambda: sync_epg(app_dir, config, force=True))
+            result = with_catalogue_lock(
+                app_dir, lambda: sync_epg(app_dir, load_config(app_dir), force=True)
+            )
             print(json.dumps({"sources_ok": len(result["ok"]),
                               "sources_error": len(result["errors"])}))
             return 0
