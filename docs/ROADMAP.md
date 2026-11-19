@@ -34,6 +34,9 @@
 - [x] Add package search, live dpkg/APT availability, install, remove and index refresh operations.
 - [x] Enforce an allowlist and filter host/init/bootloader/kernel/firmware and heavyweight app-store packages.
 - [x] Add disabled Input Leap entry pending a trustworthy Debian Trixie ARM64 package source.
+- [x] Keep the first-boot Debian desktop baseline lean; automatically bootstrap labwc when no ready guest exists.
+- [x] Show bootstrap, profile and APT package tasks in a dedicated console with apt/dpkg-reported progress.
+- [x] Cache package/application catalogue filtering instead of rebuilding long selectable lists every frame.
 - [ ] Validate package dependencies and actual installation/removal on the RG35XX H.
 - [x] Discover installed Debian .desktop applications and create an atomic Comet app catalogue.
 - [x] Validate executable paths and launch arguments within the Debian rootfs; reject shell/privilege wrappers.
