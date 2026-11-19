@@ -133,8 +133,6 @@ On the first Comet Desk launch, the application checks whether Debian is already
 
 Bootstrap, desktop-profile additions, THE FORGE package install/remove/index refresh and APP DECK indexing use a dedicated black console screen. It shows the worker log, current APT status and progress percentage where the underlying APT operation reports one. The screen is separate from the catalogue navigation. Press **B / Esc** to hide it while the worker continues. Re-select the active operation (A on Desktop System or THE FORGE; Y while APP DECK is scanning) to reopen its console. A completed or failed task remains visible until dismissed.
 
-Uplink Wi-Fi detection accepts the wireless interfaces exposed by sysfs and cross-checks association state from `iw`, `wpa_cli` or `iwgetid`; an unavailable `iw` binary alone must not force a false OFFLINE result. The UI uses the live result, not a cached network toggle.
-
 APT progress is read from `APT::Status-Fd` events emitted by apt/dpkg; it is not an elapsed-time animation. Dpkg can restart the percentage for a new package, and download status can restart for each file, so the percentage reflects the current reported package/file stage rather than claiming a fabricated aggregate of all dependencies.
 
 Large package/application catalogues are parsed only when their backing catalogue file changes, and filtered result lists are cached until the category, search query or catalogue changes.
