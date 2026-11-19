@@ -444,6 +444,9 @@ local function drawOverview()
         local profile = imageDownload.profile ~= "" and imageDownload.profile or selectedProfile
         desktopEngine = profile == "labwc" and "LABWC / WAYLAND" or (profile:upper() .. " / X11")
         engineColor = colors.green
+    elseif installedSlot and anyDesktopProfileInstalled(installedSlot) then
+        desktopEngine = "DEBIAN / DESKTOP READY"
+        engineColor = colors.green
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         desktopEngine = imageDownload.state
         engineColor = (imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED")
@@ -482,16 +485,16 @@ local function drawSetup()
 
     rounded(376, 260, 228, 142, colors.panel2, colors.line)
     text("DEBIAN / APT STATUS", 391, 272, fonts.small, colors.cyan)
-    local stateColor = colors.cyan
-    if imageDownload.state == "READY" and installedSlot == selectedSlot and imageDownload.profile == selectedProfile then
-        stateColor = colors.green
-    elseif imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED" then
+    local profileReady = desktopProfileInstalled(selectedSlot, selectedProfile)
+    local stateColor = profileReady and colors.green or colors.cyan
+    if not profileReady and (imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED") then
         stateColor = colors.amber
-    elseif imageDownload.state ~= "NOT_INSTALLED" then
+    elseif not profileReady and imageDownload.state ~= "NOT_INSTALLED" then
         stateColor = colors.violet
     end
-    local stateLabel = imageDownload.state
-    if imageDownload.state == "READY" then stateLabel = "DEBIAN READY / " .. (imageDownload.profile or "APT"):upper() end
+    local stateLabel = profileReady and ("INSTALLED / " .. selectedProfile:upper())
+        or (imageDownload.state == "READY" and ("OTHER PROFILE READY / " .. (imageDownload.profile or "APT"):upper())
+        or imageDownload.state)
     text(short(stateLabel, 24), 391, 299, fonts.medium, stateColor)
     text(short(imageDownload.message, 28), 391, 324, fonts.tiny, colors.white)
     drawProgress(391, 349, 196, 10, imageDownload.percent, stateColor)
@@ -510,7 +513,7 @@ local function drawSetup()
     slotLabel("TF1", "tf1", 34)
     slotLabel("TF2", "tf2", 214)
     text("LEFT / RIGHT  SELECT STORAGE SLOT", 34, 402, fonts.tiny, colors.muted)
-    local ready = imageDownload.state == "READY" and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+    local ready = desktopProfileInstalled(selectedSlot, selectedProfile)
     text(ready and ("A  LAUNCH " .. selectedProfile:upper()) or ("A  INSTALL " .. selectedProfile:upper()),
         391, 383, fonts.small, ready and colors.green or tint)
 end
@@ -747,18 +750,18 @@ end
 local function queueAppCatalog()
     if appRoot == "" then
         setNotice("COMET APP RUNNER PATH UNAVAILABLE")
-        return
+        return false
     end
     if not installedSlot then
         setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST")
-        return
+        return false
     end
     if appRegistryBusy then
         openOperationScreen("APP DECK", "APP DECK // INDEXING",
             appRoot .. "/data/app-registry.log",
             appRegistryMessage, appRegistryState)
         setNotice("REOPENED THE APP DECK SCAN CONSOLE")
-        return
+        return true
     end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/app_registry.py"
@@ -823,8 +826,12 @@ local function readAppFiles()
                 updateOperationScreen("APP DECK", state, state == "READY" and 100 or 0,
                     message or "", finished)
             end
-            if state == "READY" and previousState ~= "READY" then
-                setNotice("APP DECK // " .. tostring(#appCatalog) .. " APPS")
+            if state == "READY" then
+                appCatalogLoaded = true
+                appCatalogRetry = 0
+                if previousState ~= "READY" then
+                    setNotice("APP DECK // " .. tostring(#appCatalog) .. " APPS")
+                end
             elseif state == "FAILED" and previousState ~= "FAILED" then
                 setNotice("APP DECK SCAN FAILED // CHECK LOG")
                 appCatalogLoaded = false
@@ -2284,6 +2291,42 @@ local function desktopConfigReady()
     return revision == DESKTOP_CONFIG_REVISION
 end
 
+-- The Debian marker is the source of truth for installed profiles. The status
+-- file only records the most recent worker and must not make other installed
+-- profiles appear absent after a restart or profile switch.
+local function desktopProfileInstalled(slot, profile)
+    if appRoot == "" or not slot or not profile then return false end
+    local roots = {
+        tf1 = "/mnt/mmc/MUOS/CometDesk/Desktop",
+        tf2 = "/mnt/sdcard/MUOS/CometDesk/Desktop",
+    }
+    local root = roots[slot]
+    if not root then return false end
+    local image = io.open(root .. "/debian.img", "rb")
+    if not image then return false end
+    image:close()
+    local marker = io.open(root .. "/.comet-debian-ready", "r")
+    if not marker then return false end
+    local raw = marker:read("*a") or ""
+    marker:close()
+    if not raw:match('"codename"%s*:%s*"trixie"') then return false end
+    local revision = tonumber(raw:match('"desktop_config_revision"%s*:%s*(%d+)')) or 0
+    if revision < DESKTOP_CONFIG_REVISION then return false end
+    local profiles = raw:match('"installed_profiles"%s*:%s*%[(.-)%]')
+    if not profiles then return false end
+    for installed in profiles:gmatch('"([^"]+)"') do
+        if installed == profile then return true end
+    end
+    return false
+end
+
+local function anyDesktopProfileInstalled(slot)
+    for _, profile in ipairs(desktopProfiles) do
+        if desktopProfileInstalled(slot, profile.id) then return true end
+    end
+    return false
+end
+
 local function debianOperationBusy()
     if appRoot == "" then return nil end
     local statusPath = appRoot .. "/data/debian-lock.status"
@@ -2351,10 +2394,13 @@ local function startDesktopEnvironment()
         setNotice(selectedSlot:upper() .. " NOT WRITABLE OR SPACE UNKNOWN")
         return
     end
-    local installedHere = imageDownload.state == "READY"
-        and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+    local installedHere = desktopProfileInstalled(selectedSlot, selectedProfile)
         and desktopConfigReady()
     if installedHere then
+        installedSlot = selectedSlot
+        imageDownload.state = "READY"
+        imageDownload.profile = selectedProfile
+        imageDownload.message = "Debian Trixie ready // " .. selectedProfile:upper()
         local request = appRoot .. "/data/desktop-session.request"
         local temporary = request .. ".tmp"
         local stream = io.open(temporary, "w")
