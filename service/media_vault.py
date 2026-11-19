@@ -724,14 +724,19 @@ def _supervisor(app_dir: Path) -> int:
 def ensure_supervisor(app_dir: Path) -> None:
     paths = data_paths(app_dir)
     paths["data"].mkdir(parents=True, exist_ok=True)
-    pid = None
     try:
         pid = int(paths["supervisor_pid"].read_text().strip())
         os.kill(pid, 0)
+        command_line = Path("/proc/{}/cmdline".format(pid)).read_bytes()
+        if b"media_vault.py" in command_line and b"supervisor" in command_line:
+            return
     except (OSError, ValueError):
-        pid = None
-    if pid is not None:
-        return
+        pass
+
+    # Never replay a stale PLAY command after a frontend crash or reboot.
+    # queue_play writes the new command only after this supervisor is spawned.
+    paths["supervisor_pid"].unlink(missing_ok=True)
+    paths["command"].unlink(missing_ok=True)
     script = Path(__file__).resolve()
     log_path = paths["log"]
     with log_path.open("ab") as log:
@@ -774,20 +779,22 @@ def stop_playback(app_dir: Path, timeout: float = 3.0) -> None:
 
 def queue_play(app_dir: Path, kind: str, url: str, title: str) -> None:
     heartbeat(app_dir)
-    write_command(app_dir, "play", kind=kind, url=url, title=title)
     ensure_supervisor(app_dir)
+    write_command(app_dir, "play", kind=kind, url=url, title=title)
 
 
 def queue_toggle(app_dir: Path) -> None:
     heartbeat(app_dir)
-    write_command(app_dir, "toggle")
     ensure_supervisor(app_dir)
+    write_command(app_dir, "toggle")
 
 
 def play_foreground(app_dir: Path) -> int:
     """Play one TV stream while the Comet UI is suspended by mux_launch.sh."""
     paths = data_paths(app_dir)
     request_path = paths["data"] / "media-session.request"
+    if request_path.is_symlink():
+        raise MediaError("refusing symbolic-link media session request")
     try:
         request = json.loads(request_path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
