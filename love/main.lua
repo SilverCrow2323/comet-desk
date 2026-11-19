@@ -1247,7 +1247,7 @@ local function readMediaCatalog()
                 url = f[5], favorite = f[6] == "1"}
         elseif f[1] == "TV" then
             channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
-                url = f[5], tvgId = f[6], favorite = f[7] == "1"}
+                url = f[5], tvgId = f[6], favorite = f[7] == "1", options = f[8] or ""}
         elseif f[1] == "PLAYLIST" then
             playlists[#playlists + 1] = {id = f[2], name = f[3], active = f[4] == "1"}
         end
@@ -1331,7 +1331,8 @@ local function queueMediaTV(item)
     local stream = io.open(temporary, "w")
     if not stream then setNotice("COULD NOT CREATE TV PLAY REQUEST"); return end
     stream:write('{"kind":"tv","url":', jsonQuote(item.url),
-        ',"title":', jsonQuote(item.name), '}\n')
+        ',"title":', jsonQuote(item.name),
+        ',"options":', jsonQuote(item.options or ""), '}\n')
     stream:close()
     if not os.rename(temporary, path) then
         os.remove(temporary)
