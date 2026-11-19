@@ -427,15 +427,16 @@ class ImageMount:
 
 def _write_guest_configuration(root: Path) -> None:
     (root / "etc").mkdir(parents=True, exist_ok=True)
-    (root / "etc/hostname").write_text("voiddesk\n", encoding="utf-8")
+    (root / "etc/hostname").write_text("comet-debian\n", encoding="utf-8")
     (root / "etc/hosts").write_text(
-        "127.0.0.1 localhost\n127.0.1.1 voiddesk\n", encoding="utf-8")
-    (root / "etc/apt/sources.list").write_text(UBUNTU_SOURCES, encoding="utf-8")
+        "127.0.0.1 localhost\n127.0.1.1 comet-debian\n", encoding="utf-8")
+    (root / "etc/apt/sources.list").write_text(DEBIAN_SOURCES, encoding="utf-8")
     sources_dir = root / "etc/apt/sources.list.d"
     if sources_dir.is_dir():
         for item in sources_dir.iterdir():
             if item.is_file() and item.suffix in (".sources", ".list"):
                 item.unlink()
+
     machine_id = __import__("uuid").uuid4().hex
     (root / "etc/machine-id").write_text(machine_id + "\n", encoding="ascii")
     dbus_id = root / "var/lib/dbus/machine-id"
@@ -445,7 +446,7 @@ def _write_guest_configuration(root: Path) -> None:
     x11 = root / "etc/X11"
     x11.mkdir(parents=True, exist_ok=True)
     (x11 / "xorg.conf").write_text(
-        '# Comet Desk // RG35XX-H framebuffer Xorg profile\n'
+        '# Comet Desk // RG35XX-H framebuffer fallback profile\n'
         'Section "Device"\n    Identifier "FBDEV"\n    Driver "fbdev"\n'
         '    Option "fbdev" "/dev/fb0"\nEndSection\n'
         'Section "Screen"\n    Identifier "Screen0"\n    Device "FBDEV"\n'
@@ -455,60 +456,76 @@ def _write_guest_configuration(root: Path) -> None:
         'Section "InputClass"\n    Identifier "evdev-all"\n'
         '    MatchDevicePath "/dev/input/event*"\n    Driver "evdev"\n'
         'EndSection\n', encoding="utf-8")
-    xinit = root / "root/.xinitrc"
-    xinit.parent.mkdir(parents=True, exist_ok=True)
-    xinit.write_text(
-        '#!/bin/sh\n'
-        'export NO_AT_BRIDGE=1 GTK_A11Y=none GTK_OVERLAY_SCROLLING=0\n'
-        'export GSETTINGS_BACKEND=keyfile\n'
-        'if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch >/dev/null 2>&1; then\n'
-        '  eval "$(dbus-launch --sh-syntax --exit-with-session)"\nfi\n'
-        'xset s off -dpms 2>/dev/null\n'
-        'for ctl in Master PCM Speaker Headphone; do amixer -q sset "$ctl" 80% unmute 2>/dev/null; done\n'
-        'qjoypad --notray "Default" >/dev/null 2>&1 &\n'
-        'exec startxfce4\n', encoding="utf-8")
 
-    xinit.chmod(0o755)
+    labwc = root / "root/.config/labwc"
+    labwc.mkdir(parents=True, exist_ok=True)
+    (labwc / "autostart").write_text(
+        "waybar >/tmp/comet-waybar.log 2>&1 &\n"
+        "swaybg -c '#080f1d' >/tmp/comet-swaybg.log 2>&1 &\n"
+        "mako >/tmp/comet-mako.log 2>&1 &\n"
+        "foot --server >/tmp/comet-foot.log 2>&1 &\n",
+        encoding="utf-8",
+    )
+    (labwc / "rc.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<labwc_config>\n'
+        '  <core><decoration>server</decoration><gap>0</gap></core>\n'
+        '  <keyboard><keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>'
+        '<keybind key="W-q"><action name="Exit"/></keybind></keyboard>\n'
+        '  <mouse><default/></mouse>\n'
+        '</labwc_config>\n', encoding="utf-8")
+
+    x11_script = root / "usr/local/bin/comet-session-x11"
+    x11_script.parent.mkdir(parents=True, exist_ok=True)
+    x11_script.write_text(
+        "#!/bin/sh\n"
+        "qjoypad --notray Default >/dev/null 2>&1 &\n"
+        "case " + chr(34) + "$" + "{COMET_DESKTOP_PROFILE:-icewm}" + chr(34) + " in\n"
+        "  xfce) exec startxfce4 ;;\n"
+        "  lxde) exec startlxde ;;\n"
+        "  lxqt) exec startlxqt ;;\n"
+        "  icewm) exec icewm-session ;;\n"
+        "  fluxbox) exec startfluxbox ;;\n"
+        "  openbox) exec openbox-session ;;\n"
+        '  *) echo "Unknown X11 desktop profile" >&2; exit 64 ;;\n'
+        "esac\n", encoding="utf-8")
+    x11_script.chmod(0o755)
+
     qjoypad = root / "root/.qjoypad3"
     qjoypad.mkdir(parents=True, exist_ok=True)
     (qjoypad / "Default.lyt").write_text(
-        "# QJoyPad 4.3 Layout File\\n"
-        "# Comet Desk controller profile for RG35XX H\\n"
-        "Joystick 1 {\\n"
-        "\\tAxis 1: gradient, maxSpeed 3, mouse+h\\n"
-        "\\tAxis 2: gradient, maxSpeed 3, mouse+v\\n"
-        "\\tAxis 3: gradient, +key 114, -key 113\\n"
-        "\\tAxis 4: gradient, +key 117, -key 112\\n"
-        "\\tAxis 5: +key 114, -key 113\\n"
-        "\\tAxis 6: +key 116, -key 111\\n"
-        "\\tButton 4: mouse 1\\n"
-        "\\tButton 5: key 166\\n"
-        "\\tButton 6: mouse 2\\n"
-        "\\tButton 7: mouse 3\\n"
-        "\\tButton 8: mouse 4\\n"
-        "\\tButton 9: mouse 5\\n"
-        "\\tButton 10: key 9\\n"
-        "\\tButton 11: key 36\\n"
-        "\\tButton 13: mouse 1\\n"
-        "\\tButton 16: mouse 3\\n"
-        "}\\n", encoding="utf-8")
-    (qjoypad / "layout").write_text("Default\\n", encoding="utf-8")
+        "# QJoyPad 4.3 Layout File\n"
+        "# Comet Desk controller profile for RG35XX H\n"
+        "Joystick 1 {\n"
+        "\tAxis 1: gradient, maxSpeed 3, mouse+h\n"
+        "\tAxis 2: gradient, maxSpeed 3, mouse+v\n"
+        "\tAxis 3: gradient, +key 114, -key 113\n"
+        "\tAxis 4: gradient, +key 117, -key 112\n"
+        "\tAxis 5: +key 114, -key 113\n"
+        "\tAxis 6: +key 116, -key 111\n"
+        "\tButton 4: mouse 1\n\tButton 5: key 166\n"
+        "\tButton 6: mouse 2\n\tButton 7: mouse 3\n"
+        "\tButton 8: mouse 4\n\tButton 9: mouse 5\n"
+        "\tButton 10: key 9\n\tButton 11: key 36\n"
+        "\tButton 13: mouse 1\n\tButton 16: mouse 3\n"
+        "}\n", encoding="utf-8")
+    (qjoypad / "layout").write_text("Default\n", encoding="utf-8")
+
     settings = root / "root/.config/xfce4/xfconf/xfce-perchannel-xml"
     settings.mkdir(parents=True, exist_ok=True)
     (settings / "xfwm4.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<channel name="xfwm4" version="1.0"><property name="general" type="empty">'
         '<property name="use_compositing" type="bool" value="false"/>'
-        '<property name="title_font" type="string" value="Sans Bold 8"/>'
+        '<property name="title_font" type="string" value="Sans Bold 10"/>'
         '</property></channel>\n', encoding="utf-8")
     gtk = root / "root/.config/gtk-3.0"
     gtk.mkdir(parents=True, exist_ok=True)
     (gtk / "settings.ini").write_text(
-        "[Settings]\ngtk-font-name=Sans 8\ngtk-dialogs-use-header=false\n",
+        "[Settings]\ngtk-font-name=Sans 10\ngtk-dialogs-use-header=false\n",
         encoding="utf-8")
-    (root / ".comet-xfce-image").write_text(
-        "Comet Desk built this XFCE image\n", encoding="utf-8")
-
+    (root / ".comet-debian-rootfs").write_text(
+        "Debian GNU/Linux 13 (trixie) arm64\n", encoding="utf-8")
 
 def _bind_build_environment(manager: ImageMount) -> None:
     manager.bind_host_tree(share_storage=False)
