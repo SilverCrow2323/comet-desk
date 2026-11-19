@@ -37,6 +37,8 @@ local gamepadHeld = {}
 local keyboardHeld = { start = false, select = false }
 local exitRequested = false
 local selectedSlot = "tf1"
+-- Forward declarations: drawOverview/drawSetup are defined before these helpers.
+local desktopProfileInstalled, anyDesktopProfileInstalled
 local installedSlot = nil
 local desktopProfiles = {
     { id = "labwc", label = "LABWC", detail = "WAYLAND", accent = {0.22, 0.88, 0.94} },
@@ -2294,7 +2296,7 @@ end
 -- The Debian marker is the source of truth for installed profiles. The status
 -- file only records the most recent worker and must not make other installed
 -- profiles appear absent after a restart or profile switch.
-local function desktopProfileInstalled(slot, profile)
+desktopProfileInstalled = function(slot, profile)
     if appRoot == "" or not slot or not profile then return false end
     local roots = {
         tf1 = "/mnt/mmc/MUOS/CometDesk/Desktop",
@@ -2320,7 +2322,7 @@ local function desktopProfileInstalled(slot, profile)
     return false
 end
 
-local function anyDesktopProfileInstalled(slot)
+anyDesktopProfileInstalled = function(slot)
     for _, profile in ipairs(desktopProfiles) do
         if desktopProfileInstalled(slot, profile.id) then return true end
     end
