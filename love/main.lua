@@ -340,11 +340,13 @@ local function drawSetup()
         local state = item and item.status == "MOUNTED" and item.stats
             and (item.stats.read_only and "READ ONLY" or formatBytes(item.stats.free_bytes) .. " FREE")
             or "NOT DETECTED"
-        text(label, x, 382, fonts.tiny, selectedSlot == slot and colors.cyan or colors.muted)
-        text(state, x + 34, 382, fonts.tiny, usable and colors.green or colors.amber)
+        text((selectedSlot == slot and "> " or "  ") .. label, x, 382, fonts.tiny,
+            selectedSlot == slot and colors.cyan or colors.muted)
+        text(state, x + 48, 382, fonts.tiny, usable and colors.green or colors.amber)
     end
     slotLabel("TF1", "tf1", 34)
     slotLabel("TF2", "tf2", 214)
+    text("LEFT / RIGHT  SELECT STORAGE SLOT", 34, 402, fonts.tiny, colors.muted)
     local ready = imageDownload.state == "READY" and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
     text(ready and ("A  LAUNCH " .. selectedProfile:upper()) or ("A  INSTALL " .. selectedProfile:upper()),
         391, 383, fonts.small, ready and colors.green or tint)
