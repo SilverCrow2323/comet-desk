@@ -148,6 +148,8 @@ class ControllerMapper:
 
     def _command(self, name: str, pressed: bool) -> list[tuple[int, int, int]]:
         value = 1 if pressed else 0
+        if name == "disabled":
+            return []
         if name == "enter":
             return self._key(KEY_ENTER, value)
         if name == "escape":
