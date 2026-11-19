@@ -61,7 +61,7 @@ Open **DESKTOP INPUT** to change pointer speed, scroll speed, deadzone, bridge e
 
 ## Media Vault
 
-M opens the Comet Quick Panel. It displays Now Playing and provides A pause/resume, X stop and Y open Media Vault. Inside Media Vault, D-pad left/right cycles **TV**, **RADIO** and **PLAYLISTS**; up/down selects an item; A plays a selected radio/TV item or activates a playlist; Y toggles a TV/radio favourite; X stops playback; Start refreshes the IPTV catalogue and EPG.
+M opens the Comet Quick Panel. It displays Now Playing and provides A pause/resume, X stop and Y open Media Vault. Inside Media Vault, D-pad left/right cycles **TV**, **RADIO**, **PLAYLISTS** and **EPG**; up/down selects a channel, station or source; A plays the selected channel/station or activates a playlist; Y toggles a TV/radio favourite; X stops playback; Start refreshes the IPTV catalogue and EPG. EPG shows the selected channel's Now/Next programmes.
 
 For IPTV, copy local `.m3u` or `.m3u8` files to `data/media/playlists/imports`. They appear under PLAYLISTS after the catalogue refresh. The default remote source is IPTV-org Italy. TV entries show XMLTV Now/Next when a matching EPG source is available. Custom HTTP/HTTPS playlist sources can also be added with the service command documented in [Media Vault](MEDIA_VAULT.md).
 
