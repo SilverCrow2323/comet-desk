@@ -37,6 +37,8 @@ def _valid_entries():
         "CometDesk/love/version.txt": b"0.7.2-dev\n",
         "CometDesk/love/storage_selection.lua": b"return {}\n",
         "CometDesk/service/desktop_environment.py": b"print('Debian desktop manager')\n",
+        "CometDesk/service/desktop_input.py": b"print('controller bridge')\n",
+        "CometDesk/service/media_vault.py": b"print('IPTV and web radio')\n",
         "CometDesk/service/uplink_status.py": b"print('uplink manager')\n",
         "CometDesk/service/forge_apt.py": b"print('APT software centre')\n",
         "CometDesk/service/app_registry.py": b"print('Comet application registry')\n",
