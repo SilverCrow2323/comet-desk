@@ -62,6 +62,14 @@ def test_rejects_path_traversal(tmp_path):
     assert any("unsafe archive path" in error for error in validate_archive(path))
 
 
+def test_rejects_missing_version_metadata(tmp_path):
+    path = tmp_path / "missing-version.muxapp"
+    entries = _valid_entries()
+    del entries["CometDesk/love/version.txt"]
+    _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
+    assert any("required file missing: love/version.txt" in error for error in validate_archive(path))
+
+
 def test_rejects_missing_runtime(tmp_path):
     path = tmp_path / "incomplete.muxapp"
     entries = _valid_entries()
