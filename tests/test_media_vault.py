@@ -298,7 +298,7 @@ def test_channel_options_are_validated_before_reaching_mpv(monkeypatch):
     assert "--user-agent=Provider/2.0" in command
     assert "--referrer=https://provider.example/" in command
     assert "--http-header-fields=X-Provider: value" in command
-    assert "--no-config" not in command
+    assert command.count("--no-config") == 1
 
 
 def test_player_pid_guard_requires_owned_mpv_or_ffplay_cmdline(tmp_path):
