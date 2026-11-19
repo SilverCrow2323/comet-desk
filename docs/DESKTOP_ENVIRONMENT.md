@@ -137,3 +137,8 @@ Large package/application catalogues are parsed only when their backing catalogu
 
 
 The first-boot package baseline is deliberately lean: it includes APT, D-Bus, policy/device helpers, GVFS, fonts, desktop integration and the ext4 utilities required by Comet. Development toolchains and archive/network utilities (Git, compilers, CMake, Python packaging, unzip/zip and related tools) remain optional packages in THE FORGE instead of delaying the first usable desktop.
+
+
+### Stale operation recovery
+
+Comet no longer treats the presence of `debian-system.lock` or an old `STARTING`/`APT_UPDATE` status line as proof that an installer is still running. Before retrying, it probes the kernel `flock` ownership used by desktop setup, THE FORGE and APP DECK. If no process owns the lock, Comet clears the stale UI status and retries setup; if the lock is genuinely held, it keeps the console available and does not start a competing mount/APT task.
