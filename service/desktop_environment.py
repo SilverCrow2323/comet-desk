@@ -1184,6 +1184,10 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
     # Media output and desktop sessions share the same host display/audio
     # devices. Stop the Media Vault owner before mounting and starting a
     # desktop; no player process is allowed to survive this transition.
+    # A queued TV handoff must not survive a desktop launch and fire when
+    # the user later returns to Comet.
+    media_request = app_dir / "data" / "media-session.request"
+    media_request.unlink(missing_ok=True)
     media_script = Path(__file__).with_name("media_vault.py")
     if media_script.is_file():
         try:
@@ -1266,12 +1270,13 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
                 print("[comet-desktop] controller bridge unavailable: {}".format(exc),
                       file=log_stream, flush=True)
 
-        session = subprocess.Popen(
-            command, stdin=subprocess.DEVNULL, stdout=log_stream,
-            stderr=subprocess.STDOUT, env=env, start_new_session=True,
-        )
+        session = None
         app_process = None
         try:
+            session = subprocess.Popen(
+                command, stdin=subprocess.DEVNULL, stdout=log_stream,
+                stderr=subprocess.STDOUT, env=env, start_new_session=True,
+            )
             if application is None:
                 write_status(app_dir, "RUNNING", 100,
                              "Debian desktop running // press M for Comet Quick Panel",
@@ -1351,7 +1356,8 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
         finally:
             if app_process is not None:
                 stop_process_group(app_process)
-            stop_process_group(session)
+            if session is not None:
+                stop_process_group(session)
             if input_process is not None:
                 stop_process_group(input_process, grace_seconds=2.0)
             return_request.unlink(missing_ok=True)
