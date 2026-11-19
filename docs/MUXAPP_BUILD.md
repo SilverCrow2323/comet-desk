@@ -16,7 +16,7 @@ CometDesk/
 │   ├── device_probe.lua
 │   └── diagnostics_report.lua
 ├── service/
-│   └── desktop_environment.py
+│   ├── desktop_environment.py\n│   ├── forge_apt.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
@@ -37,17 +37,15 @@ The launcher follows the muOS Andromeda application runner contract: it sources 
 Every push, pull request and manual workflow run builds a package after the Lua and Python checks pass. Open the repository's **Actions** tab, select the **Project checks and device package** run, then download the `CometDesk-muOS-Andromeda-RG35XX-H` artifact. It contains the `.muxapp` and matching SHA-256 sidecar.
 
 
-## Integrated XFCE environment
+## Debian Trixie desktop and THE FORGE
 
-The Desktop Setup page builds the desktop environment inside Comet Desk. It uses the exact XFCE image seed pinned from the Void Desk H700 source (assets/xfce.img.gz) and the Ubuntu Base 24.04.3 ARM64 root filesystem. The currently inspected Void Desk bootstrap uses Ubuntu Base 24.04.3 (Noble), not Debian Trixie; Comet keeps that verified base/profile consistent rather than silently relabelling it.
+Desktop System builds one persistent Debian GNU/Linux 13 (Trixie) ARM64 rootfs with APT. The default profile is labwc; XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox can be installed as additional profiles in the same image. The rootfs is stored at `MUOS/CometDesk/Desktop/debian.img` on the explicitly selected TF1/TF2 card.
 
-Comet downloads the 4,181,220-byte image seed and verifies its Git blob SHA-1, downloads the 29,865,086-byte Ubuntu Base archive and verifies its SHA-256, expands the 4 GiB ext4 image, extracts the ARM64 root filesystem into it, and installs the XFCE/Xorg/input/audio packages. The environment is stored on the selected TF1/TF2 card at MUOS/CometDesk/Desktop/. The image is loop-mounted only while Comet is preparing or running the session.
+THE FORGE is Comet's curated APT software centre. It groups H700/muOS-oriented packages, queries live Debian APT availability and dpkg installation state, supports package search, installation, removal and index refresh. Its package allowlist excludes host muOS packages, kernel/firmware/bootloader utilities, systemd/init replacements, Snap/Flatpak, PackageKit and other unfiltered app stores. Input Leap is visible but disabled because Debian Trixie ARM64 does not currently offer it in the configured APT repositories; QJoyPad is marked X11-only.
 
-No external MUX app or installer is called. The MUX launcher supervises Comet: when the user starts XFCE, Comet's own UI exits to release the framebuffer, the same launcher invokes Comet's integrated session manager, and the UI is reopened after XFCE exits. The desktop uses the existing muOS kernel and host devices; it is not a second bootable OS.
+All package operations run inside the mounted Debian rootfs. The host muOS APT database is never touched. Desktop setup, package operations and session launches share one lock, preventing concurrent modification/mount attempts. See [Debian Desktop Environment](DESKTOP_ENVIRONMENT.md) and [THE FORGE](FORGE.md).
 
-The helper rejects missing or read-only target mounts, symbolic-link paths, insufficient free space, unexpected asset sizes, checksum mismatches and unverified loop/mount state. It does not format or repartition cards, flash raw devices, change muOS boot files or replace the active firmware. The mount tree and loop device are cleaned up on return; any cleanup failure remains visible in the status file and log.
-
-Controls: **L1 / R1** cycle navigation tabs, **A / Enter** installs XFCE or launches the prepared session, **Left / Right** selects TF1/TF2, **M** opens the Comet quick overlay while Comet is active, and **START + SELECT** exits Comet Desk.
+Controls: **L1/R1** changes Comet tabs; within THE FORGE, **D-pad up/down** selects packages, **D-pad left/right** changes category, **A** installs an available package, **X twice** removes an installed package, **Y** refreshes APT indexes and **/** starts keyboard search. Package installation/removal is always limited to the bundled curated allowlist.
 
 ## Visual assets
 
