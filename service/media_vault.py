@@ -632,7 +632,8 @@ def _player_command(kind: str, url: str) -> tuple[list[str], str]:
     ffplay = shutil.which("ffplay")
     if mpv:
         command = [mpv, "--no-config", "--no-terminal", "--really-quiet",
-                   "--network-timeout=12", "--cache=yes", "--cache-secs=5"]
+                   "--network-timeout=12", "--cache=yes", "--cache-secs=5",
+                   "--hwdec=auto-safe", "--osc=yes", "--input-cursor=yes"]
         if kind == "radio":
             command += ["--no-video", "--audio-display=no"]
         else:
@@ -886,25 +887,47 @@ def play_foreground(app_dir: Path) -> int:
     url = safe_url(request.get("url", ""))
     title = clean(request.get("title", "IPTV channel"), 160)
     command, player_name = _player_command("tv", url)
-    with paths["log"].open("ab") as log:
-        log.write(("\n=== TV PLAY // {} ===\n".format(title)).encode("utf-8", "replace"))
-        process = subprocess.Popen(
-            command, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-            start_new_session=True,
-            env={k: v for k, v in os.environ.items()
-                 if k not in ("LD_PRELOAD", "LD_AUDIT")},
-        )
-        atomic_write(paths["player_pid"], str(process.pid) + "\n")
-        write_status(app_dir, "PLAYING", "tv", title, player_name)
-        try:
-            while process.poll() is None:
-                time.sleep(0.15)
-        except KeyboardInterrupt:
-            _terminate(process)
-        finally:
-            paths["player_pid"].unlink(missing_ok=True)
-            write_status(app_dir, "STOPPED", "tv", title, player_name)
-        return process.returncode or 0
+    input_process = None
+    input_script = Path(__file__).with_name("desktop_input.py")
+    try:
+        if input_script.is_file():
+            try:
+                input_process = subprocess.Popen(
+                    [sys.executable, str(input_script), "--app-dir", str(app_dir),
+                     "--profile", "media"],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, start_new_session=True,
+                    env={k: v for k, v in os.environ.items()
+                         if k not in ("LD_PRELOAD", "LD_AUDIT")},
+                )
+                time.sleep(0.08)
+                if input_process.poll() is not None:
+                    input_process = None
+            except OSError:
+                input_process = None
+
+        with paths["log"].open("ab") as log:
+            log.write(("\n=== TV PLAY // {} ===\n".format(title)).encode("utf-8", "replace"))
+            process = subprocess.Popen(
+                command, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                start_new_session=True,
+                env={k: v for k, v in os.environ.items()
+                     if k not in ("LD_PRELOAD", "LD_AUDIT")},
+            )
+            atomic_write(paths["player_pid"], str(process.pid) + "\n")
+            write_status(app_dir, "PLAYING", "tv", title, player_name)
+            try:
+                while process.poll() is None:
+                    time.sleep(0.15)
+            except KeyboardInterrupt:
+                _terminate(process)
+            finally:
+                paths["player_pid"].unlink(missing_ok=True)
+                write_status(app_dir, "STOPPED", "tv", title, player_name)
+            return process.returncode or 0
+    finally:
+        if input_process is not None:
+            _terminate(input_process)
 
 
 def main() -> int:
