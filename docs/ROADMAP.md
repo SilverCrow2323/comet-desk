@@ -135,4 +135,5 @@ The product boundary and test authority are documented in [Product Blueprint](PR
 - [x] Add heartbeat-based cleanup if the Comet frontend disappears unexpectedly.
 - [ ] Validate evdev/uinput discovery, analogue calibration, click modifiers and desktop focus on the RG35XX H.
 - [ ] Validate MPV/FFPlay controls, IPTV stream compatibility, radio endpoints, audio output and EPG matching on the device.
-- [ ] Add an in-UI remote playlist URL editor and a richer multi-channel EPG guide.
+- [x] Add a controller-operated remote playlist URL editor and searchable channel catalogue.
+- [ ] Add a richer multi-channel EPG grid/timeline.
