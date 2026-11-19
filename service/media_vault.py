@@ -713,6 +713,18 @@ def heartbeat(app_dir: Path) -> None:
     path.touch()
 
 
+def decode_channel_options(encoded: str) -> dict:
+    """Decode the bounded URL-safe M3U option payload sent by the Comet UI."""
+    if not isinstance(encoded, str) or len(encoded) > 8192:
+        return {}
+    try:
+        padded = encoded + "=" * ((4 - len(encoded) % 4) % 4)
+        value = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
+    except (ValueError, UnicodeError, json.JSONDecodeError):
+        return {}
+    return _safe_stream_options(value)
+
+
 def _safe_stream_options(options: dict | None) -> dict:
     if not isinstance(options, dict):
         return {}
@@ -1018,11 +1030,7 @@ def play_foreground(app_dir: Path) -> int:
     url = safe_url(request.get("url", ""))
     title = clean(request.get("title", "IPTV channel"), 160)
     encoded_options = request.get("options", "")
-    try:
-        padded = str(encoded_options) + "=" * ((4 - len(str(encoded_options)) % 4) % 4)
-        options = json.loads(base64.urlsafe_b64decode(padded.encode("ascii"))) if encoded_options else {}
-    except (ValueError, UnicodeError):
-        options = {}
+    options = decode_channel_options(encoded_options)
     command, player_name = _player_command("tv", url, options)
     input_process = None
     input_script = Path(__file__).with_name("desktop_input.py")
