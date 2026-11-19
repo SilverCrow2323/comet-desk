@@ -1,66 +1,113 @@
-# Integrated XFCE environment
+# Debian Desktop Environment
 
 ## Purpose
 
-Comet Desk provides a controller-first XFCE desktop session on the RG35XX H without launching the Void Desk MUX application or another installer. It reuses the existing Void Desk H700 XFCE bootstrap inputs and owns the whole prepare/run/return lifecycle.
+Comet Desk manages one persistent Debian GNU/Linux 13 (Trixie) ARM64 root filesystem on TF1 or TF2. APT is the application and development package manager. Comet runs desktop sessions and later app-launch integrations inside this rootfs; muOS remains the host and supplies the running H700 kernel and hardware devices.
 
-## Verified source profile
+This is **not** an independent bootable firmware image, and Comet does not modify muOS boot files, partitions or firmware.
 
-| Layer | Current source contract |
+## Pinned Debian base
+
+| Item | Value |
 |---|---|
-| Device | Anbernic RG35XX H |
-| SoC | Allwinner H700 |
-| Host | muOS Andromeda |
-| Guest rootfs | Ubuntu Base 24.04.3 ARM64 (Noble) |
-| Desktop | XFCE 4 |
-| Display | Xorg + fbdev, 640×480 |
-| Kernel | Running muOS kernel; no guest kernel |
-| Image | Ext4 filesystem image, stored as a file on TF1 or TF2 |
+| Distribution | Debian GNU/Linux 13 (Trixie) |
+| Release manifest | 13.7 (stable) |
+| Architecture | arm64 / AArch64 |
+| Rootfs source | debuerreotype OCI Debian artifact |
+| Source commit | `3b26c3995c7fae47d95ba678632a3520e97054f7` |
+| Asset | `trixie/oci/blobs/rootfs.tar.gz` |
+| Compressed size | 49,778,604 bytes |
+| SHA-256 | `23b69c48ce5c2a6fb0681d959fa700427ad2a7cf7e6be5d25249170a1853d7ad` |
 
-The currently inspected Void Desk bootstrap source uses ubuntu-base-24.04.3-base-arm64.tar.gz. This is not a Debian Trixie root filesystem. Comet preserves the actual source profile and labels it accordingly.
+The URL is immutable and the OCI layer digest is checked before extraction:
+https://raw.githubusercontent.com/debuerreotype/docker-debian-artifacts/3b26c3995c7fae47d95ba678632a3520e97054f7/trixie/oci/blobs/rootfs.tar.gz
 
-## Downloaded inputs
+APT sources point to Debian Trixie, Trixie updates and Trixie security. The guest package database and caches persist in the Debian image.
 
-The XFCE seed is pinned to Void Desk commit 0fd1447bcf9f31a5e812f78b9e2afed4db01cce7:
+## Image layout and storage
 
-- assets/xfce.img.gz
-- Compressed asset size: 4,181,220 bytes
-- Git blob SHA-1: 9a9571d17f94dc9c8993782a4df4126833e47e8b
+- Image file: `MUOS/CometDesk/Desktop/debian.img`
+- Container size: 8 GiB (ext4 filesystem is expanded after the base packages are installed)
+- Minimum free space required before setup: 9 GiB on the selected card
+- Supported locations: explicitly selected TF1 or TF2
+- The root filesystem is mounted through a loop device only during setup, package operations or a desktop session.
 
-The ARM64 root filesystem is fetched from the Ubuntu Base 24.04 release directory:
+## Desktop profiles
 
-- ubuntu-base-24.04.3-base-arm64.tar.gz
-- Size: 29,865,086 bytes
-- SHA-256: 7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048
+One Debian rootfs supports multiple installable environments. They share APT, libraries, user data and installed applications.
 
-The checksum is listed in Ubuntu Base's published SHA256SUMS file: https://ftp.lysator.liu.se/ubuntu-dvd/ubuntu-base/releases/24.04/release/SHA256SUMS.
+| Profile | Session | Notes |
+|---|---|---|
+| **labwc** | Wayland | Default lightweight profile; requires a usable DRM/KMS card device |
+| XFCE | X11 | Full traditional desktop; QJoyPad support |
+| LXDE | X11 | Lightweight GTK desktop |
+| LXQt | X11 | Lightweight Qt desktop |
+| IceWM | X11 | Minimal window manager |
+| Fluxbox | X11 | Minimal window manager |
+| Openbox | X11 | Minimal window manager |
+
+Installing another profile adds its packages to the existing rootfs; it does not download a second operating system. On devices where `/dev/dri/card*` is absent or the wlroots DRM backend cannot take ownership, labwc is not launchable yet; choose an X11 profile until the H700 display path is validated.
 
 ## Comet-owned lifecycle
 
-1. Select and validate a mounted, writable TF1 or TF2 card.
-2. Require at least 5 GiB available.
-3. Download and authenticate the compressed ext4 seed.
-4. Expand it to MUOS/CometDesk/Desktop/xfce.img.
-5. Download and authenticate Ubuntu Base ARM64.
-6. Mount the ext4 file with a loop device and extract the root filesystem into it.
-7. Install XFCE, Xorg, input, audio, network and file-manager packages inside the guest.
-8. Verify XFCE entry points and persist a profile marker.
-9. Unmount all bind mounts and detach the loop device.
-10. On request, mount the image, bind required devices/services/storage and run startx.
-11. When the user exits XFCE, clean up mounts and resume Comet Desk.
+1. Validate the selected writable TF1/TF2 mount and the RG35XX H ARM64 profile.
+2. Download the pinned ext4 seed and Debian Trixie ARM64 rootfs.
+3. Verify exact asset size and SHA-256 before extraction.
+4. Expand the persistent image container and extract Debian into it.
+5. Write Debian Trixie APT sources and the Comet H700 display/input profile.
+6. Install the minimal APT baseline plus labwc and the selected environment profile.
+7. Verify the installed session entry points and persist a profile manifest.
+8. Unmount and detach all loop/bind mounts.
+9. On launch, Comet mounts the same image, exposes only required host devices/services, and starts the selected compositor/session.
+10. When the session ends, Comet cleans up and the muOS launcher reopens Comet Desk.
 
-The MUX launcher supervises both frontends. Comet Desk requests a session using a single private file in its own data directory; its launcher then invokes the integrated Python manager and reopens the Comet UI after the session ends. This is an internal Comet workflow, not a hand-off to Void Desk MUX or Archive Manager.
+A shared Debian-system lock serializes environment setup, package-manager operations and desktop sessions.
+
+## THE FORGE — APT software centre
+
+THE FORGE presents a curated, filtered catalogue grouped into handheld/input, desktop, development, media/audio, network and utilities. It reads real availability and installation state from Debian's APT/dpkg database.
+
+The first catalogue focuses on packages useful for muOS/H700 work:
+- Input inspection and controller tools: `evtest`, `joystick`, `inputattach`, `libinput-tools`, `qjoypad`, Xorg input drivers
+- Development: Git, curl/wget, Python venv/pip, GCC/build-essential, CMake, Ninja, pkg-config and SDL2 development files
+- Desktop: Foot, Waybar, Mako, Wofi, SwayBG, XWayland, Thunar, PCManFM and Xarchiver
+- Media/audio: FFmpeg, MPV, ALSA tools, Pavucontrol and SoX
+- Network: OpenSSH client, rsync, Syncthing and ping tools
+- Utilities: htop, btop, jq, tree, ncdu, zip/unzip, file and nano
+
+Only package names in Comet's catalogue may be installed or removed through the UI. The service verifies availability against the guest's APT cache, never interpolates arbitrary UI input into a shell command, avoids automatic service startup during package installation and never modifies the host muOS package database.
+
+### Input Leap status
+
+Input Leap is shown in the input catalogue, but disabled. The upstream project supports Linux and has Wayland support, but its documentation notes that clipboard sharing is not supported on Linux/Wayland. Debian Trixie ARM64 does not currently publish an `input-leap` package in the configured repositories, so Comet does not pretend it is an APT-installable package. It can be added later through a separately verified ARM64 build if needed.
+
+QJoyPad is available in Debian Trixie ARM64 but is an X11 application; it is not presented as a native labwc/Wayland input mapper.
+
+### Deliberately filtered out
+
+THE FORGE does not offer:
+- muOS host packages, kernel images, firmware, bootloaders or partition tools
+- systemd/init replacement, host service managers or host daemons
+- Snap, Flatpak, GNOME Software, KDE Discover or PackageKit
+- packages without a suitable Debian Trixie ARM64 package candidate
+- heavyweight desktop meta-packages as one-click “recommended” installs
+
+Comet itself provides the curated software-centre workflow; it does not need to install another app store into the guest.
+
+## App integration direction
+
+APT installs dependencies and Linux programs into the shared Debian rootfs. The next Comet subsystem will maintain an app registry (name, executable, arguments, icon, category, required packages and session compatibility), then launch those programs within the active Comet-managed desktop session. Installing a package does not yet automatically register it as a Comet application.
 
 ## Safety boundaries
 
-- The image is a file on TF1/TF2, not a raw disk image written to a block device.
-- No partition table, muOS boot files, U-Boot, DTB or firmware are changed.
-- The guest uses the existing H700 muOS kernel.
-- Every downloaded input is size/checksum verified before extraction.
-- Symlinked destinations, read-only mounts, insufficient space and invalid ext4 images are rejected.
-- Loop devices and bind mounts are tracked and their cleanup is verified.
-- A cleanup failure remains visible in Comet's status file and log.
+- No raw block-device writes, partition edits, firmware flashes or muOS boot changes.
+- Reject missing/read-only mounts, symlink paths and unexpected image/manifest files.
+- Verify the pinned rootfs payload before extraction.
+- Restrict package operations to the curated catalogue.
+- Serialize APT, setup and session operations through one lock.
+- Track and verify loop and bind mount cleanup.
+- A cleanup failure is written to status and log files.
 
 ## Hardware validation still required
 
-CI cannot prove that fbdev takes ownership and returns cleanly on the real RG35XX H. Physical tests must verify cold Comet launch, ext4 loop mount, Xorg framebuffer, controller mapping, audio, Wi-Fi/Bluetooth, XFCE application launch, logout, loop detach and automatic return to Comet/muOS.
+CI verifies syntax, package structure and service logic, but not a real display hand-off. The RG35XX H must validate loop mount, labwc DRM/KMS acquisition, Xorg fbdev fallback, controller mapping, audio/network access, package installation, app launch, session exit and full cleanup.
