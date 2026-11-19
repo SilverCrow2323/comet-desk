@@ -449,9 +449,8 @@ def extract_gzip_tar(archive_path: Path, destination: Path, *,
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         raise SetupError("Debian rootfs extraction timed out")
-                    writable, _, _ = select.select(
-                        [process.stdin] if False else [], [process.stdin], [],
-                        min(1.0, remaining),
+                    _, writable, _ = select.select(
+                        [], [process.stdin], [], min(1.0, remaining)
                     )
                     if not writable:
                         if process.poll() is not None:
