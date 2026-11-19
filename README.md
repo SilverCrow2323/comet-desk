@@ -7,7 +7,7 @@
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It owns a persistent Debian GNU/Linux 13 (Trixie) ARM64 root filesystem with APT, a default labwc session and optional X11/Wayland desktop profiles. Its software centre, THE FORGE, manages curated packages inside that Debian environment while muOS remains the host.
 
-> **Project status:** `0.8.0-dev` controller UI redesign line. The section rail now has visible curved fascia and guide tracks, compact per-section summary widgets, animated full-section overlays and a dedicated Select-controlled task console. CI validates Lua/Python sources and builds the installable RG35XX H `.muxapp`; physical-device validation remains outstanding.
+> **Project status:** `0.9.0-dev` controller-first desktop input and Media Vault integration line. The UI includes editable desktop controller bindings, a host-side virtual mouse/keyboard bridge, IPTV playlists with XMLTV Now/Next, web radio and one supervised player owner. CI validates Lua/Python sources and builds the installable RG35XX H `.muxapp`; physical-device validation remains outstanding.
 
 ## What it is
 
@@ -35,6 +35,8 @@ The app and documentation share one visual identity: industrial megastructure ar
 | System Tools | Read-only Debian, APT, profile and application-registry status | Integrated status dashboard |
 | Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
+| Desktop Input | Controller-to-desktop virtual keyboard/mouse, scroll and editable bindings | Integrated host-side bridge; hardware mapping validation pending |
+| Media Vault | IPTV, XMLTV Now/Next, web radio, favourites and single-owner playback | Integrated service and controller UI; player/stream/device validation pending |
 
 ## Safety principles
 
@@ -87,6 +89,8 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)
 - [THE FORGE package centre](docs/FORGE.md)
 - [APP DECK — Comet-managed Debian applications](docs/APP_DECK.md)
+- [Desktop Input — controller mapping](docs/DESKTOP_INPUT.md)
+- [Media Vault — IPTV, EPG and web radio](docs/MEDIA_VAULT.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)
