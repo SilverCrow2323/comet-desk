@@ -461,7 +461,13 @@ local function queueForgeAction(action, packageName)
     if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return end
     local slot = installedSlot or selectedSlot
     if not installedSlot then setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST"); return end
-    if forgeActionBusy then setNotice("THE FORGE IS ALREADY RUNNING AN APT OPERATION"); return end
+    if forgeActionBusy then
+        openOperationScreen("FORGE", "THE FORGE // " .. string.upper(forgeStatus.state),
+            appRoot .. "/data/forge-apt.log", forgeStatus.message, forgeStatus.state)
+        operationScreen.percent = forgeStatus.percent or 0
+        setNotice("REOPENED THE ACTIVE APT CONSOLE")
+        return
+    end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/forge_apt.py"
     if action ~= "catalog" then os.remove(appRoot .. "/data/forge-operation.status") end
@@ -560,7 +566,10 @@ local function queueAppCatalog()
         return
     end
     if appRegistryBusy then
-        setNotice("APP REGISTRY SCAN IS ALREADY RUNNING")
+        openOperationScreen("APP DECK", "APP DECK // INDEXING",
+            appRoot .. "/data/app-registry.log",
+            appRegistryMessage, appRegistryState)
+        setNotice("REOPENED THE APP DECK SCAN CONSOLE")
         return
     end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
@@ -1221,7 +1230,11 @@ local function startDesktopEnvironment()
         or imageDownload.state == "DOWNLOADING_ROOTFS" or imageDownload.state == "DOWNLOADING_TEMPLATE"
         or imageDownload.state == "EXPANDING_IMAGE" or imageDownload.state == "PREPARING_ROOTFS"
         or imageDownload.state == "EXTRACTING_ROOTFS" then
-        setNotice("DEBIAN SETUP IS ALREADY RUNNING")
+        openOperationScreen("DESKTOP", "DEBIAN TRIXIE // ACTIVE TASK",
+            appRoot .. "/data/desktop-environment.log",
+            imageDownload.message, imageDownload.state)
+        operationScreen.percent = imageDownload.percent or 0
+        setNotice("REOPENED THE DESKTOP BOOTSTRAP CONSOLE")
         return
     end
     if appRoot == "" then
