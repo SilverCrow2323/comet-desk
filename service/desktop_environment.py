@@ -491,7 +491,10 @@ def extract_gzip_tar(archive_path: Path, destination: Path, *,
         raise SetupError("Debian rootfs decompression/extraction failed: {}".format(exc)) from exc
     finally:
         if process.stdin is not None and not process.stdin.closed:
-            process.stdin.close()
+            try:
+                process.stdin.close()
+            except BrokenPipeError:
+                pass
 
 
 def _extract_gzip_image(seed: Path, image: Path, app_dir: Path) -> None:
