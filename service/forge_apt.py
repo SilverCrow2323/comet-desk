@@ -185,19 +185,31 @@ def with_rootfs(slot,app_dir,action,package=""):
                 return 0
             if action=="update":
                 write_status(app_dir,"UPDATING",5,"Refreshing Debian Trixie package indexes")
-                run(["chroot",str(mountpoint),"/usr/bin/env","DEBIAN_FRONTEND=noninteractive",
+                desktop.run_apt_with_progress(
+                    ["chroot",str(mountpoint),"/usr/bin/env","DEBIAN_FRONTEND=noninteractive",
                      "PATH=/usr/sbin:/usr/bin:/sbin:/bin","apt-get","-o","Acquire::Retries=2","update"],
-                    log,1500)
+                    log=log, timeout=1500,
+                    on_progress=lambda percent,message: write_status(
+                        app_dir,"UPDATING",5+int(percent*0.90),
+                        message or "Refreshing Debian Trixie package indexes"),
+                )
                 rows=query_catalog(mountpoint,log); write_catalog(app_dir,rows,"Package lists refreshed")
                 write_status(app_dir,"REFRESHED",100,"APT package indexes refreshed")
                 return 0
             command="install" if action=="install" else "remove"
             write_status(app_dir,"INSTALLING" if action=="install" else "REMOVING",
                          10,command.title()+" "+package,package)
-            run(["chroot",str(mountpoint),"/usr/bin/env","DEBIAN_FRONTEND=noninteractive",
-                 "APT_LISTCHANGES_FRONTEND=none","PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-                 "apt-get","-o","Acquire::Retries=2","-o","Dpkg::Options::=--force-confold",
-                 command,"-y","--no-install-recommends",package],log,2400)
+            operation_state = "INSTALLING" if action=="install" else "REMOVING"
+            run_command = ["chroot",str(mountpoint),"/usr/bin/env","DEBIAN_FRONTEND=noninteractive",
+                           "APT_LISTCHANGES_FRONTEND=none","PATH=/usr/sbin:/usr/bin:/sbin:/bin",
+                           "apt-get","-o","Acquire::Retries=2","-o","Dpkg::Options::=--force-confold",
+                           command,"-y","--no-install-recommends",package]
+            desktop.run_apt_with_progress(
+                run_command,log=log,timeout=2400,
+                on_progress=lambda percent,message: write_status(
+                    app_dir,operation_state,10+int(percent*0.85),
+                    message or (command.title()+" "+package),package),
+            )
             write_status(app_dir,"DONE",100,command.title()+" completed",package)
             rows=query_catalog(mountpoint,log); write_catalog(app_dir,rows,"Software inventory refreshed")
             return 0
