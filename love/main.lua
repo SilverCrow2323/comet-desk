@@ -20,6 +20,7 @@ local carouselTarget = 1
 local pageChangedDirection = 1
 local notice, noticeTimer = "SYSTEM READY // COMET DESK", 0
 local fonts = {}
+local mediaUI = {}
 local appVersion = "dev"
 local visuals = { background = nil, atlas = nil, quads = {} }
 local probe, diagnosticReport
@@ -245,7 +246,7 @@ local function drawFallbackMark(cx, cy, scale, tint, alpha)
     end
 end
 
-local function drawInputMark(cx, cy, scale, tint, alpha)
+function mediaUI.drawInputMark(cx, cy, scale, tint, alpha)
     love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
     love.graphics.setLineWidth(2 * scale)
     love.graphics.circle("line", cx, cy, 8 * scale)
@@ -256,7 +257,7 @@ local function drawInputMark(cx, cy, scale, tint, alpha)
     love.graphics.line(cx, cy + 8 * scale, cx, cy + 13 * scale)
 end
 
-local function drawMediaMark(cx, cy, scale, tint, alpha)
+function mediaUI.drawMediaMark(cx, cy, scale, tint, alpha)
     love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
     love.graphics.setLineWidth(2 * scale)
     love.graphics.line(cx - 4 * scale, cy - 12 * scale, cx - 4 * scale, cy + 6 * scale)
@@ -269,9 +270,9 @@ end
 local function drawPageIcon(page, x, y, scale, alpha)
     local tint = page.accent
     if page.id == "input" then
-        drawInputMark(x, y, scale, tint, alpha)
+        mediaUI.drawInputMark(x, y, scale, tint, alpha)
     elseif page.id == "media" then
-        drawMediaMark(x, y, scale, tint, alpha)
+        mediaUI.drawMediaMark(x, y, scale, tint, alpha)
     elseif page.id == "uplink" then
         drawGlobe(x, y, 9 * scale, tint, alpha)
     elseif page.id == "forge" then
@@ -1094,12 +1095,12 @@ local function drawMetricCard(x, y, w, label, value, detail, tint)
     text(short(detail, 24), x + 12, y + 54, fonts.tiny, tint or colors.muted)
 end
 
-local function desktopInputPath()
+function mediaUI.desktopInputPath()
     return appRoot ~= "" and (appRoot .. "/data/desktop-input.json") or ""
 end
 
-local function readDesktopInputConfig()
-    local path = desktopInputPath()
+function mediaUI.readDesktopInputConfig()
+    local path = mediaUI.desktopInputPath()
     if path == "" then return end
     local stream = io.open(path, "r")
     if not stream then return end
@@ -1119,9 +1120,9 @@ local function readDesktopInputConfig()
     end
 end
 
-local function writeDesktopInputConfig()
+function mediaUI.writeDesktopInputConfig()
     if appRoot == "" then return end
-    local path = desktopInputPath()
+    local path = mediaUI.desktopInputPath()
     local stream = io.open(path .. ".tmp", "w")
     if not stream then setNotice("COULD NOT SAVE DESKTOP INPUT PROFILE"); return end
     local b = desktopInput.bindings
@@ -1146,7 +1147,7 @@ local function writeDesktopInputConfig()
     setNotice("DESKTOP INPUT PROFILE SAVED // NEXT SESSION")
 end
 
-local function adjustDesktopInput(direction)
+function mediaUI.adjustDesktopInput(direction)
     local option = desktopInput.selectedOption
     if option == 1 then
         desktopInput.pointerSpeed = math.max(200, math.min(2200,
@@ -1171,10 +1172,10 @@ local function adjustDesktopInput(direction)
             desktopInput.bindings[row.key] = inputActionChoices[index]
         end
     end
-    writeDesktopInputConfig()
+    mediaUI.writeDesktopInputConfig()
 end
 
-local function resetDesktopInput()
+function mediaUI.resetDesktopInput()
     desktopInput.enabled = true
     desktopInput.pointerSpeed = 900
     desktopInput.scrollSpeed = 9
@@ -1185,11 +1186,11 @@ local function resetDesktopInput()
         ["r1+x"] = "alt_tab", start = "super", select = "comet_panel",
     }
     desktopInput.selectedOption = 1
-    writeDesktopInputConfig()
+    mediaUI.writeDesktopInputConfig()
     setNotice("DESKTOP INPUT // DEFAULT MAP RESTORED")
 end
 
-local function readDesktopInputStatus()
+function mediaUI.readDesktopInputStatus()
     if appRoot == "" then return end
     local stream = io.open(appRoot .. "/data/desktop-input.status", "r")
     if not stream then return end
@@ -1199,17 +1200,17 @@ local function readDesktopInputStatus()
     if state then desktopInput.state = state; desktopInput.detail = detail or "" end
 end
 
-local function shellQuoteMedia(value)
+function mediaUI.shellQuoteMedia(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
-local function queueMediaTask(action, extra)
+function mediaUI.queueMediaTask(action, extra)
     if appRoot == "" then setNotice("COMET MEDIA SERVICE PATH UNAVAILABLE"); return end
     local script = appRoot .. "/service/media_vault.py"
-    local command = "cd " .. shellQuoteMedia(appRoot) .. " && python3 "
-        .. shellQuoteMedia(script) .. " " .. action .. " --app-dir "
-        .. shellQuoteMedia(appRoot) .. (extra and (" " .. extra) or "")
-        .. " >> " .. shellQuoteMedia(appRoot .. "/data/media-vault.log") .. " 2>&1 &"
+    local command = "cd " .. mediaUI.shellQuoteMedia(appRoot) .. " && python3 "
+        .. mediaUI.shellQuoteMedia(script) .. " " .. action .. " --app-dir "
+        .. mediaUI.shellQuoteMedia(appRoot) .. (extra and (" " .. extra) or "")
+        .. " >> " .. mediaUI.shellQuoteMedia(appRoot .. "/data/media-vault.log") .. " 2>&1 &"
     local result = os.execute(command)
     if result == 0 or result == true then
         setNotice("MEDIA VAULT // " .. action:upper())
@@ -1218,7 +1219,7 @@ local function queueMediaTask(action, extra)
     end
 end
 
-local function readMediaStatus()
+function mediaUI.readMediaStatus()
     if appRoot == "" then return end
     local stream = io.open(appRoot .. "/data/media-player.status", "r")
     if not stream then return end
@@ -1228,7 +1229,7 @@ local function readMediaStatus()
     if state then mediaStatus = {state = state, kind = kind, title = title, player = player} end
 end
 
-local function readMediaCatalog()
+function mediaUI.readMediaCatalog()
     if appRoot == "" then return end
     local stream = io.open(appRoot .. "/data/media-vault.catalog", "r")
     if not stream then return end
@@ -1289,26 +1290,26 @@ local function readMediaCatalog()
     if mediaSelectedIndex > #rows then mediaSelectedIndex = math.max(1, #rows) end
 end
 
-local function queueMediaCatalogue(force)
+function mediaUI.queueMediaCatalogue(force)
     if mediaCatalogBusy or appRoot == "" then return end
     mediaCatalogBusy = true
     mediaCatalogBusyAge = 0
-    queueMediaTask(force and "catalogue" or "init", force and "--force" or nil)
+    mediaUI.queueMediaTask(force and "catalogue" or "init", force and "--force" or nil)
 end
 
-local function queueMediaRadio(item)
+function mediaUI.queueMediaRadio(item)
     if not item then return end
-    queueMediaTask("play-radio", "--query " .. shellQuoteMedia(item.id))
+    mediaUI.queueMediaTask("play-radio", "--query " .. mediaUI.shellQuoteMedia(item.id))
 end
 
-local function queueMediaActivatePlaylist(item)
+function mediaUI.queueMediaActivatePlaylist(item)
     if not item then return end
-    queueMediaTask("activate-playlist", "--query " .. shellQuoteMedia(item.id))
+    mediaUI.queueMediaTask("activate-playlist", "--query " .. mediaUI.shellQuoteMedia(item.id))
     mediaCatalogLoaded, mediaCatalogBusy = false, true
     mediaCatalogBusyAge = 0
 end
 
-local function openMediaUrlDialog()
+function mediaUI.openMediaUrlDialog()
     mediaUrlDialog = true
     mediaUrlField = "name"
     mediaUrlName = ""
@@ -1318,24 +1319,24 @@ local function openMediaUrlDialog()
     mediaSearchActive = false
 end
 
-local function closeMediaUrlDialog()
+function mediaUI.closeMediaUrlDialog()
     mediaUrlDialog = false
     mediaUrlShift = false
 end
 
-local function mediaUrlCharacters()
+function mediaUI.mediaUrlCharacters()
     local lower, upper = "abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     local rest = "0123456789:/._-?&=%+@~# "
     return (mediaUrlShift and upper or lower)
         .. (mediaUrlShift and lower or upper) .. rest
 end
 
-local function mediaUrlMove(delta)
-    local count = #mediaUrlCharacters()
+function mediaUI.mediaUrlMove(delta)
+    local count = #mediaUI.mediaUrlCharacters()
     mediaUrlCharIndex = ((mediaUrlCharIndex - 1 + delta) % count) + 1
 end
 
-local function mediaUrlAppend(value)
+function mediaUI.mediaUrlAppend(value)
     if mediaUrlField == "name" then
         if #mediaUrlName < 80 then mediaUrlName = mediaUrlName .. value end
     elseif #mediaUrlValue < 512 then
@@ -1343,7 +1344,7 @@ local function mediaUrlAppend(value)
     end
 end
 
-local function mediaUrlBackspace()
+function mediaUI.mediaUrlBackspace()
     if mediaUrlField == "name" then
         mediaUrlName = mediaUrlName:sub(1, math.max(0, #mediaUrlName - 1))
     else
@@ -1351,7 +1352,7 @@ local function mediaUrlBackspace()
     end
 end
 
-local function commitMediaUrlDialog()
+function mediaUI.commitMediaUrlDialog()
     local name = mediaUrlName:gsub("^%s+", ""):gsub("%s+$", "")
     local url = mediaUrlValue:gsub("^%s+", ""):gsub("%s+$", "")
     if url == "" then
@@ -1359,43 +1360,43 @@ local function commitMediaUrlDialog()
         setNotice("ENTER A PLAYLIST URL FIRST")
         return
     end
-    closeMediaUrlDialog()
+    mediaUI.closeMediaUrlDialog()
     mediaCatalogLoaded, mediaCatalogBusy = false, true
     mediaCatalogBusyAge = 0
-    queueMediaTask("import-playlist", "--name "
-        .. shellQuoteMedia(name ~= "" and name or "Custom IPTV")
-        .. " --url " .. shellQuoteMedia(url))
+    mediaUI.queueMediaTask("import-playlist", "--name "
+        .. mediaUI.shellQuoteMedia(name ~= "" and name or "Custom IPTV")
+        .. " --url " .. mediaUI.shellQuoteMedia(url))
 end
 
-local function queueMediaFavourite(item)
+function mediaUI.queueMediaFavourite(item)
     if mediaMode == "PLAYLISTS" then
         setNotice("SELECT A TV OR RADIO ITEM TO CHANGE FAVOURITES")
         return
     end
     if not item then return end
     local kind = mediaMode == "RADIO" and "radio" or "tv"
-    queueMediaTask("toggle-favourite", "--kind " .. kind
-        .. " --query " .. shellQuoteMedia(item.id))
+    mediaUI.queueMediaTask("toggle-favourite", "--kind " .. kind
+        .. " --query " .. mediaUI.shellQuoteMedia(item.id))
 end
 
-local function queueMediaRefresh()
-    queueMediaCatalogue(true)
-    queueMediaTask("refresh-epg")
+function mediaUI.queueMediaRefresh()
+    mediaUI.queueMediaCatalogue(true)
+    mediaUI.queueMediaTask("refresh-epg")
 end
 
-local function queueMediaStop()
-    queueMediaTask("stop")
+function mediaUI.queueMediaStop()
+    mediaUI.queueMediaTask("stop")
 end
 
-local function queueMediaToggle()
+function mediaUI.queueMediaToggle()
     if mediaStatus.state == "PLAYING" or mediaStatus.state == "PAUSED" then
-        queueMediaTask("toggle")
+        mediaUI.queueMediaTask("toggle")
     else
         setNotice("NO MEDIA STREAM IS PLAYING")
     end
 end
 
-local function queueMediaTV(item)
+function mediaUI.queueMediaTV(item)
     if appRoot == "" or not item then return end
     local function jsonQuote(value)
         value = tostring(value or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
@@ -1419,7 +1420,7 @@ local function queueMediaTV(item)
     love.event.quit()
 end
 
-local function heartbeatMedia()
+function mediaUI.heartbeatMedia()
     if appRoot == "" then return end
     local stream = io.open(appRoot .. "/data/media-player.heartbeat", "a")
     if stream then stream:write(tostring(os.time()), "\n"); stream:close() end
@@ -1516,7 +1517,7 @@ local function drawSectionWidget()
     text("A  OPEN SECTION", 492, 196, fonts.tiny, tint)
 end
 
-local function drawDesktopInput()
+function mediaUI.drawDesktopInput()
     local page, tint = pages[activePage], pages[activePage].accent
     drawSectionStructure(20, 183, 600, 232, page, 1)
     text("COMET INPUT BRIDGE  //  HOST uinput", 36, 196, fonts.small, tint)
@@ -1571,7 +1572,7 @@ local function drawDesktopInput()
     end
 end
 
-local function selectedMediaRows()
+function mediaUI.selectedMediaRows()
     local source = mediaMode == "RADIO" and mediaItemsRadio
         or (mediaMode == "PLAYLISTS" and mediaItemsPlaylists or mediaItemsTV)
     local needle = mediaSearch:lower():match("^%s*(.-)%s*$") or ""
@@ -1593,7 +1594,7 @@ local function selectedMediaRows()
     return mediaFilteredRows
 end
 
-local function cycleMediaMode(direction)
+function mediaUI.cycleMediaMode(direction)
     local modes = {"TV", "RADIO", "PLAYLISTS", "GUIDE"}
     local current = 1
     for i, mode in ipairs(modes) do
@@ -1603,8 +1604,8 @@ local function cycleMediaMode(direction)
     mediaSelectedIndex = 1
 end
 
-local function drawMediaUrlEditor(tint)
-    local chars, columns = mediaUrlCharacters(), 9
+function mediaUI.drawMediaUrlEditor(tint)
+    local chars, columns = mediaUI.mediaUrlCharacters(), 9
     love.graphics.setColor(0.005, 0.009, 0.018, 0.94)
     love.graphics.rectangle("fill", 0, 0, W, H)
     rounded(22, 160, 596, 258, colors.panel, {tint[1], tint[2], tint[3], 0.95})
@@ -1641,7 +1642,7 @@ local function drawMediaUrlEditor(tint)
     text("START SAVE  //  B CANCEL", 38, 400, fonts.tiny, tint)
 end
 
-local function drawMediaVault()
+function mediaUI.drawMediaVault()
     local page, tint = pages[activePage], pages[activePage].accent
     drawSectionStructure(20, 183, 600, 232, page, 1)
     text("MEDIA VAULT  //  IPTV + BROADCAST AUDIO", 36, 196, fonts.small, tint)
@@ -1670,7 +1671,7 @@ local function drawMediaVault()
     text(short(modeTitle, 48), 358, 222, fonts.tiny,
         mediaSearchActive and tint or colors.muted)
 
-    local rows = selectedMediaRows()
+    local rows = mediaUI.selectedMediaRows()
     local count = #rows
     local displayCount = count + (mediaMode == "PLAYLISTS" and 1 or 0)
     if mediaSelectedIndex > displayCount then mediaSelectedIndex = math.max(1, displayCount) end
@@ -1748,12 +1749,12 @@ local function drawMediaVault()
         text("EPG  //  " .. short(mediaEpgStatus, 58), 38, 408, fonts.tiny,
             mediaEpgStatus:find("READY", 1, true) and colors.green or colors.muted)
     end
-    if mediaUrlDialog then drawMediaUrlEditor(tint) end
+    if mediaUrlDialog then mediaUI.drawMediaUrlEditor(tint) end
 end
 
 local function drawPageContent()
-    if activePage == 8 then drawDesktopInput()
-    elseif activePage == 9 then drawMediaVault()
+    if activePage == 8 then mediaUI.drawDesktopInput()
+    elseif activePage == 9 then mediaUI.drawMediaVault()
     elseif activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
     elseif activePage == 3 then drawAppDeck()
@@ -1961,10 +1962,10 @@ function love.load()
             normalizeSelectedSlot(false)
         end
     end
-    readDesktopInputConfig()
-    readDesktopInputStatus()
-    readMediaStatus()
-    readMediaCatalog()
+    mediaUI.readDesktopInputConfig()
+    mediaUI.readDesktopInputStatus()
+    mediaUI.readMediaStatus()
+    mediaUI.readMediaCatalog()
 end
 
 local function readImageDownloadStatus()
@@ -2041,17 +2042,17 @@ function love.update(dt)
     mediaHeartbeat = mediaHeartbeat + dt
     if mediaHeartbeat >= 1 then
         mediaHeartbeat = 0
-        heartbeatMedia()
+        mediaUI.heartbeatMedia()
     end
     mediaPoll = mediaPoll + dt
     if mediaPoll >= 0.5 then
         mediaPoll = 0
-        readMediaStatus()
-        readMediaCatalog()
-        readDesktopInputStatus()
+        mediaUI.readMediaStatus()
+        mediaUI.readMediaCatalog()
+        mediaUI.readDesktopInputStatus()
     end
     if activePage == 9 and not mediaCatalogLoaded and not mediaCatalogBusy then
-        queueMediaCatalogue(false)
+        mediaUI.queueMediaCatalogue(false)
     end
 
     downloadPoll = downloadPoll + dt
@@ -2556,18 +2557,18 @@ function love.keypressed(key)
     end
     if mediaUrlDialog then
         if key == "escape" or key == "b" then
-            closeMediaUrlDialog()
+            mediaUI.closeMediaUrlDialog()
         elseif key == "backspace" then
-            mediaUrlBackspace()
+            mediaUI.mediaUrlBackspace()
         elseif key == "tab" or key == "y" then
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif key == "return" then
             if mediaUrlField == "name" then mediaUrlField = "url"
-            else commitMediaUrlDialog() end
-        elseif key == "left" then mediaUrlMove(-1)
-        elseif key == "right" then mediaUrlMove(1)
-        elseif key == "up" then mediaUrlMove(-8)
-        elseif key == "down" then mediaUrlMove(8)
+            else mediaUI.commitMediaUrlDialog() end
+        elseif key == "left" then mediaUI.mediaUrlMove(-1)
+        elseif key == "right" then mediaUI.mediaUrlMove(1)
+        elseif key == "up" then mediaUI.mediaUrlMove(-8)
+        elseif key == "down" then mediaUI.mediaUrlMove(8)
         elseif key == "lshift" or key == "rshift" then
             mediaUrlShift = not mediaUrlShift
         end
@@ -2575,35 +2576,35 @@ function love.keypressed(key)
     end
     if mediaUrlDialog then
         if key == "escape" or key == "b" then
-            closeMediaUrlDialog()
+            mediaUI.closeMediaUrlDialog()
         elseif key == "backspace" then
-            mediaUrlBackspace()
+            mediaUI.mediaUrlBackspace()
         elseif key == "tab" or key == "y" then
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif key == "return" then
             if mediaUrlField == "name" then mediaUrlField = "url"
-            else commitMediaUrlDialog() end
-        elseif key == "left" then mediaUrlMove(-1)
-        elseif key == "right" then mediaUrlMove(1)
-        elseif key == "up" then mediaUrlMove(-9)
-        elseif key == "down" then mediaUrlMove(9)
+            else mediaUI.commitMediaUrlDialog() end
+        elseif key == "left" then mediaUI.mediaUrlMove(-1)
+        elseif key == "right" then mediaUI.mediaUrlMove(1)
+        elseif key == "up" then mediaUI.mediaUrlMove(-9)
+        elseif key == "down" then mediaUI.mediaUrlMove(9)
         end
         return
     end
     if mediaUrlDialog then
         if key == "escape" then
-            closeMediaUrlDialog()
+            mediaUI.closeMediaUrlDialog()
         elseif key == "backspace" then
-            mediaUrlBackspace()
+            mediaUI.mediaUrlBackspace()
         elseif key == "tab" then
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif key == "return" then
             if mediaUrlField == "name" then mediaUrlField = "url"
-            else commitMediaUrlDialog() end
-        elseif key == "left" then mediaUrlMove(-1)
-        elseif key == "right" then mediaUrlMove(1)
-        elseif key == "up" then mediaUrlMove(-9)
-        elseif key == "down" then mediaUrlMove(9)
+            else mediaUI.commitMediaUrlDialog() end
+        elseif key == "left" then mediaUI.mediaUrlMove(-1)
+        elseif key == "right" then mediaUI.mediaUrlMove(1)
+        elseif key == "up" then mediaUI.mediaUrlMove(-9)
+        elseif key == "down" then mediaUI.mediaUrlMove(9)
         end
         return
     end
@@ -2616,9 +2617,9 @@ function love.keypressed(key)
         if key == "escape" or key == "backspace" or key == "b" then
             toggleQuickPanel()
         elseif key == "return" or key == "space" then
-            queueMediaToggle()
+            mediaUI.queueMediaToggle()
         elseif key == "x" then
-            queueMediaStop()
+            mediaUI.queueMediaStop()
         elseif key == "y" then
             toggleQuickPanel()
             selected, activePage, carouselTarget = 9, 9, 9
@@ -2650,16 +2651,16 @@ function love.keypressed(key)
         if activePage == 2 then selectedSlot = "tf1"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(-1)
         elseif activePage == 5 then cycleForgeCategory(-1)
-        elseif activePage == 8 then adjustDesktopInput(-1)
-        elseif activePage == 9 then cycleMediaMode(-1)
+        elseif activePage == 8 then mediaUI.adjustDesktopInput(-1)
+        elseif activePage == 9 then mediaUI.cycleMediaMode(-1)
         end
     elseif key == "right" or key == "d" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then selectedSlot = "tf2"; normalizeSelectedSlot(true)
         elseif activePage == 3 then cycleAppCategory(1)
         elseif activePage == 5 then cycleForgeCategory(1)
-        elseif activePage == 8 then adjustDesktopInput(1)
-        elseif activePage == 9 then cycleMediaMode(1)
+        elseif activePage == 8 then mediaUI.adjustDesktopInput(1)
+        elseif activePage == 9 then mediaUI.cycleMediaMode(1)
         end
     elseif key == "up" or key == "w" then
         if not sectionOverlayOpen then return end
@@ -2676,7 +2677,7 @@ function love.keypressed(key)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
         elseif activePage == 9 then
-            local rows = #selectedMediaRows()
+            local rows = #mediaUI.selectedMediaRows()
             mediaSelectedIndex = math.min(rows + (mediaMode == "PLAYLISTS" and 1 or 0),
                 mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
@@ -2701,16 +2702,16 @@ function love.keypressed(key)
         if activePage == 2 then
             startDesktopEnvironment()
         elseif activePage == 8 then
-            adjustDesktopInput(1)
+            mediaUI.adjustDesktopInput(1)
         elseif activePage == 9 then
-            local item = selectedMediaRows()[mediaSelectedIndex]
+            local item = mediaUI.selectedMediaRows()[mediaSelectedIndex]
             if mediaMode == "PLAYLISTS"
-                and mediaSelectedIndex == #selectedMediaRows() + 1 then
-                openMediaUrlDialog()
+                and mediaSelectedIndex == #mediaUI.selectedMediaRows() + 1 then
+                mediaUI.openMediaUrlDialog()
             elseif item then
-                if mediaMode == "RADIO" then queueMediaRadio(item)
-                elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
-                else queueMediaTV(item) end
+                if mediaMode == "RADIO" then mediaUI.queueMediaRadio(item)
+                elseif mediaMode == "PLAYLISTS" then mediaUI.queueMediaActivatePlaylist(item)
+                else mediaUI.queueMediaTV(item) end
             end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
@@ -2729,13 +2730,13 @@ function love.keypressed(key)
             setNotice(pages[activePage].title .. " // NO PRIMARY ACTION")
         end
     elseif key == "y" and sectionOverlayOpen and activePage == 8 then
-        resetDesktopInput()
+        mediaUI.resetDesktopInput()
     elseif key == "y" and sectionOverlayOpen and activePage == 9 then
-        queueMediaFavourite(selectedMediaRows()[mediaSelectedIndex])
+        mediaUI.queueMediaFavourite(mediaUI.selectedMediaRows()[mediaSelectedIndex])
     elseif key == "r" and sectionOverlayOpen and activePage == 9 then
-        queueMediaRefresh()
+        mediaUI.queueMediaRefresh()
     elseif key == "x" and sectionOverlayOpen and activePage == 9 then
-        queueMediaStop()
+        mediaUI.queueMediaStop()
     elseif key == "r" and sectionOverlayOpen and activePage == 5 then
         local item = forgeFilteredPackages()[forgeSelectedIndex]
         if item and item.installed then
@@ -2773,7 +2774,7 @@ end
 
 function love.textinput(value)
     if mediaUrlDialog then
-        mediaUrlAppend(value)
+        mediaUI.mediaUrlAppend(value)
         return
     end
     if not sectionOverlayOpen then return end
@@ -2813,26 +2814,26 @@ function love.gamepadpressed(joystick, button)
 
     if mediaUrlDialog then
         if button == "b" then
-            closeMediaUrlDialog()
+            mediaUI.closeMediaUrlDialog()
         elseif button == "a" then
-            local chars = mediaUrlCharacters()
-            mediaUrlAppend(chars:sub(mediaUrlCharIndex, mediaUrlCharIndex))
+            local chars = mediaUI.mediaUrlCharacters()
+            mediaUI.mediaUrlAppend(chars:sub(mediaUrlCharIndex, mediaUrlCharIndex))
         elseif button == "x" then
-            mediaUrlBackspace()
+            mediaUI.mediaUrlBackspace()
         elseif button == "y" then
             mediaUrlField = mediaUrlField == "name" and "url" or "name"
         elseif button == "start" then
-            commitMediaUrlDialog()
+            mediaUI.commitMediaUrlDialog()
         elseif button == "rightshoulder" then
             mediaUrlShift = not mediaUrlShift
         elseif button == "dpleft" then
-            mediaUrlMove(-1)
+            mediaUI.mediaUrlMove(-1)
         elseif button == "dpright" then
-            mediaUrlMove(1)
+            mediaUI.mediaUrlMove(1)
         elseif button == "dpup" then
-            mediaUrlMove(-9)
+            mediaUI.mediaUrlMove(-9)
         elseif button == "dpdown" then
-            mediaUrlMove(9)
+            mediaUI.mediaUrlMove(9)
         end
         return
     end
@@ -2858,9 +2859,9 @@ function love.gamepadpressed(joystick, button)
         if button == "b" then
             toggleQuickPanel()
         elseif button == "a" then
-            queueMediaToggle()
+            mediaUI.queueMediaToggle()
         elseif button == "x" then
-            queueMediaStop()
+            mediaUI.queueMediaStop()
         elseif button == "y" then
             toggleQuickPanel()
             selected, activePage, carouselTarget = 9, 9, 9
@@ -2909,7 +2910,7 @@ function love.gamepadpressed(joystick, button)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
         elseif activePage == 9 then
-            local rows = #selectedMediaRows()
+            local rows = #mediaUI.selectedMediaRows()
             mediaSelectedIndex = math.min(rows + (mediaMode == "PLAYLISTS" and 1 or 0),
                 mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
@@ -2928,13 +2929,13 @@ function love.gamepadpressed(joystick, button)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 5 then
         cycleForgeCategory(1)
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 8 then
-        adjustDesktopInput(-1)
+        mediaUI.adjustDesktopInput(-1)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 8 then
-        adjustDesktopInput(1)
+        mediaUI.adjustDesktopInput(1)
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 9 then
-        cycleMediaMode(-1)
+        mediaUI.cycleMediaMode(-1)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 9 then
-        cycleMediaMode(1)
+        mediaUI.cycleMediaMode(1)
     elseif button == "a" then
         if not sectionOverlayOpen then
             activate()
@@ -2943,16 +2944,16 @@ function love.gamepadpressed(joystick, button)
         if activePage == 2 then
             startDesktopEnvironment()
         elseif activePage == 8 then
-            adjustDesktopInput(1)
+            mediaUI.adjustDesktopInput(1)
         elseif activePage == 9 then
-            local item = selectedMediaRows()[mediaSelectedIndex]
+            local item = mediaUI.selectedMediaRows()[mediaSelectedIndex]
             if mediaMode == "PLAYLISTS"
-                and mediaSelectedIndex == #selectedMediaRows() + 1 then
-                openMediaUrlDialog()
+                and mediaSelectedIndex == #mediaUI.selectedMediaRows() + 1 then
+                mediaUI.openMediaUrlDialog()
             elseif item then
-                if mediaMode == "RADIO" then queueMediaRadio(item)
-                elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
-                else queueMediaTV(item) end
+                if mediaMode == "RADIO" then mediaUI.queueMediaRadio(item)
+                elseif mediaMode == "PLAYLISTS" then mediaUI.queueMediaActivatePlaylist(item)
+                else mediaUI.queueMediaTV(item) end
             end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
@@ -2982,13 +2983,13 @@ function love.gamepadpressed(joystick, button)
             end
         end
     elseif button == "y" and sectionOverlayOpen and activePage == 8 then
-        resetDesktopInput()
+        mediaUI.resetDesktopInput()
     elseif button == "y" and sectionOverlayOpen and activePage == 9 then
-        queueMediaFavourite(selectedMediaRows()[mediaSelectedIndex])
+        mediaUI.queueMediaFavourite(mediaUI.selectedMediaRows()[mediaSelectedIndex])
     elseif button == "start" and sectionOverlayOpen and activePage == 9 then
-        queueMediaRefresh()
+        mediaUI.queueMediaRefresh()
     elseif button == "x" and sectionOverlayOpen and activePage == 9 then
-        queueMediaStop()
+        mediaUI.queueMediaStop()
     elseif button == "y" and sectionOverlayOpen and activePage == 3 then
         appCatalogLoaded = false
         queueAppCatalog()
