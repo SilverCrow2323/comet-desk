@@ -10,6 +10,8 @@ local pages = {
     { id = "forge", title = "THE FORGE", subtitle = "Discover, install and manage curated Debian ARM64 software.", icon = "⚒", accent = {1.0, 0.48, 0.22} },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Live guest, storage and registry state — no simulated controls.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
     { id = "diagnostics", title = "DIAGNOSTICS", subtitle = "Read-only checks for your device and runtime.", icon = "⌁", accent = {0.96, 0.30, 0.70} },
+    { id = "input", title = "DESKTOP INPUT", subtitle = "Controller mouse, keyboard, click and scroll mapping.", icon = "⌖", accent = {0.30, 0.86, 0.72} },
+    { id = "media", title = "MEDIA VAULT", subtitle = "IPTV, multi-source EPG and web radio. One player owner.", icon = "♫", accent = {0.96, 0.36, 0.68} },
 }
 
 local selected, activePage = 1, 1
@@ -77,6 +79,15 @@ local sectionOverlayOpen = false
 local sectionOverlayProgress = 0
 local overlayScroll = 0
 local overlayScrollLimit = 160
+local desktopInput = {
+    enabled = true, pointerSpeed = 900, scrollSpeed = 9,
+    deadzone = 0.18, selectedOption = 1, state = "NOT CHECKED", detail = "",
+}
+local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
+local mediaCatalog = {playlists = 0, channels = 0, radios = 0, name = "IPTV-org // ITALIA", error = ""}
+local mediaItemsTV, mediaItemsRadio = {}, {}
+local mediaMode, mediaSelectedIndex = "RADIO", 1
+local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
 
 local function setNotice(message)
     notice = message
@@ -200,9 +211,34 @@ local function drawFallbackMark(cx, cy, scale, tint, alpha)
     end
 end
 
+local function drawInputMark(cx, cy, scale, tint, alpha)
+    love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
+    love.graphics.setLineWidth(2 * scale)
+    love.graphics.circle("line", cx, cy, 8 * scale)
+    love.graphics.circle("line", cx, cy, 2 * scale)
+    love.graphics.line(cx - 13 * scale, cy, cx - 8 * scale, cy)
+    love.graphics.line(cx + 8 * scale, cy, cx + 13 * scale, cy)
+    love.graphics.line(cx, cy - 13 * scale, cx, cy - 8 * scale)
+    love.graphics.line(cx, cy + 8 * scale, cx, cy + 13 * scale)
+end
+
+local function drawMediaMark(cx, cy, scale, tint, alpha)
+    love.graphics.setColor(tint[1], tint[2], tint[3], alpha or 1)
+    love.graphics.setLineWidth(2 * scale)
+    love.graphics.line(cx - 4 * scale, cy - 12 * scale, cx - 4 * scale, cy + 6 * scale)
+    love.graphics.arc("line", "open", cx - 7 * scale, cy + 7 * scale, 4 * scale, 0, math.pi * 2)
+    love.graphics.line(cx - 4 * scale, cy - 12 * scale, cx + 9 * scale, cy - 8 * scale)
+    love.graphics.line(cx + 9 * scale, cy - 8 * scale, cx + 9 * scale, cy + 2 * scale)
+    love.graphics.arc("line", "open", cx + 6 * scale, cy + 4 * scale, 4 * scale, 0, math.pi * 2)
+end
+
 local function drawPageIcon(page, x, y, scale, alpha)
     local tint = page.accent
-    if page.id == "uplink" then
+    if page.id == "input" then
+        drawInputMark(x, y, scale, tint, alpha)
+    elseif page.id == "media" then
+        drawMediaMark(x, y, scale, tint, alpha)
+    elseif page.id == "uplink" then
         drawGlobe(x, y, 9 * scale, tint, alpha)
     elseif page.id == "forge" then
         drawForgeMark(x, y, scale, tint, alpha)
@@ -255,7 +291,7 @@ local function drawNavigation()
     local labels = {
         overview = "HOME", setup = "DESKTOP", sessions = "APPS",
         uplink = "UPLINK", forge = "FORGE", tools = "TOOLS",
-        diagnostics = "DIAG",
+        diagnostics = "DIAG", input = "INPUT", media = "MEDIA",
     }
     for offset = -2, 2 do
         local raw = carouselTarget + offset
@@ -1024,6 +1060,203 @@ local function drawMetricCard(x, y, w, label, value, detail, tint)
     text(short(detail, 24), x + 12, y + 54, fonts.tiny, tint or colors.muted)
 end
 
+local function desktopInputPath()
+    return appRoot ~= "" and (appRoot .. "/data/desktop-input.json") or ""
+end
+
+local function readDesktopInputConfig()
+    local path = desktopInputPath()
+    if path == "" then return end
+    local stream = io.open(path, "r")
+    if not stream then return end
+    local raw = stream:read("*a") or ""
+    stream:close()
+    local function number(key, fallback)
+        return tonumber(raw:match('"' .. key .. '"%s*:%s*([%d%.]+)')) or fallback
+    end
+    desktopInput.pointerSpeed = math.max(200, math.min(2200, number("pointer_speed", 900)))
+    desktopInput.scrollSpeed = math.max(2, math.min(24, number("scroll_speed", 9)))
+    desktopInput.deadzone = math.max(0.08, math.min(0.42, number("deadzone", 0.18)))
+    desktopInput.enabled = not raw:match('"enabled"%s*:%s*false')
+end
+
+local function writeDesktopInputConfig()
+    if appRoot == "" then return end
+    local path = desktopInputPath()
+    local stream = io.open(path .. ".tmp", "w")
+    if not stream then setNotice("COULD NOT SAVE DESKTOP INPUT PROFILE"); return end
+    stream:write(string.format(
+        '{\n  "schema_version": 1,\n  "enabled": %s,\n  "device": "auto",\n'
+        .. '  "pointer_speed": %d,\n  "scroll_speed": %d,\n  "deadzone": %.2f,\n'
+        .. '  "acceleration": 1.65,\n  "bindings": {\n'
+        .. '    "a": "enter", "b": "escape", "l1+a": "mouse_left",\n'
+        .. '    "l1+b": "mouse_right", "x": "backspace", "y": "tab",\n'
+        .. '    "r1+x": "alt_tab", "start": "super", "select": "comet_panel"\n'
+        .. '  }\n}\n',
+        desktopInput.enabled and "true" or "false",
+        desktopInput.pointerSpeed, desktopInput.scrollSpeed, desktopInput.deadzone
+    ))
+    stream:close()
+    if not os.rename(path .. ".tmp", path) then
+        os.remove(path .. ".tmp")
+        setNotice("COULD NOT COMMIT DESKTOP INPUT PROFILE")
+        return
+    end
+    setNotice("DESKTOP INPUT PROFILE SAVED // NEXT SESSION")
+end
+
+local function adjustDesktopInput(direction)
+    local option = desktopInput.selectedOption
+    if option == 1 then
+        desktopInput.pointerSpeed = math.max(200, math.min(2200,
+            desktopInput.pointerSpeed + direction * 100))
+    elseif option == 2 then
+        desktopInput.scrollSpeed = math.max(2, math.min(24,
+            desktopInput.scrollSpeed + direction))
+    elseif option == 3 then
+        desktopInput.deadzone = math.max(0.08, math.min(0.42,
+            math.floor((desktopInput.deadzone + direction * 0.02) * 100 + 0.5) / 100))
+    elseif option == 4 then
+        desktopInput.enabled = not desktopInput.enabled
+    end
+    writeDesktopInputConfig()
+end
+
+local function resetDesktopInput()
+    desktopInput.enabled = true
+    desktopInput.pointerSpeed = 900
+    desktopInput.scrollSpeed = 9
+    desktopInput.deadzone = 0.18
+    desktopInput.selectedOption = 1
+    writeDesktopInputConfig()
+    setNotice("DESKTOP INPUT // DEFAULT MAP RESTORED")
+end
+
+local function readDesktopInputStatus()
+    if appRoot == "" then return end
+    local stream = io.open(appRoot .. "/data/desktop-input.status", "r")
+    if not stream then return end
+    local line = stream:read("*l") or ""
+    stream:close()
+    local state, detail = line:match("^([^|]+)|?(.*)$")
+    if state then desktopInput.state = state; desktopInput.detail = detail or "" end
+end
+
+local function shellQuoteMedia(value)
+    return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
+end
+
+local function queueMediaTask(action, extra)
+    if appRoot == "" then setNotice("COMET MEDIA SERVICE PATH UNAVAILABLE"); return end
+    local script = appRoot .. "/service/media_vault.py"
+    local command = "cd " .. shellQuoteMedia(appRoot) .. " && python3 "
+        .. shellQuoteMedia(script) .. " " .. action .. " --app-dir "
+        .. shellQuoteMedia(appRoot) .. (extra and (" " .. extra) or "")
+        .. " >> " .. shellQuoteMedia(appRoot .. "/data/media-vault.log") .. " 2>&1 &"
+    local result = os.execute(command)
+    if result == 0 or result == true then
+        setNotice("MEDIA VAULT // " .. action:upper())
+    else
+        setNotice("COULD NOT START MEDIA VAULT TASK")
+    end
+end
+
+local function readMediaStatus()
+    if appRoot == "" then return end
+    local stream = io.open(appRoot .. "/data/media-player.status", "r")
+    if not stream then return end
+    local line = stream:read("*l") or ""
+    stream:close()
+    local state, kind, title, player = line:match("^([^|]*)|([^|]*)|([^|]*)|(.*)$")
+    if state then mediaStatus = {state = state, kind = kind, title = title, player = player} end
+end
+
+local function readMediaCatalog()
+    if appRoot == "" then return end
+    local stream = io.open(appRoot .. "/data/media-vault.catalog", "r")
+    if not stream then return end
+    local raw = stream:read("*a") or ""
+    stream:close()
+    local radios, channels = {}, {}
+    local function fields(line)
+        local out = {}
+        for value in (line .. "|"):gmatch("(.-)|") do out[#out + 1] = value end
+        return out
+    end
+    for line in (raw .. "\n"):gmatch("(.-)\n") do
+        local f = fields(line)
+        if f[1] == "META" then
+            mediaCatalog.playlists = tonumber(f[2]) or 0
+            mediaCatalog.channels = tonumber(f[3]) or 0
+            mediaCatalog.radios = tonumber(f[4]) or 0
+            mediaCatalog.name = f[5] or "IPTV LIBRARY"
+            mediaCatalog.error = f[6] or ""
+        elseif f[1] == "RADIO" then
+            radios[#radios + 1] = {id = f[2], name = f[3], genre = f[4],
+                url = f[5], favorite = f[6] == "1"}
+        elseif f[1] == "TV" then
+            channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
+                url = f[5], tvgId = f[6]}
+        end
+    end
+    mediaItemsRadio, mediaItemsTV = radios, channels
+    mediaCatalogLoaded, mediaCatalogBusy = true, false
+    local rows = mediaMode == "RADIO" and radios or channels
+    if mediaSelectedIndex > #rows then mediaSelectedIndex = math.max(1, #rows) end
+end
+
+local function queueMediaCatalogue(force)
+    if mediaCatalogBusy or appRoot == "" then return end
+    mediaCatalogBusy = true
+    queueMediaTask(force and "catalogue" or "init", force and "--force" or nil)
+end
+
+local function queueMediaRadio(item)
+    if not item then return end
+    queueMediaTask("play-radio", "--query " .. shellQuoteMedia(item.id))
+end
+
+local function queueMediaStop()
+    queueMediaTask("stop")
+end
+
+local function queueMediaToggle()
+    if mediaStatus.state == "PLAYING" or mediaStatus.state == "PAUSED" then
+        queueMediaTask("toggle")
+    else
+        setNotice("NO MEDIA STREAM IS PLAYING")
+    end
+end
+
+local function queueMediaTV(item)
+    if appRoot == "" or not item then return end
+    local function jsonQuote(value)
+        value = tostring(value or ""):gsub("\\", "\\\\"):gsub('"', '\\"')
+            :gsub("\n", "\\n"):gsub("\r", "")
+        return '"' .. value .. '"'
+    end
+    local path = appRoot .. "/data/media-session.request"
+    local temporary = path .. ".tmp"
+    local stream = io.open(temporary, "w")
+    if not stream then setNotice("COULD NOT CREATE TV PLAY REQUEST"); return end
+    stream:write('{"kind":"tv","url":', jsonQuote(item.url),
+        ',"title":', jsonQuote(item.name), '}\n')
+    stream:close()
+    if not os.rename(temporary, path) then
+        os.remove(temporary)
+        setNotice("COULD NOT QUEUE TV PLAYBACK")
+        return
+    end
+    setNotice("MEDIA VAULT // HANDING DISPLAY TO IPTV PLAYER")
+    love.event.quit()
+end
+
+local function heartbeatMedia()
+    if appRoot == "" then return end
+    local stream = io.open(appRoot .. "/data/media-player.heartbeat", "a")
+    if stream then stream:write(tostring(os.time()), "\n"); stream:close() end
+end
+
 local function drawSectionWidget()
     local page = pages[activePage]
     local tint = page.accent
@@ -1072,6 +1305,18 @@ local function drawSectionWidget()
         c = {"APT OPERATION", forgeStatus.state or "IDLE", short(forgeStatus.message, 22)}
         lowerLine = chosen and ("SELECTED  //  " .. short(chosen.title, 52)) or "THE FORGE  //  CURATED DEBIAN ARM64 PACKAGES"
         lowerDetail = "A INSTALL  /  X REMOVE  /  Y REFRESH INDEX"
+    elseif page.id == "input" then
+        a = {"CONTROLLER", desktopInput.enabled and "BRIDGE ON" or "BRIDGE OFF", desktopInput.state}
+        b = {"POINTER", tostring(desktopInput.pointerSpeed), "PIXELS / SECOND"}
+        c = {"SCROLL", tostring(desktopInput.scrollSpeed), "STEPS / SECOND"}
+        lowerLine = "L-STICK POINTER  //  A ENTER  //  B ESC  //  L1+A / L1+B MOUSE"
+        lowerDetail = "R-STICK SCROLL  //  D-PAD ARROWS  //  R1+X ALT+TAB  //  SELECT M-PANEL"
+    elseif page.id == "media" then
+        a = {"PLAYLISTS", tostring(mediaCatalog.playlists), mediaCatalog.name}
+        b = {"TV CHANNELS", tostring(mediaCatalog.channels), "M3U / M3U8"}
+        c = {"WEB RADIO", tostring(mediaCatalog.radios), mediaStatus.state .. " // " .. mediaStatus.kind}
+        lowerLine = "NOW PLAYING  //  " .. (mediaStatus.title ~= "" and short(mediaStatus.title, 56) or "NOTHING")
+        lowerDetail = "M OPEN MEDIA PANEL  //  A PLAY  //  X STOP  //  EPG / FAVOURITES"
     elseif page.id == "tools" then
         local guest = imageDownload.state == "READY" and "DEBIAN 13 READY"
             or (imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state)
@@ -1103,8 +1348,117 @@ local function drawSectionWidget()
     text("A  OPEN SECTION", 492, 196, fonts.tiny, tint)
 end
 
+local function drawDesktopInput()
+    local page, tint = pages[activePage], pages[activePage].accent
+    drawSectionStructure(20, 183, 600, 232, page, 1)
+    text("COMET INPUT BRIDGE  //  HOST uinput", 36, 196, fonts.small, tint)
+    text("One virtual keyboard + mouse. No guest-side Python/Pygame dependency.",
+        36, 218, fonts.tiny, colors.muted)
+    local left = {
+        {"LEFT STICK", "MOUSE POINTER"}, {"A", "ENTER"}, {"B", "ESCAPE"},
+        {"L1 + A", "LEFT CLICK"}, {"L1 + B", "RIGHT CLICK"},
+    }
+    local right = {
+        {"RIGHT STICK", "SCROLL"}, {"D-PAD", "ARROW KEYS"}, {"X", "BACKSPACE"},
+        {"Y", "TAB"}, {"R1 + X", "ALT + TAB"}, {"SELECT", "COMET PANEL (M)"},
+    }
+    for i, item in ipairs(left) do
+        local y = 243 + (i - 1) * 18
+        text(item[1], 38, y, fonts.tiny, colors.muted)
+        text(item[2], 128, y, fonts.tiny, colors.white)
+    end
+    for i, item in ipairs(right) do
+        local y = 243 + (i - 1) * 18
+        text(item[1], 330, y, fonts.tiny, colors.muted)
+        text(item[2], 435, y, fonts.tiny, colors.white)
+    end
+    love.graphics.setColor(tint[1], tint[2], tint[3], 0.55)
+    love.graphics.line(36, 354, 604, 354)
+    local options = {
+        {"POINTER SPEED", tostring(desktopInput.pointerSpeed) .. " px/s"},
+        {"SCROLL SPEED", tostring(desktopInput.scrollSpeed) .. " steps/s"},
+        {"STICK DEADZONE", string.format("%.2f", desktopInput.deadzone)},
+        {"INPUT BRIDGE", desktopInput.enabled and "ENABLED" or "DISABLED"},
+    }
+    for i, item in ipairs(options) do
+        local column = (i - 1) % 2
+        local row = math.floor((i - 1) / 2)
+        local x, y = 38 + column * 282, 365 + row * 20
+        if i == desktopInput.selectedOption then
+            rounded(x - 4, y - 3, 268, 19, colors.panel2,
+                {tint[1], tint[2], tint[3], 0.9})
+        end
+        text(item[1], x + 4, y, fonts.tiny, colors.muted)
+        text(item[2], x + 150, y, fonts.tiny,
+            i == desktopInput.selectedOption and colors.white or tint)
+    end
+    text("STATUS  //  " .. short(desktopInput.state .. " " .. desktopInput.detail, 72),
+        38, 407, fonts.tiny,
+        desktopInput.state == "READY" and colors.green or colors.muted)
+end
+
+local function selectedMediaRows()
+    return mediaMode == "RADIO" and mediaItemsRadio or mediaItemsTV
+end
+
+local function drawMediaVault()
+    local page, tint = pages[activePage], pages[activePage].accent
+    drawSectionStructure(20, 183, 600, 232, page, 1)
+    text("MEDIA VAULT  //  IPTV + BROADCAST AUDIO", 36, 196, fonts.small, tint)
+    local modeX = mediaMode == "RADIO" and 38 or 130
+    rounded(modeX, 218, 82, 23, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
+    text("TV", 59, 222, fonts.tiny, mediaMode == "TV" and colors.white or colors.muted)
+    text("RADIO", 144, 222, fonts.tiny, mediaMode == "RADIO" and colors.white or colors.muted)
+    text(mediaMode == "RADIO" and "WEB RADIO PRESETS / FAVOURITES"
+        or short(mediaCatalog.name, 34), 234, 222, fonts.tiny, colors.muted)
+
+    local rows = selectedMediaRows()
+    local count = #rows
+    if mediaSelectedIndex > count then mediaSelectedIndex = math.max(1, count) end
+    rounded(34, 248, 260, 148, colors.panel2, colors.line)
+    local first = math.max(1, math.min(mediaSelectedIndex - 2, math.max(1, count - 5)))
+    for visible = 1, 6 do
+        local index = first + visible - 1
+        local item = rows[index]
+        if item then
+            local y = 255 + (visible - 1) * 22
+            if index == mediaSelectedIndex then
+                rounded(40, y - 2, 246, 20, colors.bg, {tint[1], tint[2], tint[3], 0.8})
+            end
+            text(short(item.name, 28) .. (item.favorite and " ★" or ""), 48, y,
+                fonts.tiny, index == mediaSelectedIndex and colors.white or colors.muted)
+        end
+    end
+    rounded(306, 248, 296, 148, colors.panel2, colors.line)
+    local chosen = rows[mediaSelectedIndex]
+    if chosen then
+        text(short(chosen.name, 31), 320, 259, fonts.medium, colors.white)
+        text(mediaMode == "RADIO" and short(chosen.genre, 36)
+            or short(chosen.group, 36), 320, 284, fonts.tiny, tint)
+        text(mediaMode == "RADIO" and "WEB RADIO STREAM" or "IPTV / M3U CHANNEL",
+            320, 306, fonts.tiny, colors.muted)
+        text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
+        text("Y  REFRESH / EPG   X  STOP", 320, 354, fonts.tiny, colors.amber)
+    else
+        text("NO ITEMS IN THIS VIEW", 320, 270, fonts.small, colors.amber)
+        text("Refresh the catalogue or select RADIO.", 320, 298, fonts.tiny, colors.muted)
+    end
+    text("LIBRARY  //  " .. mediaCatalog.playlists .. " PLAYLISTS  ·  "
+        .. mediaCatalog.channels .. " TV  ·  " .. mediaCatalog.radios .. " RADIO",
+        38, 375, fonts.tiny, colors.white)
+    text("NOW  //  " .. mediaStatus.state .. "  "
+        .. short(mediaStatus.title ~= "" and mediaStatus.title or "NOT PLAYING", 48),
+        38, 393, fonts.tiny,
+        mediaStatus.state == "PLAYING" and colors.green or colors.muted)
+    if mediaCatalog.error ~= "" then
+        text(short(mediaCatalog.error, 76), 38, 408, fonts.tiny, colors.amber)
+    end
+end
+
 local function drawPageContent()
-    if activePage == 1 then drawOverview()
+    if activePage == 8 then drawDesktopInput()
+    elseif activePage == 9 then drawMediaVault()
+    elseif activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
     elseif activePage == 3 then drawAppDeck()
     elseif activePage == 4 then drawUplink()
@@ -1168,6 +1522,16 @@ local function drawSectionOverlay()
             drawLegendItem(175, "←→", "CATEGORY", page.accent)
             drawLegendItem(330, "A/X/Y", "APT", page.accent)
             drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "input" then
+            drawLegendItem(20, "↑↓", "OPTION", page.accent)
+            drawLegendItem(175, "←→", "ADJUST", page.accent)
+            drawLegendItem(330, "Y", "RESET", page.accent)
+            drawLegendItem(485, "B", "CLOSE", page.accent)
+        elseif page.id == "media" then
+            drawLegendItem(20, "↑↓", "ITEM", page.accent)
+            drawLegendItem(175, "←→", "TV / RADIO", page.accent)
+            drawLegendItem(330, "A", "PLAY", page.accent)
+            drawLegendItem(485, "X", "STOP", page.accent)
         elseif page.id == "diagnostics" then
             drawLegendItem(20, "Y", "EXPORT", page.accent)
             drawLegendItem(175, "B", "CLOSE", page.accent)
