@@ -60,12 +60,14 @@ local forgePackages, forgeSearch = {}, ""
 local forgeSearchActive, forgeConfirmRemove = false, nil
 local forgeStatus = { state = "IDLE", percent = 0, message = "Open THE FORGE to load the catalogue", package = "" }
 local forgePoll, forgeLoaded, forgeActionBusy = 0, false, false
+local forgeCatalogRetry = 0
 local appCategories = { "ALL", "DEVELOPMENT", "GAMES", "GRAPHICS", "MEDIA", "NETWORK", "OFFICE", "SYSTEM", "UTILITIES", "FILES", "OTHER" }
 local appCategoryIndex, appSelectedIndex = 1, 1
 local appCatalog, appSearch = {}, ""
 local appSearchActive, appCatalogLoaded = false, false
 local appRegistryState, appRegistryMessage = "IDLE", "Open APP DECK to scan installed Debian applications"
 local appRegistryPoll, appRegistryBusy = 0, false
+local appCatalogRetry = 0
 local forgeCatalogRaw, forgeCatalogVersion = nil, 0
 local appCatalogRaw, appCatalogVersion = nil, 0
 local forgeFilterCache, forgeFilterKey = {}, ""
@@ -632,19 +634,19 @@ local function refreshOperationLog()
 end
 
 local function queueForgeAction(action, packageName)
-    if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return end
+    if appRoot == "" then setNotice("COMET APP RUNNER PATH UNAVAILABLE"); return false end
     local slot = installedSlot or selectedSlot
-    if not installedSlot then setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST"); return end
+    if not installedSlot then setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST"); return false end
     if forgeActionBusy then
         openOperationScreen("FORGE", "THE FORGE // " .. string.upper(forgeStatus.state),
             appRoot .. "/data/forge-apt.log", forgeStatus.message, forgeStatus.state)
         operationScreen.percent = forgeStatus.percent or 0
         setNotice("REOPENED THE ACTIVE APT CONSOLE")
-        return
+        return true
     end
     local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
     local script = appRoot .. "/service/forge_apt.py"
-    if action ~= "catalog" then os.remove(appRoot .. "/data/forge-operation.status") end
+    os.remove(appRoot .. "/data/forge-operation.status")
     local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
         .. " " .. action .. " --slot " .. slot
         .. (packageName and (" --package " .. quote(packageName)) or "")
@@ -665,9 +667,11 @@ local function queueForgeAction(action, packageName)
                 string.upper(action))
         end
         setNotice("THE FORGE // " .. string.upper(action))
+        return true
     else
         forgeStatus.state = "FAILED"; forgeStatus.message = "Could not start APT worker"
         setNotice("THE FORGE WORKER COULD NOT START")
+        return false
     end
 end
 
@@ -707,8 +711,18 @@ local function readForgeFiles()
                 updateOperationScreen("FORGE", state, tonumber(percent) or 0,
                     message or "", finished)
             end
+            if state == "FAILED" then
+                forgeLoaded = false
+                forgeCatalogRetry = 5
+            elseif state == "READY" then
+                forgeLoaded = true
+            end
             if state == "DONE" and previousState ~= "DONE" then
                 appCatalogLoaded = false
+                appCatalogRetry = 0
+            elseif state == "FAILED" then
+                appCatalogLoaded = false
+                appCatalogRetry = 5
             end
         end
     end
@@ -762,10 +776,12 @@ local function queueAppCatalog()
             appRoot .. "/data/app-registry.log",
             "Discovering installed Debian applications", "SCANNING")
         setNotice("APP DECK // SCANNING DEBIAN")
+        return true
     else
         appRegistryState = "FAILED"
         appRegistryMessage = "Could not start the app registry worker"
         setNotice("APP REGISTRY WORKER COULD NOT START")
+        return false
     end
 end
 
@@ -811,6 +827,8 @@ local function readAppFiles()
                 setNotice("APP DECK // " .. tostring(#appCatalog) .. " APPS")
             elseif state == "FAILED" and previousState ~= "FAILED" then
                 setNotice("APP DECK SCAN FAILED // CHECK LOG")
+                appCatalogLoaded = false
+                appCatalogRetry = 5
             end
         end
     end
@@ -1930,11 +1948,11 @@ function love.load()
     end
     -- 640x480 handheld-safe typography: status labels remain readable at
     -- native resolution instead of relying on a desktop-sized display.
-    fonts.tiny = loadFont(theme.fonts.telemetry, 13, 13)
-    fonts.small = loadFont(theme.fonts.interface, 15, 15)
-    fonts.medium = loadFont(theme.fonts.display, 18, 18)
-    fonts.large = loadFont(theme.fonts.display, 23, 23)
-    fonts.title = loadFont(theme.fonts.display, 34, 34)
+    fonts.tiny = loadFont(theme.fonts.telemetry, 14, 14)
+    fonts.small = loadFont(theme.fonts.interface, 16, 16)
+    fonts.medium = loadFont(theme.fonts.display, 20, 20)
+    fonts.large = loadFont(theme.fonts.display, 25, 25)
+    fonts.title = loadFont(theme.fonts.display, 36, 36)
 
     local function loadImage(path)
         local ok, image = pcall(love.graphics.newImage, path)
@@ -1997,6 +2015,8 @@ local function readImageDownloadStatus()
     if state == "READY" and (previousState ~= "READY" or previousProfile ~= imageDownload.profile or previousSlot ~= installedSlot) then
         forgeLoaded = false
         appCatalogLoaded = false
+        forgeCatalogRetry = 0
+        appCatalogRetry = 0
         setNotice("DEBIAN TRIXIE READY // " .. (imageDownload.profile or "APT"))
     elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING:" .. imageDownload.profile then
         setNotice("DESKTOP SESSION // " .. (imageDownload.profile or ""):upper())
@@ -2066,6 +2086,8 @@ function love.update(dt)
         uplinkPoll = 0
         readUplinkStatus()
     end
+    forgeCatalogRetry = math.max(0, forgeCatalogRetry - dt)
+    appCatalogRetry = math.max(0, appCatalogRetry - dt)
     forgePoll = forgePoll + dt
     if forgePoll >= 0.5 then
         forgePoll = 0
@@ -2167,17 +2189,21 @@ function love.draw()
     drawBackground()
     drawHeader()
     drawNavigation()
-    if activePage == 3 and not appCatalogLoaded then
-        if installedSlot then queueAppCatalog() end
-        appCatalogLoaded = true
+    if activePage == 3 and not appCatalogLoaded and appCatalogRetry <= 0 then
+        if installedSlot then
+            appCatalogLoaded = queueAppCatalog()
+            appCatalogRetry = appCatalogLoaded and 2 or 5
+        end
     end
     if activePage == 4 and not uplinkStatus.loaded then
         queueUplinkAction("status")
         uplinkStatus.loaded = true
     end
-    if activePage == 5 and not forgeLoaded then
-        if installedSlot then queueForgeAction("catalog") end
-        forgeLoaded = true
+    if activePage == 5 and not forgeLoaded and forgeCatalogRetry <= 0 then
+        if installedSlot then
+            forgeLoaded = queueForgeAction("catalog") == true
+            forgeCatalogRetry = forgeLoaded and 2 or 5
+        end
     end
 
     drawSectionWidget()
