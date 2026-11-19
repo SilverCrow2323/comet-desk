@@ -1297,7 +1297,7 @@ local function queueMediaFavourite(item)
         return
     end
     if not item then return end
-    local kind = mediaMode:lower()
+    local kind = mediaMode == "RADIO" and "radio" or "tv"
     queueMediaTask("toggle-favourite", "--kind " .. kind
         .. " --query " .. shellQuoteMedia(item.id))
 end
@@ -1502,7 +1502,7 @@ local function selectedMediaRows()
 end
 
 local function cycleMediaMode(direction)
-    local modes = {"TV", "RADIO", "PLAYLISTS"}
+    local modes = {"TV", "RADIO", "PLAYLISTS", "GUIDE"}
     local current = 1
     for i, mode in ipairs(modes) do
         if mode == mediaMode then current = i; break end
@@ -1515,14 +1515,24 @@ local function drawMediaVault()
     local page, tint = pages[activePage], pages[activePage].accent
     drawSectionStructure(20, 183, 600, 232, page, 1)
     text("MEDIA VAULT  //  IPTV + BROADCAST AUDIO", 36, 196, fonts.small, tint)
-    local modeX = mediaMode == "TV" and 38 or (mediaMode == "RADIO" and 130 or 224)
-    rounded(modeX, 218, 88, 23, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
-    text("TV", 59, 222, fonts.tiny, mediaMode == "TV" and colors.white or colors.muted)
-    text("RADIO", 144, 222, fonts.tiny, mediaMode == "RADIO" and colors.white or colors.muted)
-    text("LISTS", 241, 222, fonts.tiny, mediaMode == "PLAYLISTS" and colors.white or colors.muted)
-    text(mediaMode == "RADIO" and "WEB RADIO PRESETS / FAVOURITES"
+    local modeLabels = {
+        {id = "TV", x = 36, label = "TV"},
+        {id = "RADIO", x = 108, label = "RADIO"},
+        {id = "PLAYLISTS", x = 190, label = "LISTS"},
+        {id = "GUIDE", x = 270, label = "EPG"},
+    }
+    for _, mode in ipairs(modeLabels) do
+        if mediaMode == mode.id then
+            rounded(mode.x, 218, 74, 23, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
+        end
+        text(mode.label, mode.x + 12, 222, fonts.tiny,
+            mediaMode == mode.id and colors.white or colors.muted)
+    end
+    local modeTitle = mediaMode == "RADIO" and "WEB RADIO PRESETS / FAVOURITES"
         or (mediaMode == "PLAYLISTS" and "M3U / M3U8 SOURCE MANAGER"
-            or short(mediaCatalog.name, 34)), 326, 222, fonts.tiny, colors.muted)
+            or (mediaMode == "GUIDE" and "XMLTV PROGRAMME GUIDE // NOW / NEXT"
+                or short(mediaCatalog.name, 34)))
+    text(short(modeTitle, 48), 358, 222, fonts.tiny, colors.muted)
 
     local rows = selectedMediaRows()
     local count = #rows
@@ -1560,16 +1570,22 @@ local function drawMediaVault()
             text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
             text("Y  " .. (chosen.favorite and "UNFAVOURITE" or "FAVOURITE") .. "   X STOP",
                 320, 354, fonts.tiny, colors.amber)
-        else
+        elseif mediaMode == "GUIDE" then
             local epg = mediaEpgById[chosen.id] or {}
-            text(short(chosen.group, 36), 320, 281, fonts.tiny, tint)
-            text("NOW  " .. short(epg.current or "NO EPG DATA", 34), 320, 303,
-                fonts.tiny, colors.white)
-            text("NEXT " .. short(epg.next or "NOT AVAILABLE", 34), 320, 324,
-                fonts.tiny, colors.muted)
-            text("A  PLAY IPTV", 320, 350, fonts.small, tint)
+            text(short(chosen.group, 36), 320, 280, fonts.tiny, tint)
+            rounded(318, 296, 268, 34, colors.bg, colors.line)
+            text("NOW", 328, 300, fonts.tiny, colors.green)
+            text(short(epg.current or "NO EPG DATA", 30), 377, 300, fonts.tiny, colors.white)
+            rounded(318, 337, 268, 34, colors.bg, colors.line)
+            text("NEXT", 328, 341, fonts.tiny, colors.cyan)
+            text(short(epg.next or "NOT AVAILABLE", 30), 377, 341, fonts.tiny, colors.muted)
+            text("A  WATCH CHANNEL", 320, 378, fonts.tiny, tint)
+        else
+            text(short(chosen.group, 36), 320, 284, fonts.tiny, tint)
+            text("IPTV / M3U CHANNEL", 320, 306, fonts.tiny, colors.muted)
+            text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
             text("Y  " .. (chosen.favorite and "UNFAV" or "FAV") .. "   X STOP",
-                320, 373, fonts.tiny, colors.amber)
+                320, 354, fonts.tiny, colors.amber)
         end
     else
         text("NO ITEMS IN THIS VIEW", 320, 270, fonts.small, colors.amber)
@@ -1664,7 +1680,7 @@ local function drawSectionOverlay()
             drawLegendItem(485, "B", "CLOSE", page.accent)
         elseif page.id == "media" then
             drawLegendItem(20, "↑↓", "ITEM", page.accent)
-            drawLegendItem(175, "←→", "TV / RADIO", page.accent)
+            drawLegendItem(175, "←→", "TV / RADIO / LIST / EPG", page.accent)
             drawLegendItem(330, "A/Y", "PLAY / FAV", page.accent)
             drawLegendItem(485, "X", "STOP", page.accent)
         elseif page.id == "diagnostics" then
