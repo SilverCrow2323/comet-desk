@@ -31,28 +31,52 @@ IMAGE_SEED_URL = (
 )
 IMAGE_SEED_GIT_BLOB_SHA1 = "9a9571d17f94dc9c8993782a4df4126833e47e8b"
 IMAGE_SEED_SIZE = 4_181_220
-UBUNTU_BASE_URL = (
-    "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/"
-    "ubuntu-base-24.04.3-base-arm64.tar.gz"
+# Official Debian Trixie ARM64 OCI rootfs layer, pinned to an immutable
+# debuerreotype/docker-debian-artifacts commit and its OCI sha256 digest.
+DEBIAN_ARTIFACT_COMMIT = "3b26c3995c7fae47d95ba678632a3520e97054f7"
+DEBIAN_ROOTFS_URL = (
+    "https://raw.githubusercontent.com/debuerreotype/docker-debian-artifacts/"
+    + DEBIAN_ARTIFACT_COMMIT + "/trixie/oci/blobs/rootfs.tar.gz"
 )
-UBUNTU_BASE_SIZE = 29_865_086
-UBUNTU_BASE_SHA256 = "7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
-UBUNTU_SOURCES = """deb http://ports.ubuntu.com/ubuntu-ports noble main universe
-deb http://ports.ubuntu.com/ubuntu-ports noble-updates main universe
-deb http://ports.ubuntu.com/ubuntu-ports noble-security main universe
+DEBIAN_ROOTFS_SIZE = 49_778_604
+DEBIAN_ROOTFS_SHA256 = "23b69c48ce5c2a6fb0681d959fa700427ad2a7cf7e6be5d25249170a1853d7ad"
+DEBIAN_SOURCES = """deb http://deb.debian.org/debian trixie main contrib non-free non-free-firmware
+deb http://deb.debian.org/debian trixie-updates main contrib non-free non-free-firmware
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
 """
-PACKAGES = (
-    "ca-certificates xserver-xorg-core xserver-xorg-video-fbdev "
-    "xserver-xorg-input-evdev xinit x11-xserver-utils dbus dbus-x11 "
-    "xfce4-session xfwm4 xfce4-panel xfce4-settings xfdesktop4 "
-    "xfce4-terminal thunar qjoypad matchbox-keyboard fonts-dejavu-core "
-    "procps nano zenity xfce4-taskmanager xdotool x11-utils alsa-utils "
-    "pulseaudio pavucontrol bluez blueman gvfs gvfs-backends udisks2 "
-    "thunar-volman xarchiver"
+BASE_PACKAGES = (
+    "apt ca-certificates locales dbus dbus-x11 polkitd udisks2 gvfs gvfs-backends "
+    "fonts-dejavu-core fonts-liberation nano procps sudo xdg-utils xdg-user-dirs "
+    "git curl wget python3 python3-pip python3-venv python3-dev build-essential "
+    "cmake ninja-build pkg-config file unzip zip xz-utils e2fsprogs "
+    "libinput-tools seatd"
 )
+PROFILE_PACKAGES = {
+    "labwc": "labwc waybar foot swaybg mako-notifier wofi xwayland",
+    "xfce": "xfce4 xfce4-goodies xfce4-terminal thunar qjoypad matchbox-keyboard "
+            "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+            "xinit x11-xserver-utils xdotool x11-utils",
+    "lxde": "lxde-core lxterminal pcmanfm openbox "
+            "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+            "xinit x11-xserver-utils",
+    "lxqt": "lxqt-core qterminal pcmanfm-qt "
+            "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+            "xinit x11-xserver-utils",
+    "icewm": "icewm icewm-themes tint2 xterm pcmanfm "
+             "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+             "xinit x11-xserver-utils",
+    "fluxbox": "fluxbox tint2 xterm pcmanfm "
+               "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+               "xinit x11-xserver-utils",
+    "openbox": "openbox obconf tint2 xterm pcmanfm "
+               "xserver-xorg-core xserver-xorg-video-fbdev xserver-xorg-input-evdev "
+               "xinit x11-xserver-utils",
+}
+DEFAULT_PROFILE = "labwc"
+DESKTOP_IMAGE_BYTES = 8 * 1024 * 1024 * 1024
 SLOTS = {"tf1": Path("/mnt/mmc"), "tf2": Path("/mnt/sdcard")}
 STAGING_RELATIVE = Path("MUOS") / "CometDesk" / "Desktop"
-MIN_FREE_BYTES = 5 * 1024 * 1024 * 1024
+MIN_FREE_BYTES = 9 * 1024 * 1024 * 1024
 CHUNK_SIZE = 256 * 1024
 APP_ENV = {"HOME": "/root", "USER": "root", "LOGNAME": "root",
            "SHELL": "/bin/bash", "PATH": "/usr/sbin:/usr/bin:/sbin:/bin"}
@@ -67,12 +91,12 @@ def clean_status(value: str) -> str:
 
 
 def write_status(app_dir: Path, state: str, percent: int, message: str,
-                 location: str = "") -> None:
+                 location: str = "", profile: str = "") -> None:
     status = app_dir / "data" / "desktop-environment.status"
     status.parent.mkdir(parents=True, exist_ok=True)
-    payload = "{}|{}|{}|{}\n".format(
+    payload = "{}|{}|{}|{}|{}\n".format(
         state, max(0, min(100, int(percent))), clean_status(message),
-        clean_status(location),
+        clean_status(location), clean_status(profile),
     )
     temporary = status.with_suffix(status.suffix + ".tmp")
     with temporary.open("w", encoding="utf-8") as stream:
