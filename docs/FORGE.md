@@ -4,6 +4,8 @@ THE FORGE is Comet Desk's Discover/Software-style frontend for the Debian Trixie
 
 ## First catalogue groups
 
+**H700 CORE** is a dedicated group for application developers. It includes libdrm/libgbm/EGL, Wayland, xkbcommon, evdev/libinput/udev, ALSA/PulseAudio and SDL2 image/font/mixer development libraries. These are the building blocks for graphics, controller/input and audio integrations.
+
 | Group | Examples | H700 reason |
 |---|---|---|
 | Handheld & Input | evtest, joystick, inputattach, libinput-tools, QJoyPad, Xorg input drivers | inspect controller events and support X11 input mapping |
