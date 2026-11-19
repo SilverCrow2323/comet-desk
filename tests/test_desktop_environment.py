@@ -366,3 +366,17 @@ def test_desktop_environment_check_action_writes_machine_readable_lock_state(tmp
         busy = subprocess.run(command, check=True, capture_output=True, text=True)
         assert busy.stdout.strip() == "BUSY"
         assert (tmp_path / "data" / "debian-lock.status").read_text().splitlines() == ["BUSY"]
+
+
+def test_guest_child_environment_drops_muos_loader_injection(monkeypatch):
+    monkeypatch.setenv("LD_PRELOAD", "/opt/muos/frontend/lib/libmucursor.so")
+    monkeypatch.setenv("LD_AUDIT", "/opt/muos/frontend/lib/audit.so")
+    monkeypatch.setenv("DISPLAY", ":0")
+
+    env = desktop.child_environment({"DEBIAN_FRONTEND": "noninteractive"})
+
+    assert "LD_PRELOAD" not in env
+    assert "LD_AUDIT" not in env
+    assert env["DISPLAY"] == ":0"
+    assert env["DEBIAN_FRONTEND"] == "noninteractive"
+    assert env["PATH"] == desktop.APP_ENV["PATH"]
