@@ -127,6 +127,8 @@ The product boundary and test authority are documented in [Product Blueprint](PR
 - [x] Supervise the input bridge alongside the Debian desktop session and release its controls on exit.
 - [x] Add a native Media Vault service with remote M3U/M3U8 playlists, local playlist drop-folder discovery and playlist switching.
 - [x] Add XMLTV EPG sync with bounded parsing, cached Now/Next data and status reporting.
+- [x] Retain validated per-channel User-Agent, Referrer, Origin and HTTP-header metadata through the IPTV player handoff.
+- [x] Serialize catalogue, playlist activation, favourites and EPG writes with a dedicated Media Vault lock.
 - [x] Add persistent TV/radio favourites and four initial Italian web-radio presets.
 - [x] Enforce one playback owner; stop the previous stream on media switch, before desktop launch and on Comet exit.
 - [x] Add heartbeat-based cleanup if the Comet frontend disappears unexpectedly.
