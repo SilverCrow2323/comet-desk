@@ -18,6 +18,7 @@ CometDesk/
 ├── service/
 │   ├── desktop_environment.py
 │   ├── forge_apt.py
+│   └── app_registry.py
 ├── assets/
 │   ├── backgrounds/comet-dashboard-640x480.png
 │   ├── branding/comet-desk-logo.png
@@ -46,7 +47,7 @@ THE FORGE is Comet's curated APT software centre. It groups H700/muOS-oriented p
 
 All package operations run inside the mounted Debian rootfs. The host muOS APT database is never touched. Desktop setup, package operations and session launches share one lock, preventing concurrent modification or mount attempts. See Debian Desktop Environment (DESKTOP_ENVIRONMENT.md) and THE FORGE (FORGE.md).
 
-Controls: L1/R1 changes Comet tabs; within THE FORGE, D-pad up/down selects packages, D-pad left/right changes category, A installs an available package, X twice removes an installed package, Y refreshes APT indexes and / starts keyboard search. Package installation/removal is limited to the bundled curated allowlist.
+Controls: L1/R1 changes Comet tabs. APP DECK scans installed .desktop entries, D-pad up/down selects apps, D-pad left/right changes category, A launches the selected app through the currently installed desktop profile, Y refreshes the catalogue and / starts keyboard search. THE FORGE uses D-pad up/down for packages, D-pad left/right for category, A to install, X twice to remove and Y to refresh APT indexes. APT mutations are limited to the bundled curated allowlist.
 
 ## Visual assets
 

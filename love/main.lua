@@ -1,12 +1,11 @@
 -- COMET DESK // QWASAR
--- Controller-first muOS companion. Desktop Setup retrieves the dedicated Void Desk OS
--- disk image only; it never downloads or installs the Void Desk MUX application.
+-- Controller-first muOS companion. Comet owns the Debian rootfs, APT, sessions and app launch lifecycle.
 
 local W, H = 640, 480
 local pages = {
     { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama.", icon = "◈", accent = {0.22, 0.88, 0.94} },
     { id = "setup", title = "DESKTOP SYSTEM", subtitle = "Debian Trixie ARM64 // APT + modular desktop environments.", icon = "▣", accent = {0.62, 0.43, 0.98} },
-    { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions.", icon = "▤", accent = {1.0, 0.72, 0.32} },
+    { id = "sessions", title = "APP DECK", subtitle = "Discover and launch installed Debian applications through Comet.", icon = "▦", accent = {1.0, 0.72, 0.32} },
     { id = "uplink", title = "UPLINK", subtitle = "Network, wireless radios and remote services.", icon = "◎", accent = {0.24, 0.72, 1.0} },
     { id = "forge", title = "THE FORGE", subtitle = "Discover, install and manage curated Debian ARM64 software.", icon = "⚒", accent = {1.0, 0.48, 0.22} },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
@@ -55,6 +54,12 @@ local forgePackages, forgeSearch = {}, ""
 local forgeSearchActive, forgeConfirmRemove = false, nil
 local forgeStatus = { state = "IDLE", percent = 0, message = "Open THE FORGE to load the catalogue", package = "" }
 local forgePoll, forgeLoaded, forgeActionBusy = 0, false, false
+local appCategories = { "ALL", "DEVELOPMENT", "GAMES", "GRAPHICS", "MEDIA", "NETWORK", "OFFICE", "SYSTEM", "UTILITIES", "FILES", "OTHER" }
+local appCategoryIndex, appSelectedIndex = 1, 1
+local appCatalog, appSearch = {}, ""
+local appSearchActive, appCatalogLoaded = false, false
+local appRegistryState, appRegistryMessage = "IDLE", "Open APP DECK to scan installed Debian applications"
+local appRegistryPoll, appRegistryBusy = 0, false
 
 local function setNotice(message)
     notice = message
@@ -121,7 +126,7 @@ local function drawHeader()
     text("QWASAR  /  FIELD SYSTEMS", 66, 12, fonts.tiny, colors.muted)
     text("COMET", 66, 29, fonts.title, colors.white)
     text("DESK", 174, 38, fonts.medium, colors.cyan)
-    text("DEBIAN APT CONTROL DECK  //  v0.6.0-dev", 67, 70, fonts.tiny, colors.muted)
+    text("DEBIAN APT CONTROL DECK  //  v0.7.0-dev", 67, 70, fonts.tiny, colors.muted)
 
     rounded(438, 17, 182, 56, colors.panel, colors.line)
     text("RG35XX H  //  H700", 451, 23, fonts.small, colors.cyan)
@@ -446,9 +451,13 @@ local function readForgeFiles()
         local line = status:read("*l"); status:close()
         local state, percent, message, packageName = line and line:match("^([^|]+)|(%d+)|([^|]*)|(.*)$")
         if state then
+            local previousState = forgeStatus.state
             forgeStatus.state = state; forgeStatus.percent = tonumber(percent) or 0
             forgeStatus.message = message; forgeStatus.package = packageName or ""
             forgeActionBusy = state == "INSTALLING" or state == "REMOVING" or state == "UPDATING"
+            if state == "DONE" and previousState ~= "DONE" then
+                appCatalogLoaded = false
+            end
         end
     end
 end
@@ -464,6 +473,94 @@ local function forgeFilteredPackages()
         if categoryMatch and textMatch then rows[#rows + 1] = item end
     end
     return rows
+end
+
+local function queueAppCatalog()
+    if appRoot == "" then
+        setNotice("COMET APP RUNNER PATH UNAVAILABLE")
+        return
+    end
+    if not installedSlot then
+        setNotice("INSTALL DEBIAN TRIXIE IN DESKTOP SYSTEM FIRST")
+        return
+    end
+    if appRegistryBusy then
+        setNotice("APP REGISTRY SCAN IS ALREADY RUNNING")
+        return
+    end
+    local function quote(value) return "'" .. tostring(value):gsub("'", "'\\''") .. "'" end
+    local script = appRoot .. "/service/app_registry.py"
+    local command = "cd " .. quote(appRoot) .. " && python3 " .. quote(script)
+        .. " catalog --slot " .. installedSlot
+        .. " --app-dir " .. quote(appRoot)
+        .. " >> " .. quote(appRoot .. "/data/app-registry.log") .. " 2>&1 &"
+    local result = os.execute(command)
+    if result == 0 or result == true then
+        appRegistryState = "SCANNING"
+        appRegistryMessage = "Discovering installed Debian applications"
+        appRegistryBusy = true
+        setNotice("APP DECK // SCANNING DEBIAN")
+    else
+        appRegistryState = "FAILED"
+        appRegistryMessage = "Could not start the app registry worker"
+        setNotice("APP REGISTRY WORKER COULD NOT START")
+    end
+end
+
+local function readAppFiles()
+    if appRoot == "" then return end
+    local catalog = io.open(appRoot .. "/data/app-catalog.txt", "r")
+    if catalog then
+        local rows = {}
+        for line in catalog:lines() do
+            local id, name, category, icon, executable =
+                line:match("^APP|([^|]*)|([^|]*)|([^|]*)|([^|]*)|([^|]*)$")
+            if id then
+                rows[#rows + 1] = {
+                    id = id, name = name, category = category,
+                    icon = icon, executable = executable,
+                }
+            end
+        end
+        catalog:close()
+        appCatalog = rows
+        if appSelectedIndex > #appCatalog then appSelectedIndex = math.max(1, #appCatalog) end
+    end
+    local status = io.open(appRoot .. "/data/app-registry.status", "r")
+    if status then
+        local line = status:read("*l")
+        status:close()
+        local state, message = line and line:match("^([^|]+)|(.*)$")
+        if state then
+            local previousState = appRegistryState
+            appRegistryState, appRegistryMessage = state, message or ""
+            appRegistryBusy = state == "SCANNING"
+            if state == "READY" and previousState ~= "READY" then
+                setNotice("APP DECK // " .. tostring(#appCatalog) .. " APPS")
+            elseif state == "FAILED" and previousState ~= "FAILED" then
+                setNotice("APP DECK SCAN FAILED // CHECK LOG")
+            end
+        end
+    end
+end
+
+local function filteredApps()
+    local category = appCategories[appCategoryIndex]
+    local query = appSearch:lower()
+    local rows = {}
+    for _, item in ipairs(appCatalog) do
+        local categoryMatch = category == "ALL" or item.category == category
+        local textMatch = query == "" or item.name:lower():find(query, 1, true)
+            or item.id:lower():find(query, 1, true)
+            or item.executable:lower():find(query, 1, true)
+        if categoryMatch and textMatch then rows[#rows + 1] = item end
+    end
+    return rows
+end
+
+local function cycleAppCategory(direction)
+    appCategoryIndex = ((appCategoryIndex - 1 + direction) % #appCategories) + 1
+    appSelectedIndex = 1
 end
 
 local function cycleForgeCategory(direction)
@@ -536,6 +633,84 @@ local function drawForge()
     text("LEFT / RIGHT CATEGORY   UP / DOWN PACKAGE   Y REFRESH", 29, 402, fonts.tiny, colors.muted)
     if forgeSearch ~= "" then text("SEARCH: " .. short(forgeSearch, 22), 425, 402, fonts.tiny, tint)
     else text("/ SEARCH", 526, 402, fonts.tiny, tint) end
+end
+
+local function drawAppDeck()
+    local tint = pages[activePage].accent
+    text("COMET APPLICATION REGISTRY  /  DEBIAN Trixie ARM64", 24, 180, fonts.small, colors.muted)
+    rounded(20, 201, 600, 214, colors.panel, { tint[1], tint[2], tint[3], 0.75 })
+    local category = appCategories[appCategoryIndex]
+    rounded(28, 211, 86, 25, colors.panel2, tint)
+    text(category, 35, 216, fonts.tiny, colors.white)
+    text("INSTALLED APPS  /  " .. tostring(#appCatalog), 127, 216, fonts.tiny, tint)
+    text(appRegistryBusy and "SCANNING..." or appRegistryState, 490, 216, fonts.tiny,
+        appRegistryBusy and colors.amber or (appRegistryState == "READY" and colors.green or colors.muted))
+
+    local rows = filteredApps()
+    if appSelectedIndex > #rows then appSelectedIndex = math.max(1, #rows) end
+    rounded(27, 246, 245, 151, colors.panel2, colors.line)
+    local first = math.max(1, math.min(appSelectedIndex - 1, math.max(1, #rows - 3)))
+    for visible = 1, 4 do
+        local index = first + visible - 1
+        local item = rows[index]
+        if item then
+            local y = 255 + (visible - 1) * 34
+            local active = index == appSelectedIndex
+            if active then rounded(34, y - 3, 230, 30, colors.bg, tint) end
+            local glyph = item.category == "DEVELOPMENT" and "DEV"
+                or (item.category == "MEDIA" and "MED" or (item.category == "NETWORK" and "NET" or "APP"))
+            text(glyph, 42, y + 3, fonts.tiny, active and tint or colors.violet)
+            text(short(item.name, 18), 80, y + 3, fonts.small, active and colors.white or colors.muted)
+        end
+    end
+
+    rounded(281, 246, 326, 151, colors.panel2, colors.line)
+    local chosen = rows[appSelectedIndex]
+    if chosen then
+        text(short(chosen.name, 28), 296, 255, fonts.medium, colors.white)
+        text(chosen.id, 296, 281, fonts.tiny, tint)
+        text(chosen.category .. "  /  DEBIAN APPLICATION", 296, 302, fonts.tiny, colors.muted)
+        text("EXECUTABLE", 296, 330, fonts.tiny, colors.muted)
+        text(short(chosen.executable, 42), 296, 348, fonts.small, colors.white)
+        text("A  LAUNCH WITH " .. selectedProfile:upper(), 296, 379, fonts.tiny, tint)
+    elseif not installedSlot then
+        text("DEBIAN NOT READY", 296, 270, fonts.medium, colors.amber)
+        text("Install the Debian system first.", 296, 305, fonts.small, colors.muted)
+    elseif appRegistryBusy then
+        text("BUILDING APP REGISTRY", 296, 270, fonts.medium, colors.cyan)
+        text(short(appRegistryMessage, 38), 296, 305, fonts.small, colors.muted)
+    else
+        text("NO APPLICATIONS FOUND", 296, 270, fonts.medium, colors.amber)
+        text("Install GUI packages in THE FORGE, then refresh.", 296, 305, fonts.small, colors.muted)
+    end
+    text("L / R CATEGORY   UP / DOWN APP   A LAUNCH   Y REFRESH", 29, 402, fonts.tiny, colors.muted)
+    if appSearch ~= "" then
+        text("SEARCH: " .. short(appSearch, 20), 438, 402, fonts.tiny, tint)
+    else
+        text("/ SEARCH", 548, 402, fonts.tiny, tint)
+    end
+end
+
+local function drawSystemTools()
+    text("COMET // SYSTEM CONTROL AND ENVIRONMENT STATUS", 24, 180, fonts.small, colors.muted)
+    rounded(20, 201, 600, 214, colors.panel, colors.line)
+    local rows = {
+        { "GUEST OS", "DEBIAN GNU/LINUX 13 // TRIXIE", colors.cyan },
+        { "ARCHITECTURE", "ARM64 // SHARED MUOS H700 KERNEL", colors.white },
+        { "STORAGE", installedSlot and installedSlot:upper() or "NOT CONFIGURED", installedSlot and colors.green or colors.amber },
+        { "DESKTOP PROFILE", imageDownload.profile ~= "" and imageDownload.profile:upper() or "NOT INSTALLED", colors.violet },
+        { "APT / FORGE", forgeStatus.state ~= "IDLE" and forgeStatus.state or "READY WHEN ROOTFS IS INSTALLED", colors.green },
+        { "APPLICATION REGISTRY", tostring(#appCatalog) .. " DISCOVERED // " .. appRegistryState, colors.cyan },
+    }
+    for i, item in ipairs(rows) do
+        local y = 220 + (i - 1) * 27
+        text(item[1], 40, y, fonts.tiny, colors.muted)
+        text(short(item[2], 48), 214, y - 2, fonts.small, item[3])
+    end
+    setColor(colors.line)
+    love.graphics.line(40, 385, 600, 385)
+    text("Y  REFRESH APPLICATION REGISTRY", 40, 393, fonts.tiny, colors.cyan)
+    text("SYSTEM TOOLS REPORT STATE; THEY DO NOT MODIFY MUOS HOST PACKAGES.", 40, 411, fonts.tiny, colors.muted)
 end
 
 local function drawDiagnostics()
@@ -744,6 +919,11 @@ function love.update(dt)
         forgePoll = 0
         readForgeFiles()
     end
+    appRegistryPoll = appRegistryPoll + dt
+    if appRegistryPoll >= 0.5 then
+        appRegistryPoll = 0
+        readAppFiles()
+    end
     probeTimer = probeTimer + dt
     if probe and probeTimer >= 10 then
         probeTimer = 0
@@ -768,6 +948,10 @@ function love.draw()
     drawBackground()
     drawHeader()
     drawNavigation()
+    if activePage == 3 and not appCatalogLoaded then
+        if installedSlot then queueAppCatalog() end
+        appCatalogLoaded = true
+    end
     if activePage == 4 and not uplinkStatus.loaded then
         queueUplinkAction("status")
         uplinkStatus.loaded = true
@@ -785,8 +969,10 @@ function love.draw()
     love.graphics.setScissor(18, 176, 604, 244)
     if activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
+    elseif activePage == 3 then drawAppDeck()
     elseif activePage == 4 then drawUplink()
     elseif activePage == 5 then drawForge()
+    elseif activePage == 6 then drawSystemTools()
     elseif activePage == 7 then drawDiagnostics()
     else drawModule() end
     love.graphics.setScissor()
@@ -839,9 +1025,13 @@ local function activate()
     if activePage == 1 then
         setNotice("OVERVIEW // READ-ONLY")
     elseif activePage == 2 then
-        setNotice("VOID DESK OS // DEBIAN ARM64 + LABWC")
+        setNotice("DEBIAN TRIXIE // DESKTOP PROFILES")
+    elseif activePage == 3 then
+        setNotice("APP DECK // COMET-MANAGED APPLICATIONS")
+    elseif activePage == 6 then
+        setNotice("SYSTEM TOOLS // READ-ONLY ENVIRONMENT STATUS")
     else
-        setNotice(pages[activePage].title .. " // COMING SOON")
+        setNotice(pages[activePage].title .. " // READY")
     end
 end
 
@@ -917,6 +1107,41 @@ local function startDesktopEnvironment()
     end
 end
 
+local function startDesktopApplication(appId)
+    if not appId or appId == "" then
+        setNotice("SELECT AN INSTALLED APPLICATION")
+        return
+    end
+    if appRoot == "" then
+        setNotice("COMET APP RUNNER PATH UNAVAILABLE")
+        return
+    end
+    if not installedSlot or imageDownload.state ~= "READY" then
+        setNotice("DEBIAN Trixie MUST BE READY BEFORE APP LAUNCH")
+        return
+    end
+    if selectedProfile ~= imageDownload.profile then
+        setNotice("INSTALL THE SELECTED DESKTOP PROFILE FIRST")
+        return
+    end
+    local request = appRoot .. "/data/desktop-session.request"
+    local temporary = request .. ".tmp"
+    local stream = io.open(temporary, "w")
+    if not stream then
+        setNotice("COULD NOT CREATE APP SESSION REQUEST")
+        return
+    end
+    stream:write(installedSlot, "\n", selectedProfile, "\n", appId, "\n")
+    stream:close()
+    if not os.rename(temporary, request) then
+        os.remove(temporary)
+        setNotice("COULD NOT QUEUE APPLICATION SESSION")
+        return
+    end
+    setNotice("COMET // LAUNCHING " .. appId:upper())
+    love.event.quit()
+end
+
 local function toggleQuickPanel()
     quickPanelOpen = not quickPanelOpen
     quickPanelAge = 0
@@ -945,6 +1170,10 @@ function love.keypressed(key)
         if key == "escape" then forgeSearchActive = false
         elseif key == "backspace" then forgeSearch = forgeSearch:sub(1, math.max(0, #forgeSearch - 1)) end
         return
+    elseif activePage == 3 and appSearchActive then
+        if key == "escape" then appSearchActive = false
+        elseif key == "backspace" then appSearch = appSearch:sub(1, math.max(0, #appSearch - 1)) end
+        return
     end
     if quickPanelOpen then
         if key == "escape" or key == "backspace" then toggleQuickPanel() end
@@ -954,22 +1183,32 @@ function love.keypressed(key)
     if key == "/" and activePage == 5 then
         forgeSearchActive = true
         setNotice("THE FORGE SEARCH // TYPE TO FILTER")
+    elseif key == "/" and activePage == 3 then
+        appSearchActive = true
+        setNotice("APP DECK SEARCH // TYPE TO FILTER")
     elseif key == "up" or key == "w" then
         if activePage == 2 then cycleDesktopProfile(-1)
+        elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
         elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
         else cyclePage(-1) end
     elseif key == "down" or key == "s" then
         if activePage == 2 then cycleDesktopProfile(1)
+        elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         else cyclePage(1) end
     elseif key == "left" or key == "a" then
         if activePage == 2 then selectedSlot = "tf1"
+        elseif activePage == 3 then cycleAppCategory(-1)
         elseif activePage == 5 then cycleForgeCategory(-1) end
     elseif key == "right" or key == "d" then
         if activePage == 2 then selectedSlot = "tf2"
+        elseif activePage == 3 then cycleAppCategory(1)
         elseif activePage == 5 then cycleForgeCategory(1) end
     elseif key == "return" or key == "space" or key == "z" or key == "i" then
         if activePage == 2 then startDesktopEnvironment()
+        elseif activePage == 3 then
+            local item = filteredApps()[appSelectedIndex]
+            if item then startDesktopApplication(item.id) end
         elseif activePage == 5 then
             local item = forgeFilteredPackages()[forgeSelectedIndex]
             if item and item.available and not item.installed then queueForgeAction("install", item.package)
@@ -992,8 +1231,14 @@ function love.keypressed(key)
                 setNotice("PRESS R AGAIN TO REMOVE " .. item.package)
             end
         end
+    elseif key == "y" and activePage == 3 then
+        appCatalogLoaded = false
+        queueAppCatalog()
+        appCatalogLoaded = true
     elseif key == "y" and activePage == 5 then
         queueForgeAction("update")
+    elseif key == "y" and activePage == 6 then
+        queueAppCatalog()
     elseif key == "e" or key == "y" then
         exportDiagnostics()
     elseif key == "escape" or key == "x" or key == "backspace" then
@@ -1009,6 +1254,8 @@ end
 function love.textinput(value)
     if activePage == 5 and forgeSearchActive then
         if #forgeSearch < 40 then forgeSearch = forgeSearch .. value end
+    elseif activePage == 3 and appSearchActive then
+        if #appSearch < 40 then appSearch = appSearch .. value end
     end
 end
 
@@ -1043,10 +1290,12 @@ function love.gamepadpressed(joystick, button)
 
     if button == "dpup" then
         if activePage == 2 then cycleDesktopProfile(-1)
+        elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
         elseif activePage == 5 then forgeSelectedIndex = math.max(1, forgeSelectedIndex - 1)
         else love.keypressed("up") end
     elseif button == "dpdown" then
         if activePage == 2 then cycleDesktopProfile(1)
+        elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
         else love.keypressed("down") end
     elseif button == "leftshoulder" then
@@ -1057,6 +1306,10 @@ function love.gamepadpressed(joystick, button)
         selectedSlot = "tf1"
     elseif button == "dpright" and activePage == 2 then
         selectedSlot = "tf2"
+    elseif button == "dpleft" and activePage == 3 then
+        cycleAppCategory(-1)
+    elseif button == "dpright" and activePage == 3 then
+        cycleAppCategory(1)
     elseif button == "dpleft" and activePage == 5 then
         cycleForgeCategory(-1)
     elseif button == "dpright" and activePage == 5 then
@@ -1064,6 +1317,9 @@ function love.gamepadpressed(joystick, button)
     elseif button == "a" then
         if activePage == 2 then
             startDesktopEnvironment()
+        elseif activePage == 3 then
+            local item = filteredApps()[appSelectedIndex]
+            if item then startDesktopApplication(item.id) end
         elseif activePage == 5 then
             local item = forgeFilteredPackages()[forgeSelectedIndex]
             if item and item.available and not item.installed then queueForgeAction("install", item.package)
@@ -1082,8 +1338,14 @@ function love.gamepadpressed(joystick, button)
                 setNotice("PRESS X AGAIN TO REMOVE " .. item.package)
             end
         end
+    elseif button == "y" and activePage == 3 then
+        appCatalogLoaded = false
+        queueAppCatalog()
+        appCatalogLoaded = true
     elseif button == "y" and activePage == 5 then
         queueForgeAction("update")
+    elseif button == "y" and activePage == 6 then
+        queueAppCatalog()
     elseif button == "y" then
         exportDiagnostics()
     elseif button == "b" or button == "back" then

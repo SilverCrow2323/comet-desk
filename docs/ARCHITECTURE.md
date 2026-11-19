@@ -11,7 +11,8 @@ Comet Desk is the controller-first Linux workspace layer for muOS. muOS remains 
 3. **Capability layer** — read-only device probe and explicit storage/network checks.
 4. **Debian environment manager** — pinned Debian Trixie ARM64 rootfs, APT sources, labwc default profile and optional X11/Wayland sessions.
 5. **THE FORGE** — curated APT catalogue, installed/available state, search, install/remove/update and a strict package allowlist.
-6. **Session supervisor** — Comet launcher starts the selected Debian profile and reopens Comet after the session exits.
+6. **APP DECK** — scans installed freedesktop application entries, validates the executable inside Debian and presents a controller-driven app catalogue.
+7. **Session supervisor** — Comet launches the requested desktop profile and app, then returns to the Comet frontend after the app exits.
 7. **Target storage** — user-selected TF1/TF2 destination; guest ext4 image is a file, never written to a raw block device.
 
 ## Debian guest
@@ -24,7 +25,7 @@ The guest shares the currently running muOS H700 kernel and only the host device
 
 THE FORGE operates only inside the mounted Debian rootfs. APT commands are serialized with setup and session launches through one shared lock. The curated H700 catalogue focuses on graphics (DRM/GBM/EGL), Wayland, input (evdev/libinput), audio (ALSA/PulseAudio), SDL2 and useful development/network tools.
 
-A subsequent Comet application registry will map package-installed executables to names, icons, categories, launch arguments and supported desktop sessions. Package installation does not yet automatically register or expose every executable as a Comet application.
+APP DECK parses installed .desktop entries, excludes hidden, NoDisplay and Terminal entries, strips supported Desktop Entry field codes, rejects shell/privilege wrappers, and resolves the first executable strictly within the Debian rootfs. It stores a compact atomic catalogue. A launch request contains only a validated registry ID; the supervisor re-reads the entry from the mounted guest, starts the selected desktop profile, waits for the compositor/display endpoint, and launches the validated argv directly through chroot (never through a shell). When the app process exits, Comet terminates the desktop session, cleans up bind/loop mounts and reopens the frontend. DBus-only activation, terminal applications, unsupported field-code patterns and binaries outside the guest are not exposed.
 
 ## muOS host boundary
 

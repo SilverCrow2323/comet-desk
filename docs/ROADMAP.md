@@ -35,12 +35,20 @@
 - [x] Enforce an allowlist and filter host/init/bootloader/kernel/firmware and heavyweight app-store packages.
 - [x] Add disabled Input Leap entry pending a trustworthy Debian Trixie ARM64 package source.
 - [ ] Validate package dependencies and actual installation/removal on the RG35XX H.
-- [ ] Add app registry and in-Comet application launch from installed Debian programs.
+- [x] Discover installed Debian .desktop applications and create an atomic Comet app catalogue.
+- [x] Validate executable paths and launch arguments within the Debian rootfs; reject shell/privilege wrappers.
+- [x] Launch one selected application under a Comet-supervised desktop session and return to Comet when it exits.
+- [ ] Validate GUI application startup, input/audio, application exit and mount cleanup on the RG35XX H.
 
-## Phase 3 — Session manager
-- [ ] Discover installed desktop sessions.
-- [ ] Validate launch commands before displaying them.
-- [ ] Start/stop sessions with clear status and logs.
+## Phase 3 — Session and application manager
+- [x] Replace the placeholder Session Manager tab with APP DECK.
+- [x] Scan freedesktop application entries from the selected Debian rootfs.
+- [x] Filter unsafe, hidden, terminal-only and externally resolved executables.
+- [x] Search and filter applications by category.
+- [x] Route launches through the Comet supervisor; restore Comet after the application exits.
+- [ ] Add explicit desktop-profile discovery and per-app launch preferences.
+- [ ] Add DBus activation and terminal application support after session-bus supervision is validated.
+- [ ] Validate display/session lifecycle and process cleanup on the RG35XX H.
 
 ## Phase 4 — Release engineering
 - [x] Implement a minimal, reproducible .muxapp builder.

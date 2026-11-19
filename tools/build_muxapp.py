@@ -27,6 +27,7 @@ REQUIRED = (
     "assets/icons/comet-desk-atlas.png",
     "assets/branding/comet-desk-logo.png",
     "service/desktop_environment.py", "service/uplink_status.py", "service/forge_apt.py",
+    "service/app_registry.py",
 )
 AARCH64_MACHINE = 183
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"

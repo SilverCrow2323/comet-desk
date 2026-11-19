@@ -30,9 +30,9 @@ The app and documentation share one visual identity: industrial megastructure ar
 |---|---|---|
 | Overview | Device/app landing screen | Implemented |
 | Desktop System | Build Debian Trixie ARM64 + APT and install labwc/XFCE/LXDE/LXQt/IceWM/Fluxbox/Openbox profiles | Integrated setup/session manager; hardware validation pending |
-| Session Manager | View and launch installed sessions | Planned |
+| APP DECK | Discover and launch installed Debian GUI applications under Comet supervision | Integrated registry and supervised launcher; physical application validation pending |
 | THE FORGE | Discover, install, update and remove curated Debian APT packages | Integrated catalogue and package operations; device validation pending |
-| System Tools | Storage and service utilities | Planned |
+| System Tools | Read-only Debian, APT, profile and application-registry status | Integrated status dashboard |
 | Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
 

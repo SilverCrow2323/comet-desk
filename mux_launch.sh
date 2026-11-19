@@ -49,9 +49,11 @@ while :; do
     if [ -f "$REQUEST" ]; then
         SLOT=""
         PROFILE="labwc"
+        APP_ID=""
         {
             IFS= read -r SLOT || true
             IFS= read -r PROFILE || true
+            IFS= read -r APP_ID || true
         } < "$REQUEST"
         rm -f "$REQUEST"
         case "$SLOT" in
@@ -64,8 +66,18 @@ while :; do
                     labwc|xfce|lxde|lxqt|icewm|fluxbox|openbox) ;;
                     *) echo "$(date) ERROR: invalid desktop profile request" >> "$LOG_FILE"; break ;;
                 esac
-                echo "$(date) Comet Desk starting Debian desktop profile $PROFILE from $SLOT" >> "$LOG_FILE"
-                python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --profile "$PROFILE" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+                case "$APP_ID" in
+                    *[!a-zA-Z0-9._+-]*)
+                        echo "$(date) ERROR: invalid Comet application id" >> "$LOG_FILE"
+                        break
+                        ;;
+                esac
+                echo "$(date) Comet Desk starting Debian profile $PROFILE from $SLOT (app=$APP_ID)" >> "$LOG_FILE"
+                if [ -n "$APP_ID" ]; then
+                    python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --profile "$PROFILE" --app-id "$APP_ID" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+                else
+                    python3 "$APP_DIR/service/desktop_environment.py" session --slot "$SLOT" --profile "$PROFILE" --app-dir "$APP_DIR" >> "$LOG_FILE" 2>&1
+                fi
                 SESSION_RC=$?
                 echo "$(date) XFCE session returned rc=$SESSION_RC; resuming Comet Desk" >> "$LOG_FILE"
                 continue

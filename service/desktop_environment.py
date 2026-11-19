@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -642,7 +643,18 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
                      str(image), profile)
         manager.mount_image()
 
-        if not (mountpoint / "etc/os-release").exists():
+        rootfs_marker = mountpoint / ".comet-debian-rootfs-ready"
+        if not rootfs_marker.is_file():
+            existing_release = mountpoint / "etc/os-release"
+            if existing_release.is_file():
+                current_release = existing_release.read_text(errors="replace")
+                if ("ID=debian" not in current_release
+                        or 'VERSION_ID="13"' not in current_release
+                        or "VERSION_CODENAME=trixie" not in current_release):
+                    raise SetupError(
+                        "existing image contains a non-Debian root filesystem; "
+                        "refusing to overlay Debian on an unknown operating system"
+                    )
             write_status(app_dir, "DOWNLOADING_ROOTFS", 23,
                          "Downloading verified Debian Trixie ARM64 rootfs",
                          str(image), profile)
@@ -669,6 +681,18 @@ def setup(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> Path:
                 raise SetupError("downloaded rootfs is not Debian 13 Trixie")
             _write_guest_configuration(mountpoint)
             (mountpoint / "etc/fstab").write_text("", encoding="ascii")
+            temporary_marker = rootfs_marker.with_suffix(".tmp")
+            temporary_marker.write_text(
+                "Debian GNU/Linux 13 (Trixie) ARM64 rootfs verified\\n",
+                encoding="ascii",
+            )
+            os.replace(temporary_marker, rootfs_marker)
+        else:
+            os_release = (mountpoint / "etc/os-release").read_text(errors="replace")
+            if ("ID=debian" not in os_release
+                    or 'VERSION_ID="13"' not in os_release
+                    or "VERSION_CODENAME=trixie" not in os_release):
+                raise SetupError("rootfs readiness marker does not match Debian Trixie")
 
         _write_guest_configuration(mountpoint)
         # Disable service autostart while apt unpacks: the guest shares muOS's
@@ -765,7 +789,8 @@ def _x11_profile_command(profile: str) -> str:
     return commands[profile]
 
 
-def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> int:
+def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE,
+           app_id: str | None = None) -> int:
     if os.geteuid() != 0:
         raise SetupError("Comet Desk needs muOS app-runner root privileges to launch a desktop")
     if slot not in SLOTS:
@@ -839,14 +864,102 @@ def launch(slot: str, app_dir: Path, profile: str = DEFAULT_PROFILE) -> int:
                 "/usr/bin/startx", "/usr/local/bin/comet-session-x11", "--",
                 ":0", "vt1", "-novtswitch", "-keeptty",
             ]
-        result = subprocess.run(
+        if not app_id:
+            result = subprocess.run(
+                command, stdin=subprocess.DEVNULL, stdout=log_stream,
+                stderr=subprocess.STDOUT, env=env, check=False,
+            )
+            write_status(app_dir, "READY", 100,
+                         "Desktop session ended; returned to Comet Desk",
+                         str(image), profile)
+            return result.returncode
+
+        # Resolve the selected .desktop entry while the verified Debian image
+        # is mounted. The registry rejects shell interpreters and executables
+        # that escape the guest rootfs.
+        import app_registry
+        application = app_registry.find_application(mountpoint, app_id)
+        if application is None:
+            raise SetupError("application is no longer installed; refresh APP DECK")
+
+        session = subprocess.Popen(
             command, stdin=subprocess.DEVNULL, stdout=log_stream,
-            stderr=subprocess.STDOUT, env=env, check=False,
+            stderr=subprocess.STDOUT, env=env, start_new_session=True,
         )
-        write_status(app_dir, "READY", 100,
-                     "Desktop session ended; returned to Comet Desk",
-                     str(image), profile)
-        return result.returncode
+        app_process = None
+        try:
+            deadline = time.monotonic() + 45
+            ready = False
+            while time.monotonic() < deadline:
+                if session.poll() is not None:
+                    raise SetupError(
+                        "desktop session exited before the application became available; "
+                        "inspect desktop-environment.log"
+                    )
+                if profile == "labwc":
+                    ready = (runtime_dir / "wayland-0").exists()
+                else:
+                    probe_display = subprocess.run(
+                        ["chroot", str(mountpoint), "/usr/bin/env",
+                         "DISPLAY=:0", "PATH=/usr/bin:/bin",
+                         "/usr/bin/xdpyinfo", "-display", ":0"],
+                        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL, check=False, timeout=3,
+                    )
+                    ready = probe_display.returncode == 0
+                if ready:
+                    break
+                time.sleep(0.25)
+            if not ready:
+                raise SetupError("desktop display did not become ready within 45 seconds")
+
+            app_variables = [
+                "HOME=/root", "USER=root", "LOGNAME=root",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "XDG_RUNTIME_DIR=/run/user/0",
+            ]
+            if profile == "labwc":
+                app_variables += [
+                    "XDG_SESSION_TYPE=wayland", "WAYLAND_DISPLAY=wayland-0",
+                    "LIBSEAT_BACKEND=builtin",
+                ]
+            else:
+                app_variables += ["XDG_SESSION_TYPE=x11", "DISPLAY=:0"]
+            app_command = [
+                "chroot", str(mountpoint), "/usr/bin/env",
+                *app_variables, *application["exec"],
+            ]
+            write_status(app_dir, "APP_RUNNING", 100,
+                         "Comet application // " + application["name"],
+                         str(image), profile)
+            app_process = subprocess.Popen(
+                app_command, stdin=subprocess.DEVNULL, stdout=log_stream,
+                stderr=subprocess.STDOUT, env=env, start_new_session=True,
+            )
+            result_code = app_process.wait()
+            write_status(app_dir, "READY", 100,
+                         "Application closed; returned to Comet Desk",
+                         str(image), profile)
+            return result_code
+        finally:
+            if app_process is not None and app_process.poll() is None:
+                try:
+                    os.killpg(app_process.pid, signal.SIGTERM)
+                    app_process.wait(timeout=8)
+                except (OSError, subprocess.TimeoutExpired):
+                    try:
+                        os.killpg(app_process.pid, signal.SIGKILL)
+                    except OSError:
+                        pass
+            if session.poll() is None:
+                try:
+                    os.killpg(session.pid, signal.SIGTERM)
+                    session.wait(timeout=10)
+                except (OSError, subprocess.TimeoutExpired):
+                    try:
+                        os.killpg(session.pid, signal.SIGKILL)
+                    except OSError:
+                        pass
     finally:
         clean = manager.cleanup()
         log_stream.close()
@@ -863,6 +976,7 @@ def main() -> int:
     parser.add_argument("--slot", required=True, choices=sorted(SLOTS))
     parser.add_argument("--profile", choices=sorted(PROFILE_PACKAGES), default=DEFAULT_PROFILE)
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
+    parser.add_argument("--app-id", default="")
     args = parser.parse_args()
     if not args.app_dir:
         print("COMET_DESK_APP_DIR is required", file=sys.stderr)
@@ -885,7 +999,7 @@ def main() -> int:
                     image, args.profile
                 ))
                 return 0
-            result = launch(args.slot, app_dir, args.profile)
+            result = launch(args.slot, app_dir, args.profile, args.app_id or None)
             print("[comet-desktop] {} session returned ({})".format(
                 args.profile, result
             ))
