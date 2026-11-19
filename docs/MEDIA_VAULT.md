@@ -49,7 +49,7 @@ The active source can be changed from the PLAYLISTS view in Comet Desk. The serv
 
 Media Vault collects XMLTV sources from the configured EPG URL list and from playlist `url-tvg` metadata. It parses gzip XMLTV, resolves channel IDs/display names and creates an indexed programme cache. To keep memory use predictable on a 1 GB handheld, each sync is limited to four sources and 60,000 programmes per source, with a maximum document size.
 
-The current UI displays **Now** and **Next** for the selected TV channel when a reliable ID/name match exists. The parser uses a bounded maximum of four XMLTV sources and 60,000 programmes per source to constrain memory usage. A complete multi-channel grid/timeline and richer channel matching remain planned work, not a claimed current feature.
+The current UI includes a dedicated **EPG** mode that displays **Now** and **Next** for the selected TV channel when a reliable ID/name match exists. The parser uses a bounded maximum of four XMLTV sources and 60,000 programmes per source to constrain memory usage. A complete multi-channel grid/timeline and richer channel matching remain planned work, not a claimed current feature.
 
 EPG cache/status:
 - `data/media-epg-index.json`
