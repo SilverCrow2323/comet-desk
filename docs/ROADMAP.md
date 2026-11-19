@@ -116,3 +116,20 @@ The product boundary and test authority are documented in [Product Blueprint](PR
 - [x] Bind SELECT to show/hide the live Debian/ APT task console without cancelling its worker.
 - [x] Strip inherited muOS LD_PRELOAD/LD_AUDIT injection from guest and helper child processes.
 - [ ] Validate the 0.8.0-dev layout, focus, scrolling and SELECT console toggle on the RG35XX H.
+
+
+## Phase 4.4 — Desktop Input and Media Vault (0.9.0-dev)
+
+- [x] Add a host-side evdev-to-uinput keyboard/mouse bridge with no third-party Python dependency.
+- [x] Map left stick to pointer, A/B to Enter/Escape, L1+A/B to mouse clicks, right stick to scroll and D-pad to arrows.
+- [x] Add configurable pointer speed, scroll speed, deadzone and button-action bindings.
+- [x] Add a separate controller profile for full-screen IPTV playback (pause, quit, fullscreen, mute).
+- [x] Supervise the input bridge alongside the Debian desktop session and release its controls on exit.
+- [x] Add a native Media Vault service with remote M3U/M3U8 playlists, local playlist drop-folder discovery and playlist switching.
+- [x] Add XMLTV EPG sync with bounded parsing, cached Now/Next data and status reporting.
+- [x] Add persistent TV/radio favourites and four initial Italian web-radio presets.
+- [x] Enforce one playback owner; stop the previous stream on media switch, before desktop launch and on Comet exit.
+- [x] Add heartbeat-based cleanup if the Comet frontend disappears unexpectedly.
+- [ ] Validate evdev/uinput discovery, analogue calibration, click modifiers and desktop focus on the RG35XX H.
+- [ ] Validate MPV/FFPlay controls, IPTV stream compatibility, radio endpoints, audio output and EPG matching on the device.
+- [ ] Add an in-UI remote playlist URL editor and a richer multi-channel EPG guide.
