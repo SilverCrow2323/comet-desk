@@ -68,7 +68,7 @@ DEFAULT_CONFIG = {
             "country": "Italy",
             "url": "https://4c4b867c89244861ac216426883d1ad0.msvdn.net/radiodeejay/radiodeejay/master_ma.m3u8",
             "homepage": "https://www.deejay.it/",
-            "favorite": True,
+            "favorite": False,
         },
         {
             "id": "radio-italia",
@@ -77,7 +77,7 @@ DEFAULT_CONFIG = {
             "country": "Italy",
             "url": "https://radioitaliasmi.akamaized.net/hls/live/2093120/RISMI/master.m3u8",
             "homepage": "https://www.radioitalia.it/",
-            "favorite": True,
+            "favorite": False,
         },
         {
             "id": "radio-24",
@@ -86,7 +86,7 @@ DEFAULT_CONFIG = {
             "country": "Italy",
             "url": "https://ilsole24ore-radio.akamaized.net/hls/live/2035301/radio24/playlist-48000.m3u8",
             "homepage": "https://www.radio24.ilsole24ore.com/",
-            "favorite": True,
+            "favorite": False,
         },
     ],
     "favorites": [
