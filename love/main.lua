@@ -112,7 +112,7 @@ local desktopInput = {
 local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
 local mediaEpgStatus = "NOT SYNCED"
 local mediaCatalog = {playlists = 0, channels = 0, radios = 0, name = "IPTV-org // ITALIA", error = ""}
-local mediaItemsTV, mediaItemsRadio = {}, {}
+local mediaItemsTV, mediaItemsRadio, mediaItemsPlaylists = {}, {}, {}
 local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
@@ -1228,7 +1228,7 @@ local function readMediaCatalog()
     if not stream then return end
     local raw = stream:read("*a") or ""
     stream:close()
-    local radios, channels = {}, {}
+    local radios, channels, playlists = {}, {}, {}
     local function fields(line)
         local out = {}
         for value in (line .. "|"):gmatch("(.-)|") do out[#out + 1] = value end
@@ -1248,9 +1248,11 @@ local function readMediaCatalog()
         elseif f[1] == "TV" then
             channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
                 url = f[5], tvgId = f[6], favorite = f[7] == "1"}
+        elseif f[1] == "PLAYLIST" then
+            playlists[#playlists + 1] = {id = f[2], name = f[3], active = f[4] == "1"}
         end
     end
-    mediaItemsRadio, mediaItemsTV = radios, channels
+    mediaItemsRadio, mediaItemsTV, mediaItemsPlaylists = radios, channels, playlists
     mediaEpgById = {}
     local epgCatalog = io.open(appRoot .. "/data/media-vault.epg", "r")
     if epgCatalog then
@@ -1267,7 +1269,8 @@ local function readMediaCatalog()
         epg:close()
         if state then mediaEpgStatus = state .. "  //  " .. ok .. " OK / " .. failed .. " ERRORS" end
     end
-    local rows = mediaMode == "RADIO" and radios or channels
+    local rows = mediaMode == "RADIO" and radios
+        or (mediaMode == "TV" and channels or playlists)
     if mediaSelectedIndex > #rows then mediaSelectedIndex = math.max(1, #rows) end
 end
 
@@ -1280,6 +1283,12 @@ end
 local function queueMediaRadio(item)
     if not item then return end
     queueMediaTask("play-radio", "--query " .. shellQuoteMedia(item.id))
+end
+
+local function queueMediaActivatePlaylist(item)
+    if not item then return end
+    queueMediaTask("activate-playlist", "--query " .. shellQuoteMedia(item.id))
+    mediaCatalogLoaded, mediaCatalogBusy = false, false
 end
 
 local function queueMediaFavourite(item)
@@ -1482,7 +1491,19 @@ local function drawDesktopInput()
 end
 
 local function selectedMediaRows()
-    return mediaMode == "RADIO" and mediaItemsRadio or mediaItemsTV
+    if mediaMode == "RADIO" then return mediaItemsRadio end
+    if mediaMode == "PLAYLISTS" then return mediaItemsPlaylists end
+    return mediaItemsTV
+end
+
+local function cycleMediaMode(direction)
+    local modes = {"TV", "RADIO", "PLAYLISTS"}
+    local current = 1
+    for i, mode in ipairs(modes) do
+        if mode == mediaMode then current = i; break end
+    end
+    mediaMode = modes[((current - 1 + direction) % #modes) + 1]
+    mediaSelectedIndex = 1
 end
 
 local function drawMediaVault()
