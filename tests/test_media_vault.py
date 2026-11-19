@@ -103,6 +103,8 @@ def test_player_command_prefers_mpv_and_disables_video_for_radio(monkeypatch):
     command, player = media._player_command("radio", "https://example.org/live.mp3")
     assert player == "mpv"
     assert "--no-video" in command
+    assert "--hwdec=auto-safe" in command
+    assert "--osc=yes" in command
     assert command[-1] == "https://example.org/live.mp3"
 
 
