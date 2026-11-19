@@ -84,6 +84,7 @@ local desktopInput = {
     deadzone = 0.18, selectedOption = 1, state = "NOT CHECKED", detail = "",
 }
 local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
+local mediaEpgStatus = "NOT SYNCED"
 local mediaCatalog = {playlists = 0, channels = 0, radios = 0, name = "IPTV-org // ITALIA", error = ""}
 local mediaItemsTV, mediaItemsRadio = {}, {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
@@ -1196,11 +1197,17 @@ local function readMediaCatalog()
                 url = f[5], favorite = f[6] == "1"}
         elseif f[1] == "TV" then
             channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
-                url = f[5], tvgId = f[6]}
+                url = f[5], tvgId = f[6], favorite = f[7] == "1"}
         end
     end
     mediaItemsRadio, mediaItemsTV = radios, channels
     mediaCatalogLoaded, mediaCatalogBusy = true, false
+    local epg = io.open(appRoot .. "/data/media-epg.status", "r")
+    if epg then
+        local state, ok, failed = (epg:read("*l") or ""):match("^([^|]+)|(%d+)|(%d+)")
+        epg:close()
+        if state then mediaEpgStatus = state .. "  //  " .. ok .. " OK / " .. failed .. " ERRORS" end
+    end
     local rows = mediaMode == "RADIO" and radios or channels
     if mediaSelectedIndex > #rows then mediaSelectedIndex = math.max(1, #rows) end
 end
@@ -1214,6 +1221,18 @@ end
 local function queueMediaRadio(item)
     if not item then return end
     queueMediaTask("play-radio", "--query " .. shellQuoteMedia(item.id))
+end
+
+local function queueMediaFavourite(item)
+    if not item then return end
+    local kind = mediaMode:lower()
+    queueMediaTask("toggle-favourite", "--kind " .. kind
+        .. " --query " .. shellQuoteMedia(item.id))
+end
+
+local function queueMediaRefresh()
+    queueMediaCatalogue(true)
+    queueMediaTask("refresh-epg")
 end
 
 local function queueMediaStop()
@@ -1316,7 +1335,7 @@ local function drawSectionWidget()
         b = {"TV CHANNELS", tostring(mediaCatalog.channels), "M3U / M3U8"}
         c = {"WEB RADIO", tostring(mediaCatalog.radios), mediaStatus.state .. " // " .. mediaStatus.kind}
         lowerLine = "NOW PLAYING  //  " .. (mediaStatus.title ~= "" and short(mediaStatus.title, 56) or "NOTHING")
-        lowerDetail = "M OPEN MEDIA PANEL  //  A PLAY  //  X STOP  //  EPG / FAVOURITES"
+        lowerDetail = "NOW PLAYING / RADIO  //  Y FAVOURITE  //  START REFRESHES EPG"
     elseif page.id == "tools" then
         local guest = imageDownload.state == "READY" and "DEBIAN 13 READY"
             or (imageDownload.state == "NOT_INSTALLED" and "NOT INSTALLED" or imageDownload.state)
@@ -1438,7 +1457,8 @@ local function drawMediaVault()
         text(mediaMode == "RADIO" and "WEB RADIO STREAM" or "IPTV / M3U CHANNEL",
             320, 306, fonts.tiny, colors.muted)
         text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
-        text("Y  REFRESH / EPG   X  STOP", 320, 354, fonts.tiny, colors.amber)
+        text("Y  " .. (chosen.favorite and "UNFAVOURITE" or "FAVOURITE") .. "   X STOP",
+            320, 354, fonts.tiny, colors.amber)
     else
         text("NO ITEMS IN THIS VIEW", 320, 270, fonts.small, colors.amber)
         text("Refresh the catalogue or select RADIO.", 320, 298, fonts.tiny, colors.muted)
@@ -1450,8 +1470,10 @@ local function drawMediaVault()
         .. short(mediaStatus.title ~= "" and mediaStatus.title or "NOT PLAYING", 48),
         38, 393, fonts.tiny,
         mediaStatus.state == "PLAYING" and colors.green or colors.muted)
+    text("EPG  //  " .. short(mediaEpgStatus, 58), 38, 408, fonts.tiny,
+        mediaEpgStatus:find("READY", 1, true) and colors.green or colors.muted)
     if mediaCatalog.error ~= "" then
-        text(short(mediaCatalog.error, 76), 38, 408, fonts.tiny, colors.amber)
+        text(short(mediaCatalog.error, 76), 380, 408, fonts.tiny, colors.amber)
     end
 end
 
@@ -2341,8 +2363,9 @@ function love.keypressed(key)
     elseif key == "y" and sectionOverlayOpen and activePage == 8 then
         resetDesktopInput()
     elseif key == "y" and sectionOverlayOpen and activePage == 9 then
-        queueMediaCatalogue(true)
-        queueMediaTask("refresh-epg")
+        queueMediaFavourite(selectedMediaRows()[mediaSelectedIndex])
+    elseif key == "r" and sectionOverlayOpen and activePage == 9 then
+        queueMediaRefresh()
     elseif key == "x" and sectionOverlayOpen and activePage == 9 then
         queueMediaStop()
     elseif key == "r" and sectionOverlayOpen and activePage == 5 then
@@ -2541,8 +2564,9 @@ function love.gamepadpressed(joystick, button)
     elseif button == "y" and sectionOverlayOpen and activePage == 8 then
         resetDesktopInput()
     elseif button == "y" and sectionOverlayOpen and activePage == 9 then
-        queueMediaCatalogue(true)
-        queueMediaTask("refresh-epg")
+        queueMediaFavourite(selectedMediaRows()[mediaSelectedIndex])
+    elseif button == "start" and sectionOverlayOpen and activePage == 9 then
+        queueMediaRefresh()
     elseif button == "x" and sectionOverlayOpen and activePage == 9 then
         queueMediaStop()
     elseif button == "y" and sectionOverlayOpen and activePage == 3 then
