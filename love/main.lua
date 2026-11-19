@@ -1107,7 +1107,8 @@ local function readDesktopInputConfig()
     desktopInput.deadzone = math.max(0.08, math.min(0.42, number("deadzone", 0.18)))
     desktopInput.enabled = not raw:match('"enabled"%s*:%s*false')
     for _, row in ipairs(inputBindingRows) do
-        local value = raw:match('"' .. row.key .. '"%s*:%s*"([^"]+)"')
+        local keyPattern = row.key:gsub("([^%w])", "%%%1")
+        local value = raw:match('"' .. keyPattern .. '"%s*:%s*"([^"]+)"')
         if value then desktopInput.bindings[row.key] = value end
     end
 end
@@ -1476,7 +1477,7 @@ local function drawDesktopInput()
             desktopInput.selectedOption == i and colors.white or tint)
     end
     text("STATUS  //  " .. short(desktopInput.state .. " " .. desktopInput.detail, 72),
-        38, 407, fonts.tiny,
+        38, 379, fonts.tiny,
         desktopInput.state == "READY" and colors.green or colors.muted)
 end
 
@@ -1626,7 +1627,7 @@ local function drawSectionOverlay()
         elseif page.id == "media" then
             drawLegendItem(20, "↑↓", "ITEM", page.accent)
             drawLegendItem(175, "←→", "TV / RADIO", page.accent)
-            drawLegendItem(330, "A", "PLAY", page.accent)
+            drawLegendItem(330, "A/Y", "PLAY / FAV", page.accent)
             drawLegendItem(485, "X", "STOP", page.accent)
         elseif page.id == "diagnostics" then
             drawLegendItem(20, "Y", "EXPORT", page.accent)
