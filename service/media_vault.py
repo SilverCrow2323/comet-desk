@@ -123,6 +123,7 @@ def data_paths(app_dir: Path) -> dict[str, Path]:
         "playlists": data / "media" / "playlists",
         "epg_cache": data / "media" / "epg",
         "epg_status": data / "media-epg.status",
+        "epg_catalogue": data / "media-vault.epg",
         "recordings": data / "media" / "recordings",
     }
 
@@ -346,7 +347,7 @@ def parse_xmltv_time(value: str | None) -> float | None:
     return (dt - offset).replace(tzinfo=timezone.utc).timestamp()
 
 
-def parse_epg(payload: bytes, max_programmes: int = 500_000) -> dict[str, list[dict]]:
+def parse_epg(payload: bytes, max_programmes: int = 60_000) -> dict[str, list[dict]]:
     if payload[:2] == b"\x1f\x8b":
         try:
             payload = gzip.decompress(payload)
@@ -417,7 +418,7 @@ def sync_epg(app_dir: Path, config: dict, force: bool = False) -> dict:
     index: dict[str, list[dict]] = {}
     sources_ok, sources_error = [], []
     paths["epg_cache"].mkdir(parents=True, exist_ok=True)
-    for url in config.get("epg_urls", [])[:12]:
+    for url in config.get("epg_urls", [])[:4]:
         try:
             url = safe_url(url)
             key = hashlib.sha256(url.encode()).hexdigest()[:20]
@@ -429,7 +430,7 @@ def sync_epg(app_dir: Path, config: dict, force: bool = False) -> dict:
                 temporary = cache.with_suffix(".tmp")
                 temporary.write_bytes(payload)
                 os.replace(temporary, cache)
-            parsed = parse_epg(payload)
+            parsed = parse_epg(payload, max_programmes=60_000)
             for channel_key, programmes in parsed.items():
                 index.setdefault(channel_key, []).extend(programmes)
             sources_ok.append(url)
@@ -443,6 +444,27 @@ def sync_epg(app_dir: Path, config: dict, force: bool = False) -> dict:
     # sources remain untouched and the index is capped by parse_epg().
     atomic_write(paths["data"] / "media-epg-index.json",
                  json.dumps(index, ensure_ascii=False, separators=(",", ":")))
+
+    # Materialise only a small Now/Next view for the active playlist. The TUI
+    # does not load the full multi-day XMLTV index into the 1 GB handheld UI.
+    epg_rows = []
+    active = next((row for row in config.get("playlists", [])
+                   if row.get("id") == config.get("active_playlist")), None)
+    if active:
+        try:
+            channels = load_playlist(app_dir, active, force=False)["channels"]
+            now = time.time()
+            for channel in channels:
+                current, following = now_next(index, channel, now=now)
+                epg_rows.append("EPG|{}|{}|{}".format(
+                    clean(channel.get("id"), 80),
+                    clean(current.get("title") if current else "NO CURRENT PROGRAMME", 120),
+                    clean(following.get("title") if following else "NO NEXT PROGRAMME", 120),
+                ))
+        except Exception:
+            pass
+    atomic_write(paths["epg_catalogue"], "\n".join(epg_rows) + ("\n" if epg_rows else ""))
+
     state = "READY" if sources_ok and not sources_error else ("DEGRADED" if sources_ok else "FAILED")
     atomic_write(paths["epg_status"], "{}|{}|{}|{}\n".format(
         state, len(sources_ok), len(sources_error), int(time.time())
@@ -459,6 +481,13 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
     if active:
         try:
             playlist = load_playlist(app_dir, active, force=force)
+            changed_epg = False
+            for url in playlist.get("epg_urls", []):
+                if url not in config["epg_urls"] and len(config["epg_urls"]) < 4:
+                    config["epg_urls"].append(url)
+                    changed_epg = True
+            if changed_epg:
+                save_config(app_dir, config)
         except Exception as exc:
             playlist_error = str(exc)
     radios = config["radios"]
