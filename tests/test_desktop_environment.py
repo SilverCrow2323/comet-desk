@@ -70,10 +70,16 @@ def test_mount_parser_uses_exact_mountpoint_and_read_only_state():
         ("/dev/mmcblk1p1", "/mnt/sdcard", "ro,nosuid,nodev"),
     ]
 
-def test_guest_profile_constants_match_voiddesk_xfce_contract():
-    assert "xfce4-session" in desktop.PACKAGES
-    assert "xserver-xorg-video-fbdev" in desktop.PACKAGES
-    assert desktop.IMAGE_SEED_URL.startswith("https://raw.githubusercontent.com/")
-    assert desktop.UBUNTU_BASE_SHA256 == "7b2dced6dd56ad5e4a813fa25c8de307b655fdabc6ea9213175a92c48dabb048"
-    assert desktop.UBUNTU_BASE_SIZE == 29_865_086
-    assert desktop.UBUNTU_BASE_URL.endswith("ubuntu-base-24.04.3-base-arm64.tar.gz")
+def test_guest_profile_constants_match_debian_trixie_contract():
+    assert desktop.DEBIAN_ROOTFS_URL.endswith("/trixie/oci/blobs/rootfs.tar.gz")
+    assert desktop.DEBIAN_ROOTFS_SIZE == 49_778_604
+    assert desktop.DEBIAN_ROOTFS_SHA256 == "23b69c48ce5c2a6fb0681d959fa700427ad2a7cf7e6be5d25249170a1853d7ad"
+    assert desktop.DEFAULT_PROFILE == "labwc"
+    assert desktop.PROFILE_PACKAGES["labwc"].startswith("labwc")
+    assert "xfce4" in desktop.PROFILE_PACKAGES["xfce"]
+    assert "lxde-core" in desktop.PROFILE_PACKAGES["lxde"]
+    assert "lxqt-core" in desktop.PROFILE_PACKAGES["lxqt"]
+    assert "icewm" in desktop.PROFILE_PACKAGES["icewm"]
+    assert "fluxbox" in desktop.PROFILE_PACKAGES["fluxbox"]
+    assert "openbox" in desktop.PROFILE_PACKAGES["openbox"]
+    assert desktop.MIN_FREE_BYTES > desktop.DESKTOP_IMAGE_BYTES
