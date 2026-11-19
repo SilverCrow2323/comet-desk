@@ -255,3 +255,47 @@ def test_load_playlist_rejects_configured_symlink_even_when_target_is_inside(tmp
         media.load_playlist(tmp_path, {
             "id": "local-link", "type": "file", "source": str(link)
         })
+
+
+def test_catalogue_preserves_channel_stream_headers_for_player_handoff(tmp_path, monkeypatch):
+    import base64
+
+    monkeypatch.setattr(media, "load_playlist", lambda *args, **kwargs: {
+        "channels": [{
+            "id": "secure-stream", "name": "Secure Stream", "group": "News",
+            "url": "https://example.org/live.m3u8", "tvg_id": "secure.id",
+            "options": {
+                "http-user-agent": "Comet Player/1.0",
+                "http-referrer": "https://provider.example/",
+                "headers": {"X-Provider-Key": "token-value"},
+            },
+        }],
+        "groups": ["News"], "epg_urls": []
+    })
+    config = media.load_config(tmp_path)
+    media.build_catalogue(tmp_path)
+    row = next(line for line in media.data_paths(tmp_path)["catalogue"].read_text().splitlines()
+               if line.startswith("TV|"))
+    fields = row.split("|")
+    options = json.loads(base64.urlsafe_b64decode(
+        fields[7] + "=" * ((4 - len(fields[7]) % 4) % 4)
+    ))
+    assert options["http-user-agent"] == "Comet Player/1.0"
+    assert options["http-referrer"] == "https://provider.example/"
+    assert options["headers"]["X-Provider-Key"] == "token-value"
+
+
+def test_channel_options_are_validated_before_reaching_mpv(monkeypatch):
+    monkeypatch.setattr(media.shutil, "which",
+                        lambda name: "/usr/bin/mpv" if name == "mpv" else None)
+    command, player = media._player_command("tv", "https://example.org/live.m3u8", {
+        "http-user-agent": "Provider/2.0",
+        "http-referrer": "https://provider.example/",
+        "headers": {"X-Provider": "value", "Bad Header": "not allowed",
+                    "X-Injected": "one\\r\\n--no-config"},
+    })
+    assert player == "mpv"
+    assert "--user-agent=Provider/2.0" in command
+    assert "--referrer=https://provider.example/" in command
+    assert "--http-header-fields=X-Provider: value" in command
+    assert "--no-config" not in command
