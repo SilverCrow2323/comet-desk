@@ -1100,7 +1100,7 @@ local function drawSectionWidget()
         text(short(lowerLine, 82), 38, 356, fonts.tiny, colors.white)
         text(short(lowerDetail, 82), 38, 380, fonts.tiny, colors.muted)
     end
-    text("A  OPEN SECTION", 482, 396, fonts.tiny, tint)
+    text("A  OPEN SECTION", 492, 196, fonts.tiny, tint)
 end
 
 local function drawPageContent()
