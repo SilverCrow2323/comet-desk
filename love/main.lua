@@ -726,6 +726,11 @@ function love.update(dt)
         uplinkPoll = 0
         readUplinkStatus()
     end
+    forgePoll = forgePoll + dt
+    if forgePoll >= 0.5 then
+        forgePoll = 0
+        readForgeFiles()
+    end
     probeTimer = probeTimer + dt
     if probe and probeTimer >= 10 then
         probeTimer = 0
@@ -754,6 +759,10 @@ function love.draw()
         queueUplinkAction("status")
         uplinkStatus.loaded = true
     end
+    if activePage == 5 and not forgeLoaded then
+        if installedSlot then queueForgeAction("catalog") end
+        forgeLoaded = true
+    end
     local transition = math.min(1, math.max(0, (ambientTime - pageChangedAt) / 0.34))
     love.graphics.push()
     love.graphics.translate((1 - transition) * 26 * pageChangedDirection, (1 - transition) * 5)
@@ -765,11 +774,14 @@ function love.draw()
         love.graphics.scale(1, 0.85)
         love.graphics.translate(0, -158)
     end
+    love.graphics.setScissor(18, 176, 604, 244)
     if activePage == 1 then drawOverview()
     elseif activePage == 2 then drawSetup()
     elseif activePage == 4 then drawUplink()
-    elseif activePage == 6 then drawDiagnostics()
+    elseif activePage == 5 then drawForge()
+    elseif activePage == 7 then drawDiagnostics()
     else drawModule() end
+    love.graphics.setScissor()
     love.graphics.pop()
     drawFooter()
     drawQuickPanel()
@@ -777,7 +789,7 @@ function love.draw()
 end
 
 local function exportDiagnostics()
-    if activePage ~= 6 then
+    if activePage ~= 7 then
         setNotice("OPEN DIAGNOSTICS TO EXPORT")
         return
     end
@@ -1024,7 +1036,9 @@ function love.gamepadpressed(joystick, button)
     if button == "dpup" then
         if activePage == 2 then cycleDesktopProfile(-1) else love.keypressed("up") end
     elseif button == "dpdown" then
-        if activePage == 2 then cycleDesktopProfile(1) else love.keypressed("down") end
+        if activePage == 2 then cycleDesktopProfile(1)
+        elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
+        else love.keypressed("down") end
     elseif button == "leftshoulder" then
         cyclePage(-1)
     elseif button == "rightshoulder" then
@@ -1033,8 +1047,33 @@ function love.gamepadpressed(joystick, button)
         selectedSlot = "tf1"
     elseif button == "dpright" and activePage == 2 then
         selectedSlot = "tf2"
+    elseif button == "dpleft" and activePage == 5 then
+        cycleForgeCategory(-1)
+    elseif button == "dpright" and activePage == 5 then
+        cycleForgeCategory(1)
     elseif button == "a" then
-        if activePage == 2 then startDesktopEnvironment() else activate() end
+        if activePage == 2 then
+            startDesktopEnvironment()
+        elseif activePage == 5 then
+            local item = forgeFilteredPackages()[forgeSelectedIndex]
+            if item and item.available and not item.installed then queueForgeAction("install", item.package)
+            elseif item and item.installed then setNotice(item.title .. " IS ALREADY INSTALLED") end
+        else
+            activate()
+        end
+    elseif button == "x" and activePage == 5 then
+        local item = forgeFilteredPackages()[forgeSelectedIndex]
+        if item and item.installed then
+            if forgeConfirmRemove == item.package then
+                queueForgeAction("remove", item.package)
+                forgeConfirmRemove = nil
+            else
+                forgeConfirmRemove = item.package
+                setNotice("PRESS X AGAIN TO REMOVE " .. item.package)
+            end
+        end
+    elseif button == "y" and activePage == 5 then
+        queueForgeAction("update")
     elseif button == "y" then
         exportDiagnostics()
     elseif button == "b" or button == "back" then
