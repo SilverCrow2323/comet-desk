@@ -7,6 +7,7 @@ and the player already present on muOS (mpv preferred, ffplay as fallback).
 from __future__ import annotations
 
 import argparse
+import base64
 import fcntl
 import gzip
 import hashlib
@@ -334,6 +335,8 @@ def sync_import_folder(app_dir: Path, config: dict) -> bool:
         row = {"id": entry_id, "name": clean(name, 80), "type": "file",
                "source": str(resolved), "enabled": True}
         if existing is None:
+            if len(config["playlists"]) >= 24:
+                continue
             config["playlists"].append(row)
             changed = True
         elif existing != row:
@@ -568,11 +571,16 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
             "1" if ("radio:" + radio["id"]) in favourites or radio.get("favorite") else "0",
         ))
     for channel in channels:
-        rows.append("TV|{}|{}|{}|{}|{}|{}".format(
+        option_blob = base64.urlsafe_b64encode(
+            json.dumps(channel.get("options", {}), ensure_ascii=True,
+                       separators=(",", ":")).encode("utf-8")
+        ).decode("ascii").rstrip("=")
+        rows.append("TV|{}|{}|{}|{}|{}|{}|{}".format(
             clean(channel["id"], 80), clean(channel["name"], 100),
             clean(channel.get("group"), 80), clean(channel["url"], 600),
             clean(channel.get("tvg_id"), 120),
             "1" if ("tv:" + channel["id"]) in favourites else "0",
+            option_blob,
         ))
     atomic_write(data_paths(app_dir)["catalogue"], "\n".join(rows) + "\n")
     return {"playlists": len(config["playlists"]), "channels": len(channels),
@@ -705,7 +713,38 @@ def heartbeat(app_dir: Path) -> None:
     path.touch()
 
 
-def _player_command(kind: str, url: str) -> tuple[list[str], str]:
+def _safe_stream_options(options: dict | None) -> dict:
+    if not isinstance(options, dict):
+        return {}
+    result = {}
+    for key in ("http-user-agent", "http-referrer", "http-referer", "http-origin"):
+        value = options.get(key)
+        if isinstance(value, str) and value and len(value) <= 300 and not any(
+            ch in value for ch in ("\\r", "\\n", chr(0))
+        ):
+            result[key] = value
+    headers = options.get("headers")
+    if isinstance(headers, dict):
+        safe_headers = {}
+        for key, value in list(headers.items())[:24]:
+            key = str(key)[:80]
+            value = str(value)[:300]
+            if (re.fullmatch(r"[A-Za-z0-9!#$%&'*+.^_\x60|~-]+", key)
+                    and not any(ch in value for ch in ("\\r", "\\n", chr(0)))):
+                safe_headers[key] = value
+        if safe_headers:
+            result["headers"] = safe_headers
+    return result
+
+
+def _player_command(kind: str, url: str, options: dict | None = None) -> tuple[list[str], str]:
+    options = _safe_stream_options(options)
+    headers = dict(options.get("headers", {}))
+    if options.get("http-origin"):
+        headers["Origin"] = options["http-origin"]
+    user_agent = options.get("http-user-agent")
+    referrer = options.get("http-referrer") or options.get("http-referer")
+
     mpv = shutil.which("mpv")
     ffplay = shutil.which("ffplay")
     if mpv:
@@ -716,6 +755,13 @@ def _player_command(kind: str, url: str) -> tuple[list[str], str]:
             command += ["--no-video", "--audio-display=no"]
         else:
             command += ["--fullscreen", "--keep-open=no"]
+        if user_agent:
+            command.append("--user-agent=" + user_agent)
+        if referrer:
+            command.append("--referrer=" + referrer)
+        if headers:
+            values = [key + ": " + value for key, value in headers.items()]
+            command.append("--http-header-fields=" + ",".join(values))
         command.append(url)
         return command, "mpv"
     if ffplay:
@@ -724,6 +770,13 @@ def _player_command(kind: str, url: str) -> tuple[list[str], str]:
             command.append("-nodisp")
         else:
             command.append("-fs")
+        if user_agent:
+            command += ["-user_agent", user_agent]
+        if referrer:
+            command += ["-referer", referrer]
+        if headers:
+            values = "".join(key + ": " + value + "\\r\\n" for key, value in headers.items())
+            command += ["-headers", values]
         command += ["-i", url]
         return command, "ffplay"
     raise MediaError("no media player found (mpv or ffplay)")
@@ -964,7 +1017,13 @@ def play_foreground(app_dir: Path) -> int:
         raise MediaError("foreground handoff is reserved for IPTV video")
     url = safe_url(request.get("url", ""))
     title = clean(request.get("title", "IPTV channel"), 160)
-    command, player_name = _player_command("tv", url)
+    encoded_options = request.get("options", "")
+    try:
+        padded = str(encoded_options) + "=" * ((4 - len(str(encoded_options)) % 4) % 4)
+        options = json.loads(base64.urlsafe_b64decode(padded.encode("ascii"))) if encoded_options else {}
+    except (ValueError, UnicodeError):
+        options = {}
+    command, player_name = _player_command("tv", url, options)
     input_process = None
     input_script = Path(__file__).with_name("desktop_input.py")
     try:
