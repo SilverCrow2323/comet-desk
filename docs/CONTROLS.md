@@ -68,3 +68,10 @@ For IPTV, copy local `.m3u` or `.m3u8` files to `data/media/playlists/imports`. 
 Web radio presets include Rai Radio 1, Radio Deejay, Radio Italia and Radio 24. They are editable in `data/media-vault.json`; stream availability is controlled by each broadcaster and may change.
 
 A single Media Vault supervisor owns playback. Starting another stream stops the previous one. Comet stops playback before launching Debian, on normal frontend exit, and when the foreground IPTV player returns. The heartbeat watchdog also stops playback when the frontend disappears unexpectedly.
+
+
+## Media Vault remote playlist editor
+
+In **MEDIA VAULT → PLAYLISTS**, move to **+ ADD REMOTE PLAYLIST** and press A. D-pad moves around the character grid, A inserts the selected character, Y switches between name and URL, X deletes, R1 toggles letter case, Start validates and saves, and B cancels. A connected keyboard can type into the active field directly.
+
+The Media Vault left-stick click toggles catalogue search. Search filters TV channels by name, group and EPG ID, and radio stations by name or genre. D-pad left/right cycles TV, RADIO, PLAYLISTS and EPG views.
