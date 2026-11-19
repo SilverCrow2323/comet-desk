@@ -114,4 +114,5 @@ The product boundary and test authority are documented in [Product Blueprint](PR
 - [x] Increase navigation tab size and separate icon/text zones to prevent collisions.
 - [x] Draw the curved fascia, two guide rails and cross-ties behind the carousel.
 - [x] Bind SELECT to show/hide the live Debian/ APT task console without cancelling its worker.
+- [x] Strip inherited muOS LD_PRELOAD/LD_AUDIT injection from guest and helper child processes.
 - [ ] Validate the 0.8.0-dev layout, focus, scrolling and SELECT console toggle on the RG35XX H.
