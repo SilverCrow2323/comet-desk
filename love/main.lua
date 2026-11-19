@@ -116,6 +116,8 @@ local mediaItemsTV, mediaItemsRadio, mediaItemsPlaylists = {}, {}, {}
 local mediaCatalogRaw, mediaEpgRaw = nil, nil
 local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
+local mediaSearch, mediaSearchActive = "", false
+local mediaFilteredRows, mediaFilterCacheKey = {}, ""
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
 local mediaCatalogBusyAge = 0
 
@@ -1508,9 +1510,25 @@ local function drawDesktopInput()
 end
 
 local function selectedMediaRows()
-    if mediaMode == "RADIO" then return mediaItemsRadio end
-    if mediaMode == "PLAYLISTS" then return mediaItemsPlaylists end
-    return mediaItemsTV
+    local source = mediaMode == "RADIO" and mediaItemsRadio
+        or (mediaMode == "PLAYLISTS" and mediaItemsPlaylists or mediaItemsTV)
+    local needle = mediaSearch:lower():match("^%s*(.-)%s*$") or ""
+    local key = mediaMode .. "|" .. needle .. "|" .. tostring(#source)
+    if key ~= mediaFilterCacheKey then
+        mediaFilterCacheKey = key
+        mediaFilteredRows = {}
+        for _, item in ipairs(source) do
+            local searchable = table.concat({
+                item.name or "", item.group or "", item.genre or "",
+                item.tvgId or "", item.country or "",
+            }, " "):lower()
+            if needle == "" or searchable:find(needle, 1, true) then
+                mediaFilteredRows[#mediaFilteredRows + 1] = item
+            end
+        end
+        mediaSelectedIndex = math.min(mediaSelectedIndex, math.max(1, #mediaFilteredRows))
+    end
+    return mediaFilteredRows
 end
 
 local function cycleMediaMode(direction)
@@ -1544,7 +1562,13 @@ local function drawMediaVault()
         or (mediaMode == "PLAYLISTS" and "M3U / M3U8 SOURCE MANAGER"
             or (mediaMode == "GUIDE" and "XMLTV PROGRAMME GUIDE // NOW / NEXT"
                 or short(mediaCatalog.name, 34)))
-    text(short(modeTitle, 48), 358, 222, fonts.tiny, colors.muted)
+    if mediaSearch ~= "" then
+        modeTitle = "FILTER // " .. short(mediaSearch, 34)
+    elseif mediaMode == "TV" or mediaMode == "GUIDE" then
+        modeTitle = modeTitle .. "  //  / SEARCH"
+    end
+    text(short(modeTitle, 48), 358, 222, fonts.tiny,
+        mediaSearchActive and tint or colors.muted)
 
     local rows = selectedMediaRows()
     local count = #rows
@@ -1603,8 +1627,9 @@ local function drawMediaVault()
         text("NO ITEMS IN THIS VIEW", 320, 270, fonts.small, colors.amber)
         text("Refresh the catalogue or select RADIO.", 320, 298, fonts.tiny, colors.muted)
     end
-    text("LIBRARY  //  " .. mediaCatalog.playlists .. " PLAYLISTS  ·  "
-        .. mediaCatalog.channels .. " TV  ·  " .. mediaCatalog.radios .. " RADIO",
+    text("LIBRARY  //  " .. #mediaItemsPlaylists .. " LISTS  ·  "
+        .. #mediaItemsTV .. " TV  ·  " .. #mediaItemsRadio .. " RADIO"
+        .. (mediaSearch ~= "" and ("  ·  " .. #rows .. " MATCHES") or ""),
         38, 375, fonts.tiny, colors.white)
     text("NOW  //  " .. mediaStatus.state .. "  "
         .. short(mediaStatus.title ~= "" and mediaStatus.title or "NOT PLAYING", 48),
@@ -2427,12 +2452,19 @@ function love.keypressed(key)
         return
     end
 
-    if forgeSearchActive or appSearchActive then
+    if forgeSearchActive or appSearchActive or mediaSearchActive then
         if key == "escape" then
-            forgeSearchActive, appSearchActive = false, false
+            forgeSearchActive, appSearchActive, mediaSearchActive = false, false, false
+        elseif key == "return" then
+            forgeSearchActive, appSearchActive, mediaSearchActive = false, false, false
         elseif key == "backspace" then
             if forgeSearchActive then forgeSearch = forgeSearch:sub(1, math.max(0, #forgeSearch - 1)) end
             if appSearchActive then appSearch = appSearch:sub(1, math.max(0, #appSearch - 1)) end
+            if mediaSearchActive then
+                mediaSearch = mediaSearch:sub(1, math.max(0, #mediaSearch - 1))
+                mediaFilterCacheKey = ""
+                mediaSelectedIndex = 1
+            end
         end
         return
     end
@@ -2476,6 +2508,13 @@ function love.keypressed(key)
     elseif key == "/" and sectionOverlayOpen and activePage == 3 then
         appSearchActive = true
         setNotice("APP DECK SEARCH // TYPE TO FILTER")
+    elseif key == "/" and sectionOverlayOpen and activePage == 9 then
+        mediaSearchActive = true
+        setNotice("MEDIA VAULT SEARCH // TYPE TO FILTER")
+    elseif key == "escape" and sectionOverlayOpen and activePage == 9 and mediaSearch ~= "" then
+        mediaSearch = ""
+        mediaFilterCacheKey = ""
+        mediaSelectedIndex = 1
     elseif key == "a" or key == "return" or key == "space" or key == "z" or key == "i" then
         if not sectionOverlayOpen then
             activate()
@@ -2556,6 +2595,12 @@ function love.textinput(value)
         if #forgeSearch < 40 then forgeSearch = forgeSearch .. value end
     elseif activePage == 3 and appSearchActive then
         if #appSearch < 40 then appSearch = appSearch .. value end
+    elseif activePage == 9 and mediaSearchActive then
+        if #mediaSearch < 72 then
+            mediaSearch = mediaSearch .. value
+            mediaFilterCacheKey = ""
+            mediaSelectedIndex = 1
+        end
     end
 end
 
@@ -2628,7 +2673,12 @@ function love.gamepadpressed(joystick, button)
         return
     end
 
-    if button == "dpup" then
+    if button == "leftstick" and sectionOverlayOpen and activePage == 9 then
+        mediaSearchActive = not mediaSearchActive
+        setNotice(mediaSearchActive and "MEDIA SEARCH // TYPE ON KEYBOARD"
+            or "MEDIA SEARCH CLOSED")
+        return
+    elseif button == "dpup" then
         if not sectionOverlayOpen then return end
         if activePage == 2 then cycleDesktopProfile(-1)
         elseif activePage == 3 then appSelectedIndex = math.max(1, appSelectedIndex - 1)
