@@ -334,12 +334,15 @@ def load_playlist(app_dir: Path, entry: dict, force: bool = False) -> dict:
     paths = data_paths(app_dir)
     source = entry.get("source", "")
     if entry.get("type") == "file":
-        target = Path(source).resolve()
-        root = paths["playlists"].resolve()
-        if target != root and root not in target.parents:
-            raise MediaError("local playlist must live inside Media Vault storage")
-        if target.is_symlink() or not target.is_file():
-            raise MediaError("local playlist file is unavailable")
+        source_path = Path(source)
+        if source_path.is_symlink():
+            raise MediaError("local playlist must not be a symbolic link")
+        target = source_path.resolve()
+        root = paths["playlist_imports"].resolve()
+        if target == root or root not in target.parents:
+            raise MediaError("local playlist must live inside the Media Vault imports folder")
+        if not target.is_file() or target.stat().st_size > MAX_PLAYLIST_BYTES:
+            raise MediaError("local playlist is unavailable or exceeds the size limit")
         payload = target.read_bytes()
     else:
         source = safe_url(source)
@@ -385,8 +388,10 @@ def parse_xmltv_time(value: str | None) -> float | None:
 
 def parse_epg(payload: bytes, max_programmes: int = 60_000) -> dict[str, list[dict]]:
     if payload[:2] == b"\x1f\x8b":
+        import io
         try:
-            payload = gzip.decompress(payload)
+            with gzip.GzipFile(fileobj=io.BytesIO(payload)) as stream:
+                payload = stream.read(MAX_EPG_BYTES + 1)
         except OSError as exc:
             raise MediaError("EPG gzip payload is invalid: {}".format(exc)) from exc
     if len(payload) > MAX_EPG_BYTES:
