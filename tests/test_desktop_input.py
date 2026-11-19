@@ -109,3 +109,25 @@ def test_config_is_clamped_and_default_file_is_not_overwritten(tmp_path):
     bridge.write_default_config(path)
     assert path.read_text() != original  # existing user settings are preserved
     assert json.loads(path.read_text())["pointer_speed"] == 9000
+
+
+def test_user_binding_overrides_default_button_action():
+    cfg = config()
+    cfg["bindings"] = dict(cfg["bindings"])
+    cfg["bindings"]["a"] = "space"
+    mapper = bridge.ControllerMapper(cfg)
+    assert mapper.feed(bridge.EV_KEY, bridge.BTN_SOUTH, 1) == [
+        (bridge.EV_KEY, bridge.KEY_SPACE, 1)
+    ]
+    assert mapper.feed(bridge.EV_KEY, bridge.BTN_SOUTH, 0) == [
+        (bridge.EV_KEY, bridge.KEY_SPACE, 0)
+    ]
+
+
+def test_disabled_binding_emits_no_key_events():
+    cfg = config()
+    cfg["bindings"] = dict(cfg["bindings"])
+    cfg["bindings"]["b"] = "disabled"
+    mapper = bridge.ControllerMapper(cfg)
+    assert mapper.feed(bridge.EV_KEY, bridge.BTN_EAST, 1) == []
+    assert mapper.feed(bridge.EV_KEY, bridge.BTN_EAST, 0) == []
