@@ -310,3 +310,21 @@ def test_player_pid_guard_requires_owned_mpv_or_ffplay_cmdline(tmp_path):
     assert not media.player_process_owned(124, tmp_path)
     assert not media.player_process_owned(999, tmp_path)
     assert not media.player_process_owned(1, tmp_path)
+
+
+def test_legacy_default_epg_sources_migrate_to_current_italian_feeds(tmp_path):
+    paths = media.data_paths(tmp_path)
+    paths["data"].mkdir(parents=True)
+    paths["config"].write_text(json.dumps({
+        "schema_version": 1,
+        "active_playlist": "iptv-org-it",
+        "playlists": media.DEFAULT_CONFIG["playlists"],
+        "epg_urls": [
+            "https://epg-guide.com/wltv.gz",
+            "https://github.com/matthuisman/i.mjh.nz/raw/master/SamsungTVPlus/it.xml.gz",
+        ],
+        "radios": media.DEFAULT_CONFIG["radios"],
+        "favorites": media.DEFAULT_CONFIG["favorites"],
+    }), encoding="utf-8")
+    config = media.load_config(tmp_path)
+    assert config["epg_urls"] == media.DEFAULT_CONFIG["epg_urls"]
