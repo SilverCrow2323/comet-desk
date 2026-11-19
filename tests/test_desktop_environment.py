@@ -34,6 +34,54 @@ def test_verified_download_rejects_wrong_size_and_checksum(tmp_path):
     assert not (tmp_path / "asset.bin.part").exists()
 
 
+def test_rootfs_extraction_streams_plain_tar_to_busybox_compatible_command(tmp_path):
+    captured = tmp_path / "captured.tar"
+    args_file = tmp_path / "tar.args"
+    fake_tar = tmp_path / "tar"
+    fake_tar.write_text(
+        "#!/usr/bin/env python3\n"
+        "import pathlib, sys\n"
+        "pathlib.Path(" + repr(str(captured)) + ").write_bytes(sys.stdin.buffer.read())\n"
+        "pathlib.Path(" + repr(str(args_file)) + ").write_text('\\n'.join(sys.argv[1:]))\n",
+        encoding="utf-8",
+    )
+    fake_tar.chmod(0o755)
+
+    raw_tar = b"plain tar stream from verified Debian gzip"
+    archive = tmp_path / "rootfs.tar.gz"
+    archive.write_bytes(gzip.compress(raw_tar))
+    destination = tmp_path / "guest"
+    destination.mkdir()
+    log_path = tmp_path / "extract.log"
+
+    with log_path.open("wb") as log:
+        desktop.extract_gzip_tar(
+            archive, destination, log=log, timeout=10, tar_command=str(fake_tar)
+        )
+
+    assert captured.read_bytes() == raw_tar
+    args = args_file.read_text(encoding="utf-8").splitlines()
+    assert args == ["-x", "-f", "-", "-C", str(destination)]
+    assert "z" not in "".join(args)
+    assert "p" not in "".join(args)
+
+
+def test_rootfs_extraction_reports_tar_failure(tmp_path):
+    fake_tar = tmp_path / "tar-fails"
+    fake_tar.write_text(
+        "#!/bin/sh\ncat >/dev/null\nexit 23\n",
+        encoding="utf-8",
+    )
+    fake_tar.chmod(0o755)
+    archive = tmp_path / "rootfs.tar.gz"
+    archive.write_bytes(gzip.compress(b"plain tar stream"))
+    with (tmp_path / "extract.log").open("wb") as log:
+        with pytest.raises(desktop.SetupError, match="status 23"):
+            desktop.extract_gzip_tar(
+                archive, tmp_path, log=log, timeout=10, tar_command=str(fake_tar)
+            )
+
+
 def test_mount_parser_decodes_escaped_mount_path(tmp_path):
     target = tmp_path / "Comet Desk"
     rows = desktop.mount_table_from_text(
