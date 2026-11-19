@@ -7,7 +7,7 @@
 
 Comet Desk is a lightweight MUX application for supported ARM64 handhelds. It owns a persistent Debian GNU/Linux 13 (Trixie) ARM64 root filesystem with APT, a default labwc session and optional X11/Wayland desktop profiles. Its software centre, THE FORGE, manages curated packages inside that Debian environment while muOS remains the host.
 
-> **Project status:** `0.7.2-dev` compatibility line. The first self-contained RG35XX H muOS `.muxapp` has been built by CI and its archive, AArch64 runtime payloads and SHA-256 checksum have been verified. Physical-device validation is still the release gate; a green CI run is not hardware certification.
+> **Project status:** `0.8.0-dev` controller UI redesign line. The section rail now has visible curved fascia and guide tracks, compact per-section summary widgets, animated full-section overlays and a dedicated Select-controlled task console. CI validates Lua/Python sources and builds the installable RG35XX H `.muxapp`; physical-device validation remains outstanding.
 
 ## What it is
 
