@@ -123,3 +123,14 @@ APT installs dependencies and Linux programs into the shared Debian rootfs. APP 
 ## Hardware validation still required
 
 CI verifies syntax, package structure and service logic, but not a real display hand-off. The RG35XX H must validate loop mount, labwc DRM/KMS acquisition, Xorg fbdev fallback, the M-key Quick Panel, controller mapping, audio/network access, package installation, GUI app launch, return-to-Comet hand-off and full cleanup.
+
+
+## First launch and operation console
+
+On the first Comet Desk launch, the application checks whether Debian is already ready. If not, it selects a writable TF card with at least 9 GiB free and automatically prepares the default **labwc** base desktop. A previous failed/interrupted status is not treated as a successful install; setup is retried and resumes from the verified image/rootfs stages where possible. If no suitable card is available, Comet opens Desktop System and reports the storage requirement instead of attempting a partial install.
+
+Bootstrap, desktop-profile additions, THE FORGE package install/remove/index refresh and APP DECK indexing use a dedicated black console screen. It shows the worker log, current APT status and progress percentage where the underlying APT operation reports one. The screen is separate from the catalogue navigation. Press **B / Esc** to hide it while the worker continues; return to the corresponding management tab to inspect the catalogue again. A completed or failed task remains visible until dismissed.
+
+APT progress is read from `APT::Status-Fd` events emitted by apt/dpkg; it is not an elapsed-time animation. Dpkg can restart the percentage for a new package, and download status can restart for each file, so the percentage reflects the current reported package/file stage rather than claiming a fabricated aggregate of all dependencies.
+
+Large package/application catalogues are parsed only when their backing catalogue file changes, and filtered result lists are cached until the category, search query or catalogue changes.
