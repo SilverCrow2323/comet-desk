@@ -34,7 +34,7 @@ def _valid_entries():
         "CometDesk/love/device_probe.lua": b"return {}\n",
         "CometDesk/love/diagnostics_report.lua": b"return {}\n",
         "CometDesk/love/theme.lua": b"return {}\n",
-        "CometDesk/love/version.txt": b"0.7.1-dev\n",
+        "CometDesk/love/version.txt": b"0.7.2-dev\n",
         "CometDesk/love/storage_selection.lua": b"return {}\n",
         "CometDesk/service/desktop_environment.py": b"print('Debian desktop manager')\n",
         "CometDesk/service/uplink_status.py": b"print('uplink manager')\n",
