@@ -31,7 +31,8 @@ The app and documentation share one visual identity: industrial megastructure ar
 | Overview | Device/app landing screen | Implemented |
 | Desktop System | Build Debian Trixie ARM64 + APT and install labwc/XFCE/LXDE/LXQt/IceWM/Fluxbox/Openbox profiles | Integrated setup/session manager; hardware validation pending |
 | Session Manager | View and launch installed sessions | Planned |
-| THE FORGE | Discover, install, update and remove curated Debian APT packages | Integrated catalogue and package operations; device validation pending |\n| System Tools | Storage and service utilities | Planned |
+| THE FORGE | Discover, install, update and remove curated Debian APT packages | Integrated catalogue and package operations; device validation pending |
+| System Tools | Storage and service utilities | Planned |
 | Uplink | Wi-Fi, hotspot, Bluetooth, muOS Web Services and Rt:Tailscale-M | Integrated status and installer; hardware validation pending |
 | Diagnostics | Live device/storage snapshot and opt-in privacy-safe report export | Implemented; CI/package checks pass; physical-device validation pending |
 
@@ -79,7 +80,9 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)
-- [Safety model](docs/SAFETY.md)\n- [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)\n- [THE FORGE package centre](docs/FORGE.md)
+- [Safety model](docs/SAFETY.md)
+- [Debian desktop and APT](docs/DESKTOP_ENVIRONMENT.md)
+- [THE FORGE package centre](docs/FORGE.md)
 - [Visual identity](docs/VISUAL_IDENTITY.md)
 - [Screenshot evidence guide](docs/SCREENSHOTS.md)
 - [Asset inventory](assets/README.md)
