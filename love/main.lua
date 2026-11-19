@@ -113,6 +113,7 @@ local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
 local mediaEpgStatus = "NOT SYNCED"
 local mediaCatalog = {playlists = 0, channels = 0, radios = 0, name = "IPTV-org // ITALIA", error = ""}
 local mediaItemsTV, mediaItemsRadio, mediaItemsPlaylists = {}, {}, {}
+local mediaCatalogRaw, mediaEpgRaw = nil, nil
 local mediaEpgById = {}
 local mediaMode, mediaSelectedIndex = "RADIO", 1
 local mediaPoll, mediaHeartbeat, mediaCatalogLoaded, mediaCatalogBusy = 0, 0, false, false
@@ -1228,39 +1229,47 @@ local function readMediaCatalog()
     if not stream then return end
     local raw = stream:read("*a") or ""
     stream:close()
-    local radios, channels, playlists = {}, {}, {}
-    local function fields(line)
-        local out = {}
-        for value in (line .. "|"):gmatch("(.-)|") do out[#out + 1] = value end
-        return out
-    end
-    for line in (raw .. "\n"):gmatch("(.-)\n") do
-        local f = fields(line)
-        if f[1] == "META" then
-            mediaCatalog.playlists = tonumber(f[2]) or 0
-            mediaCatalog.channels = tonumber(f[3]) or 0
-            mediaCatalog.radios = tonumber(f[4]) or 0
-            mediaCatalog.name = f[5] or "IPTV LIBRARY"
-            mediaCatalog.error = f[6] or ""
-        elseif f[1] == "RADIO" then
-            radios[#radios + 1] = {id = f[2], name = f[3], genre = f[4],
-                url = f[5], favorite = f[6] == "1"}
-        elseif f[1] == "TV" then
-            channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
-                url = f[5], tvgId = f[6], favorite = f[7] == "1", options = f[8] or ""}
-        elseif f[1] == "PLAYLIST" then
-            playlists[#playlists + 1] = {id = f[2], name = f[3], active = f[4] == "1"}
+    if raw ~= mediaCatalogRaw then
+        mediaCatalogRaw = raw
+        local radios, channels, playlists = {}, {}, {}
+        local function fields(line)
+            local out = {}
+            for value in (line .. "|"):gmatch("(.-)|") do out[#out + 1] = value end
+            return out
         end
+        for line in (raw .. "\n"):gmatch("(.-)\n") do
+            local f = fields(line)
+            if f[1] == "META" then
+                mediaCatalog.playlists = tonumber(f[2]) or 0
+                mediaCatalog.channels = tonumber(f[3]) or 0
+                mediaCatalog.radios = tonumber(f[4]) or 0
+                mediaCatalog.name = f[5] or "IPTV LIBRARY"
+                mediaCatalog.error = f[6] or ""
+            elseif f[1] == "RADIO" then
+                radios[#radios + 1] = {id = f[2], name = f[3], genre = f[4],
+                    url = f[5], favorite = f[6] == "1"}
+            elseif f[1] == "TV" then
+                channels[#channels + 1] = {id = f[2], name = f[3], group = f[4],
+                    url = f[5], tvgId = f[6], favorite = f[7] == "1", options = f[8] or ""}
+            elseif f[1] == "PLAYLIST" then
+                playlists[#playlists + 1] = {id = f[2], name = f[3], active = f[4] == "1"}
+            end
+        end
+        mediaItemsRadio, mediaItemsTV, mediaItemsPlaylists = radios, channels, playlists
+        mediaCatalogLoaded, mediaCatalogBusy = true, false
     end
-    mediaItemsRadio, mediaItemsTV, mediaItemsPlaylists = radios, channels, playlists
-    mediaEpgById = {}
     local epgCatalog = io.open(appRoot .. "/data/media-vault.epg", "r")
     if epgCatalog then
-        for row in (epgCatalog:read("*a") .. "\n"):gmatch("(.-)\n") do
-            local id, current, following = row:match("^EPG|([^|]*)|([^|]*)|(.*)$")
-            if id then mediaEpgById[id] = {current = current, next = following} end
-        end
+        local epgRaw = epgCatalog:read("*a") or ""
         epgCatalog:close()
+        if epgRaw ~= mediaEpgRaw then
+            mediaEpgRaw = epgRaw
+            mediaEpgById = {}
+            for row in (epgRaw .. "\n"):gmatch("(.-)\n") do
+                local id, current, following = row:match("^EPG|([^|]*)|([^|]*)|(.*)$")
+                if id then mediaEpgById[id] = {current = current, next = following} end
+            end
+        end
     end
     mediaCatalogLoaded, mediaCatalogBusy = true, false
     local epg = io.open(appRoot .. "/data/media-epg.status", "r")
@@ -1269,8 +1278,8 @@ local function readMediaCatalog()
         epg:close()
         if state then mediaEpgStatus = state .. "  //  " .. ok .. " OK / " .. failed .. " ERRORS" end
     end
-    local rows = mediaMode == "RADIO" and radios
-        or (mediaMode == "TV" and channels or playlists)
+    local rows = mediaMode == "RADIO" and mediaItemsRadio
+        or ((mediaMode == "TV" or mediaMode == "GUIDE") and mediaItemsTV or mediaItemsPlaylists)
     if mediaSelectedIndex > #rows then mediaSelectedIndex = math.max(1, #rows) end
 end
 
