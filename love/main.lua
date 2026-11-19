@@ -5,7 +5,7 @@
 local W, H = 640, 480
 local pages = {
     { id = "overview", title = "OVERVIEW", subtitle = "Your handheld. Your workspace. No OS drama.", icon = "◈", accent = {0.22, 0.88, 0.94} },
-    { id = "setup", title = "DESKTOP SETUP", subtitle = "Prepare and launch your XFCE environment.", icon = "▣", accent = {0.62, 0.43, 0.98} },
+    { id = "setup", title = "DESKTOP SYSTEM", subtitle = "Debian Trixie ARM64 // APT + modular desktop environments.", icon = "▣", accent = {0.62, 0.43, 0.98} },
     { id = "sessions", title = "SESSION MANAGER", subtitle = "Discover and launch installed desktop sessions.", icon = "▤", accent = {1.0, 0.72, 0.32} },
     { id = "uplink", title = "UPLINK", subtitle = "Network, wireless radios and remote services.", icon = "◎", accent = {0.24, 0.72, 1.0} },
     { id = "tools", title = "SYSTEM TOOLS", subtitle = "Small utilities for storage and system services.", icon = "⚙", accent = {0.35, 0.90, 0.68} },
@@ -33,7 +33,18 @@ local keyboardHeld = { start = false, select = false }
 local exitRequested = false
 local selectedSlot = "tf1"
 local installedSlot = nil
-local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "XFCE environment not installed", location = "" }
+local desktopProfiles = {
+    { id = "labwc", label = "LABWC", detail = "WAYLAND", accent = {0.22, 0.88, 0.94} },
+    { id = "xfce", label = "XFCE", detail = "FULL DESKTOP", accent = {0.62, 0.43, 0.98} },
+    { id = "lxde", label = "LXDE", detail = "LIGHTWEIGHT", accent = {1.0, 0.72, 0.32} },
+    { id = "lxqt", label = "LXQT", detail = "QT DESKTOP", accent = {0.24, 0.72, 1.0} },
+    { id = "icewm", label = "ICEWM", detail = "WINDOW MANAGER", accent = {0.35, 0.90, 0.68} },
+    { id = "fluxbox", label = "FLUXBOX", detail = "WINDOW MANAGER", accent = {0.96, 0.30, 0.70} },
+    { id = "openbox", label = "OPENBOX", detail = "WINDOW MANAGER", accent = {0.70, 0.80, 0.96} },
+}
+local selectedProfileIndex = 1
+local selectedProfile = "labwc"
+local imageDownload = { state = "NOT_INSTALLED", percent = 0, message = "Debian Trixie not installed", location = "", profile = "" }
 local downloadPoll = 0
 local uplinkStatus = { wifi = {}, bluetooth = {}, hotspot = {}, services = {}, tailscale = {} }
 local uplinkPoll = 0
@@ -103,10 +114,10 @@ local function drawHeader()
     text("QWASAR  /  FIELD SYSTEMS", 66, 12, fonts.tiny, colors.muted)
     text("COMET", 66, 29, fonts.title, colors.white)
     text("DESK", 174, 38, fonts.medium, colors.cyan)
-    text("MUX CONTROL DECK  //  v0.3.0-dev", 67, 70, fonts.tiny, colors.muted)
+    text("DEBIAN APT CONTROL DECK  //  v0.5.0-dev", 67, 70, fonts.tiny, colors.muted)
 
     rounded(438, 17, 182, 56, colors.panel, colors.line)
-    text("RG35XX H  //  H700", 451, 25, fonts.small, colors.cyan)
+    text("RG35XX H  //  H700", 451, 23, fonts.small, colors.cyan)
     local probeStatus = device.handheld ~= "Unknown" and "DEVICE LINK  ONLINE" or "DEVICE LINK  LIMITED"
     text(probeStatus, 451, 44, fonts.tiny,
         device.handheld ~= "Unknown" and colors.green or colors.amber)
@@ -252,65 +263,79 @@ end
 
 
 local function drawSetup()
-    text(pages[activePage].subtitle, 24, 158, fonts.small, colors.muted)
-    rounded(20, 183, 600, 232, colors.panel, colors.line)
+    local tint = pages[activePage].accent
+    text(pages[activePage].subtitle, 24, 180, fonts.small, colors.muted)
+    rounded(20, 205, 600, 210, colors.panel, {tint[1], tint[2], tint[3], 0.75})
 
-    text("VOID DESK  /  XFCE ENVIRONMENT", 38, 199, fonts.small, colors.cyan)
-    text("Ubuntu Base 24.04 ARM64", 38, 222, fonts.medium, colors.white)
-    text("XFCE + Xorg tuned for the RG35XX H framebuffer", 38, 246, fonts.tiny, colors.muted)
-    text("Comet downloads, prepares, mounts and launches this environment.", 38, 263, fonts.tiny, colors.muted)
+    text("DEBIAN GNU/LINUX 13  //  TRIXIE ARM64", 36, 218, fonts.medium, colors.white)
+    text("APT SYSTEM  //  ONE ROOTFS  //  COMET-MANAGED APPS", 36, 244, fonts.tiny, colors.cyan)
 
-    text("INSTALL TARGET", 38, 292, fonts.tiny, colors.violet)
+    text("DESKTOP PROFILE  //  UP / DOWN TO SELECT", 36, 269, fonts.tiny, colors.violet)
+    for i, profile in ipairs(desktopProfiles) do
+        local col = (i - 1) % 4
+        local row = math.floor((i - 1) / 4)
+        local x = 36 + col * 84
+        local y = 284 + row * 43
+        local active = i == selectedProfileIndex
+        local accent = profile.accent
+        rounded(x, y, 78, 37, active and colors.panel2 or colors.bg,
+            active and accent or colors.line)
+        if active then
+            love.graphics.setColor(accent[1], accent[2], accent[3], 0.9)
+            love.graphics.rectangle("fill", x + 7, y + 31, 64, 2, 1, 1)
+        end
+        text(profile.label, x + 6, y + 6, fonts.tiny,
+            active and colors.white or colors.muted)
+        text(profile.detail, x + 6, y + 21, fonts.tiny,
+            active and accent or colors.muted)
+    end
+
+    text("INSTALL LOCATION", 36, 378, fonts.tiny, colors.violet)
     local function targetCard(slot, x, label)
         local item = storageItem(slot)
         local usable = storageUsable(slot)
         local active = selectedSlot == slot
-        rounded(x, 309, 162, 52, active and colors.panel2 or colors.bg,
-            active and colors.cyan or colors.line)
-        text(label, x + 12, 316, fonts.small, active and colors.white or colors.muted)
+        rounded(x, 394, 151, 0 + 1, colors.bg, colors.line)
+        text(label, x, 382, fonts.tiny, active and colors.cyan or colors.muted)
         local state = item and item.status == "MOUNTED" and item.stats
             and (item.stats.read_only and "READ ONLY" or formatBytes(item.stats.free_bytes) .. " FREE")
             or "NOT DETECTED"
-        text(state, x + 12, 338, fonts.tiny, usable and colors.green or colors.amber)
+        text(state, x + 42, 382, fonts.tiny, usable and colors.green or colors.amber)
     end
-    targetCard("tf1", 38, "TF1  /  LEFT")
-    targetCard("tf2", 210, "TF2  /  RIGHT")
+    targetCard("tf1", 36, "TF1")
+    targetCard("tf2", 207, "TF2")
 
-    rounded(391, 197, 211, 201, colors.panel2, colors.line)
-    text("DESKTOP CONTROL", 408, 213, fonts.small, colors.violet)
+    rounded(386, 260, 218, 142, colors.panel2, colors.line)
+    text("APT / ENVIRONMENT", 400, 273, fonts.small, colors.cyan)
     local stateColor = colors.cyan
-    if imageDownload.state == "READY" then stateColor = colors.green
+    if imageDownload.state == "READY" and imageDownload.profile == selectedProfile
+        and installedSlot == selectedSlot then
+        stateColor = colors.green
     elseif imageDownload.state == "FAILED" or imageDownload.state == "CLEANUP_REQUIRED" then
         stateColor = colors.amber
     elseif imageDownload.state ~= "NOT_INSTALLED" then
         stateColor = colors.violet
     end
-    local statusLabel = imageDownload.state
-    if imageDownload.state == "READY" and installedSlot and installedSlot ~= selectedSlot then
-        statusLabel = "INSTALLED ON " .. installedSlot:upper()
-        stateColor = colors.amber
+    local stateLabel = imageDownload.state
+    if imageDownload.state == "READY" then
+        stateLabel = imageDownload.profile ~= "" and imageDownload.profile:upper() .. " READY" or "DEBIAN READY"
     end
-    text(statusLabel, 408, 244, fonts.medium, stateColor)
-    text(short(imageDownload.message, 29), 408, 271, fonts.tiny, colors.white)
-    drawProgress(408, 294, 175, 12, imageDownload.percent, stateColor)
-    text(string.format("%d%%  COMPLETE", imageDownload.percent), 408, 316, fonts.tiny, colors.muted)
-    if imageDownload.state == "READY" and installedSlot == selectedSlot then
-        text("A  LAUNCH XFCE", 408, 349, fonts.small, colors.green)
-        text("B  RETURN TO COMET", 408, 370, fonts.tiny, colors.muted)
-    elseif imageDownload.state == "READY" and installedSlot then
-        text("A  INSTALL ON " .. selectedSlot:upper(), 408, 349, fonts.small, colors.cyan)
-        text("Current image: " .. installedSlot:upper(), 408, 370, fonts.tiny, colors.muted)
-    elseif imageDownload.state == "INSTALLING_XFCE" or imageDownload.state == "DOWNLOADING_ROOTFS"
-        or imageDownload.state == "DOWNLOADING_TEMPLATE" or imageDownload.state == "EXPANDING_IMAGE"
-        or imageDownload.state == "PREPARING_ROOTFS" or imageDownload.state == "EXTRACTING_ROOTFS" then
-        text("BUILDING  //  KEEP POWER ON", 408, 349, fonts.tiny, colors.violet)
-        text("Comet is working in the background", 408, 370, fonts.tiny, colors.muted)
+    text(stateLabel, 400, 300, fonts.medium, stateColor)
+    text(short(imageDownload.message, 27), 400, 326, fonts.tiny, colors.white)
+    drawProgress(400, 349, 188, 10, imageDownload.percent, stateColor)
+    text(string.format("%d%%", imageDownload.percent), 400, 365, fonts.tiny, colors.muted)
+    local installedHere = imageDownload.state == "READY"
+        and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+    if installedHere then
+        text("A  LAUNCH " .. selectedProfile:upper(), 400, 385, fonts.small, colors.green)
+    elseif imageDownload.state == "INSTALLING_PROFILE" or imageDownload.state == "APT_UPDATE"
+        or imageDownload.state == "DOWNLOADING_ROOTFS" or imageDownload.state == "DOWNLOADING_TEMPLATE"
+        or imageDownload.state == "EXTRACTING_ROOTFS" or imageDownload.state == "PREPARING_ROOTFS" then
+        text("APT IS WORKING  //  KEEP POWER ON", 400, 385, fonts.tiny, colors.violet)
     elseif imageDownload.state == "FAILED" then
-        text("CHECK DESKTOP LOG", 408, 349, fonts.tiny, colors.amber)
-        text("Retry with A after review", 408, 370, fonts.tiny, colors.muted)
+        text("A  RETRY PROFILE INSTALL", 400, 385, fonts.tiny, colors.amber)
     else
-        text("A  INSTALL XFCE", 408, 349, fonts.small, colors.cyan)
-        text("LEFT / RIGHT  SELECT CARD", 408, 370, fonts.tiny, colors.muted)
+        text("A  INSTALL " .. selectedProfile:upper(), 400, 385, fonts.small, tint)
     end
 end
 
@@ -462,7 +487,7 @@ local function drawFooter()
     local label = notice
     if noticeTimer <= 0 then label = "QWASAR ECOSYSTEM  //  VOID DESK EXPERIENCE, COMET-SIZED" end
     text(label, 24, 441, fonts.tiny, noticeTimer > 0 and colors.cyan or colors.muted)
-    text("v0.4.0", 574, 441, fonts.tiny, colors.muted)
+    text("v0.5.0", 574, 441, fonts.tiny, colors.muted)
 end
 
 local function drawQuickPanel()
@@ -475,7 +500,7 @@ local function drawQuickPanel()
         { colors.cyan[1], colors.cyan[2], colors.cyan[3], 0.75 * reveal })
     text("COMET  //  QUICK OVERLAY", x + 24, y + 22, fonts.medium, colors.cyan)
     text("CONTROL DECK", x + 24, y + 53, fonts.large, colors.white)
-    text("VOID DESK OS IMAGE  //  " .. imageDownload.state, x + 24, y + 104, fonts.small, colors.violet)
+    text("DEBIAN TRIXIE // " .. imageDownload.state, x + 24, y + 104, fonts.small, colors.violet)
     text(short(imageDownload.message, 54), x + 24, y + 127, fonts.tiny, colors.muted)
     drawProgress(x + 24, y + 153, 468, 12, imageDownload.percent, colors.cyan)
     text("M  CLOSE OVERLAY", x + 24, y + 204, fonts.small, colors.white)
@@ -491,11 +516,13 @@ function love.load()
         if ok then return font end
         return love.graphics.newFont(fallback or size)
     end
-    fonts.tiny = loadFont(theme.fonts.telemetry, 10, 10)
-    fonts.small = loadFont(theme.fonts.interface, 12, 12)
-    fonts.medium = loadFont(theme.fonts.display, 15, 15)
-    fonts.large = loadFont(theme.fonts.display, 21, 21)
-    fonts.title = loadFont(theme.fonts.display, 32, 32)
+    -- 640x480 handheld-safe typography: status labels remain readable at
+    -- native resolution instead of relying on a desktop-sized display.
+    fonts.tiny = loadFont(theme.fonts.telemetry, 12, 12)
+    fonts.small = loadFont(theme.fonts.interface, 15, 15)
+    fonts.medium = loadFont(theme.fonts.display, 19, 19)
+    fonts.large = loadFont(theme.fonts.display, 24, 24)
+    fonts.title = loadFont(theme.fonts.display, 36, 36)
 
     local function loadImage(path)
         local ok, image = pcall(love.graphics.newImage, path)
@@ -535,27 +562,30 @@ local function readImageDownloadStatus()
     if not statusFile then return end
     local line = statusFile:read("*l")
     statusFile:close()
-    local state, percent, message, location = line and line:match("^([^|]+)|(%d+)|([^|]*)|(.*)$")
+    local state, percent, message, location, profile =
+        line and line:match("^([^|]+)|(%d+)|([^|]*)|([^|]*)|(.*)$")
     if not state then return end
     imageDownload.state = state
     imageDownload.percent = tonumber(percent) or 0
     imageDownload.message = message
     imageDownload.location = location or ""
+    imageDownload.profile = profile or ""
     if location and location:find("/mnt/mmc/", 1, true) then
         installedSlot = "tf1"
     elseif location and location:find("/mnt/sdcard/", 1, true) then
         installedSlot = "tf2"
     end
-    if state == "READY" and imageDownload._notice ~= "READY" then
-        setNotice("XFCE ENVIRONMENT READY // A TO LAUNCH")
-    elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING" then
-        setNotice("VOID DESK XFCE SESSION RUNNING")
+    if state == "READY" and imageDownload._notice ~= "READY:" .. imageDownload.profile then
+        setNotice("DEBIAN TRIXIE READY // " .. (imageDownload.profile or "APT"))
+    elseif state == "RUNNING" and imageDownload._notice ~= "RUNNING:" .. imageDownload.profile then
+        setNotice("DESKTOP SESSION // " .. (imageDownload.profile or ""):upper())
     elseif state == "FAILED" and imageDownload._notice ~= "FAILED" then
         setNotice("DESKTOP SETUP FAILED // CHECK MESSAGE")
     elseif state == "CLEANUP_REQUIRED" then
         setNotice("DESKTOP MOUNT CLEANUP NEEDS ATTENTION")
     end
-    imageDownload._notice = state
+    imageDownload._notice = state == "READY" and ("READY:" .. imageDownload.profile)
+        or (state == "RUNNING" and ("RUNNING:" .. imageDownload.profile) or state)
 end
 
 function love.update(dt)
@@ -687,15 +717,19 @@ local function shellQuote(value)
     return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
 end
 
+local function cycleDesktopProfile(direction)
+    selectedProfileIndex = ((selectedProfileIndex - 1 + direction) % #desktopProfiles) + 1
+    selectedProfile = desktopProfiles[selectedProfileIndex].id
+    setNotice("DESKTOP PROFILE // " .. selectedProfile:upper())
+end
+
 local function startDesktopEnvironment()
     if imageDownload.state == "STARTING" or imageDownload.state == "RUNNING"
-        or imageDownload.state == "DOWNLOADING_TEMPLATE"
-        or imageDownload.state == "DOWNLOADING_ROOTFS"
-        or imageDownload.state == "EXPANDING_IMAGE"
-        or imageDownload.state == "PREPARING_ROOTFS"
-        or imageDownload.state == "EXTRACTING_ROOTFS"
-        or imageDownload.state == "INSTALLING_XFCE" then
-        setNotice("DESKTOP SETUP IS ALREADY RUNNING")
+        or imageDownload.state == "APT_UPDATE" or imageDownload.state == "INSTALLING_PROFILE"
+        or imageDownload.state == "DOWNLOADING_ROOTFS" or imageDownload.state == "DOWNLOADING_TEMPLATE"
+        or imageDownload.state == "EXPANDING_IMAGE" or imageDownload.state == "PREPARING_ROOTFS"
+        or imageDownload.state == "EXTRACTING_ROOTFS" then
+        setNotice("DEBIAN SETUP IS ALREADY RUNNING")
         return
     end
     if appRoot == "" then
@@ -711,7 +745,9 @@ local function startDesktopEnvironment()
         setNotice(selectedSlot:upper() .. " NOT WRITABLE OR SPACE UNKNOWN")
         return
     end
-    if imageDownload.state == "READY" and installedSlot == selectedSlot then
+    local installedHere = imageDownload.state == "READY"
+        and installedSlot == selectedSlot and imageDownload.profile == selectedProfile
+    if installedHere then
         local request = appRoot .. "/data/desktop-session.request"
         local temporary = request .. ".tmp"
         local stream = io.open(temporary, "w")
@@ -719,20 +755,21 @@ local function startDesktopEnvironment()
             setNotice("COULD NOT CREATE DESKTOP SESSION REQUEST")
             return
         end
-        stream:write(selectedSlot, "\n")
+        stream:write(selectedSlot, "\n", selectedProfile, "\n")
         stream:close()
         if not os.rename(temporary, request) then
             os.remove(temporary)
             setNotice("COULD NOT QUEUE DESKTOP SESSION")
             return
         end
-        setNotice("COMET DESK HANDING OFF TO ITS XFCE SESSION")
+        setNotice("COMET STARTING " .. selectedProfile:upper())
         love.event.quit()
         return
     end
     local script = appRoot .. "/service/desktop_environment.py"
     local command = "cd " .. shellQuote(appRoot) .. " && python3 "
         .. shellQuote(script) .. " setup --slot " .. selectedSlot
+        .. " --profile " .. selectedProfile
         .. " --app-dir " .. shellQuote(appRoot)
         .. " >> " .. shellQuote(appRoot .. "/data/desktop-environment.log")
         .. " 2>&1 &"
@@ -740,10 +777,11 @@ local function startDesktopEnvironment()
     if result == 0 or result == true then
         imageDownload.state = "STARTING"
         imageDownload.percent = 0
-        imageDownload.message = "Comet Desk is preparing its own XFCE image"
-        setNotice("XFCE SETUP STARTED // " .. selectedSlot:upper())
+        imageDownload.profile = selectedProfile
+        imageDownload.message = "Preparing Debian Trixie // " .. selectedProfile
+        setNotice("DEBIAN APT SETUP // " .. selectedProfile:upper())
     else
-        setNotice("COULD NOT START INTERNAL DESKTOP SETUP")
+        setNotice("COULD NOT START DEBIAN ENVIRONMENT MANAGER")
     end
 end
 
@@ -777,9 +815,9 @@ function love.keypressed(key)
     end
 
     if key == "up" or key == "w" then
-        cyclePage(-1)
+        if activePage == 2 then cycleDesktopProfile(-1) else cyclePage(-1) end
     elseif key == "down" or key == "s" then
-        cyclePage(1)
+        if activePage == 2 then cycleDesktopProfile(1) else cyclePage(1) end
     elseif key == "left" or key == "a" then
         if activePage == 2 then selectedSlot = "tf1" end
     elseif key == "right" or key == "d" then
@@ -835,9 +873,9 @@ function love.gamepadpressed(joystick, button)
     end
 
     if button == "dpup" then
-        love.keypressed("up")
+        if activePage == 2 then cycleDesktopProfile(-1) else love.keypressed("up") end
     elseif button == "dpdown" then
-        love.keypressed("down")
+        if activePage == 2 then cycleDesktopProfile(1) else love.keypressed("down") end
     elseif button == "leftshoulder" then
         cyclePage(-1)
     elseif button == "rightshoulder" then
