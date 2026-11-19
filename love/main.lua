@@ -504,6 +504,11 @@ local function drawForge()
     if chosen then
         text(short(chosen.title, 29), 296, 255, fonts.medium, colors.white)
         text(chosen.package, 296, 281, fonts.small, tint)
+        if forgeActionBusy then
+            drawProgress(296, 296, 294, 7, forgeStatus.percent, tint)
+        elseif forgeStatus.state ~= "IDLE" then
+            text(short(forgeStatus.message, 38), 296, 296, fonts.tiny, colors.muted)
+        end
         love.graphics.setFont(fonts.tiny); setColor(colors.muted)
         love.graphics.printf(chosen.summary, 296, 307, 294, "left")
         local stateText = chosen.installed and "INSTALLED" or (chosen.available and "AVAILABLE" or chosen.tag)
@@ -521,8 +526,12 @@ local function drawForge()
             text("NOT IN DEBIAN ARM64 REPOSITORY", 296, 383, fonts.tiny, colors.amber)
         end
     else
-        text("DEBIAN NOT READY", 296, 270, fonts.medium, colors.amber)
-        text("Install the base system from DESKTOP SYSTEM.", 296, 306, fonts.small, colors.muted)
+        text(installedSlot and "NO MATCHES" or "DEBIAN NOT READY", 296, 270, fonts.medium, colors.amber)
+        text(installedSlot and "Change category or clear search." or "Install the base system from DESKTOP SYSTEM.",
+            296, 306, fonts.small, colors.muted)
+        if not installedSlot then
+            text("APT CATALOGUE LOCKED UNTIL BASE INSTALL", 296, 344, fonts.tiny, colors.amber)
+        end
     end
     text("LEFT / RIGHT CATEGORY   UP / DOWN PACKAGE   Y REFRESH", 29, 402, fonts.tiny, colors.muted)
     if forgeSearch ~= "" then text("SEARCH: " .. short(forgeSearch, 22), 425, 402, fonts.tiny, tint)
