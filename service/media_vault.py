@@ -470,10 +470,11 @@ def build_catalogue(app_dir: Path, force: bool = False, include_epg: bool = Fals
             "1" if ("radio:" + radio["id"]) in favourites or radio.get("favorite") else "0",
         ))
     for channel in channels:
-        rows.append("TV|{}|{}|{}|{}|{}".format(
+        rows.append("TV|{}|{}|{}|{}|{}|{}".format(
             clean(channel["id"], 80), clean(channel["name"], 100),
             clean(channel.get("group"), 80), clean(channel["url"], 600),
             clean(channel.get("tvg_id"), 120),
+            "1" if ("tv:" + channel["id"]) in favourites else "0",
         ))
     atomic_write(data_paths(app_dir)["catalogue"], "\n".join(rows) + "\n")
     return {"playlists": len(config["playlists"]), "channels": len(channels),
@@ -498,6 +499,31 @@ def add_playlist(app_dir: Path, name: str, url: str) -> dict:
     config["active_playlist"] = entry_id
     save_config(app_dir, config)
     return build_catalogue(app_dir, force=True)
+
+
+def toggle_favourite(app_dir: Path, kind: str, item_id: str) -> bool:
+    if kind not in ("radio", "tv"):
+        raise MediaError("favourite type must be radio or tv")
+    config = load_config(app_dir)
+    candidates = config["radios"] if kind == "radio" else []
+    if kind == "tv":
+        playlist = next((row for row in config["playlists"]
+                         if row.get("id") == config.get("active_playlist")), None)
+        if playlist:
+            candidates = load_playlist(app_dir, playlist)["channels"]
+    if not any(row.get("id") == item_id for row in candidates):
+        raise MediaError("selected media item was not found in the active catalogue")
+    key = kind + ":" + item_id
+    favourites = set(config.get("favorites", []))
+    active = key not in favourites
+    if active:
+        favourites.add(key)
+    else:
+        favourites.discard(key)
+    config["favorites"] = sorted(favourites)
+    save_config(app_dir, config)
+    build_catalogue(app_dir, force=False)
+    return active
 
 
 def discover_radios(query: str, country: str = "Italy", limit: int = 50) -> list[dict]:
@@ -752,18 +778,34 @@ def ensure_supervisor(app_dir: Path) -> None:
 def stop_playback(app_dir: Path, timeout: float = 3.0) -> None:
     paths = data_paths(app_dir)
     try:
+        supervisor_pid = int(paths["supervisor_pid"].read_text().strip())
+    except (OSError, ValueError):
+        supervisor_pid = None
+    try:
         write_command(app_dir, "shutdown")
     except OSError:
         pass
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            pid = int(paths["supervisor_pid"].read_text().strip())
-            os.kill(pid, 0)
+            current = int(paths["supervisor_pid"].read_text().strip())
+            os.kill(current, 0)
             time.sleep(0.08)
-            continue
         except (OSError, ValueError):
+            supervisor_pid = None
             break
+
+    # If the cooperative shutdown was not honoured, terminate only a process
+    # whose cmdline still identifies it as our supervisor (not a recycled PID).
+    if supervisor_pid is not None:
+        try:
+            command_line = Path("/proc/{}/cmdline".format(supervisor_pid)).read_bytes()
+            if b"media_vault.py" in command_line and b"supervisor" in command_line:
+                os.killpg(supervisor_pid, signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            pass
+
     try:
         player_pid = int(paths["player_pid"].read_text().strip())
         os.killpg(player_pid, signal.SIGTERM)
@@ -832,13 +874,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=(
         "init", "catalogue", "import-playlist", "refresh-epg",
-        "play-radio", "play-tv", "stop", "toggle", "supervisor", "playback",
+        "play-radio", "play-tv", "stop", "toggle", "toggle-favourite", "supervisor", "playback",
     ))
     parser.add_argument("--app-dir", default=os.environ.get("COMET_DESK_APP_DIR", ""))
     parser.add_argument("--name", default="Custom IPTV")
     parser.add_argument("--url", default="")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--query", default="")
+    parser.add_argument("--kind", choices=("radio", "tv"), default="radio")
     args = parser.parse_args()
     if not args.app_dir:
         parser.error("--app-dir or COMET_DESK_APP_DIR is required")
@@ -864,6 +907,10 @@ def main() -> int:
             result = sync_epg(app_dir, config, force=True)
             print(json.dumps({"sources_ok": len(result["ok"]),
                               "sources_error": len(result["errors"])}))
+            return 0
+        if args.action == "toggle-favourite":
+            active = toggle_favourite(app_dir, args.kind, args.query)
+            print("FAVOURITE|{}".format("1" if active else "0"))
             return 0
         if args.action == "play-radio":
             config = load_config(app_dir)
