@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import fcntl
 import json
+import math
 import os
 import select
 import signal
@@ -267,7 +268,8 @@ class ControllerMapper:
         events = []
         for output, axis in ((REL_X, ABS_X), (REL_Y, ABS_Y)):
             self.axis_fraction[output] += self._shape(self.axes[axis]) * speed * dt
-            amount = int(self.axis_fraction[output])
+            fraction = self.axis_fraction[output]
+            amount = int(math.copysign(math.floor(abs(fraction) + 0.5), fraction)) if fraction else 0
             if amount:
                 self.axis_fraction[output] -= amount
                 events.append((EV_REL, output, amount))
