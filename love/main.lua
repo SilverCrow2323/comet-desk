@@ -79,9 +79,35 @@ local sectionOverlayOpen = false
 local sectionOverlayProgress = 0
 local overlayScroll = 0
 local overlayScrollLimit = 160
+local inputBindingRows = {
+    {key = "a", label = "A"},
+    {key = "b", label = "B"},
+    {key = "l1+a", label = "L1 + A"},
+    {key = "l1+b", label = "L1 + B"},
+    {key = "x", label = "X"},
+    {key = "y", label = "Y"},
+    {key = "r1+x", label = "R1 + X"},
+    {key = "start", label = "START"},
+    {key = "select", label = "SELECT"},
+}
+local inputActionChoices = {
+    "enter", "escape", "mouse_left", "mouse_right", "backspace",
+    "tab", "alt_tab", "super", "comet_panel", "space", "disabled",
+}
+local inputActionLabels = {
+    enter = "ENTER", escape = "ESC", mouse_left = "LEFT CLICK",
+    mouse_right = "RIGHT CLICK", backspace = "BACKSPACE",
+    tab = "TAB", alt_tab = "ALT + TAB", super = "SUPER",
+    comet_panel = "COMET PANEL (M)", space = "SPACE", disabled = "DISABLED",
+}
 local desktopInput = {
     enabled = true, pointerSpeed = 900, scrollSpeed = 9,
     deadzone = 0.18, selectedOption = 1, state = "NOT CHECKED", detail = "",
+    bindings = {
+        a = "enter", b = "escape", ["l1+a"] = "mouse_left",
+        ["l1+b"] = "mouse_right", x = "backspace", y = "tab",
+        ["r1+x"] = "alt_tab", start = "super", select = "comet_panel",
+    },
 }
 local mediaStatus = {state = "STOPPED", kind = "", title = "", player = ""}
 local mediaEpgStatus = "NOT SYNCED"
@@ -1080,6 +1106,10 @@ local function readDesktopInputConfig()
     desktopInput.scrollSpeed = math.max(2, math.min(24, number("scroll_speed", 9)))
     desktopInput.deadzone = math.max(0.08, math.min(0.42, number("deadzone", 0.18)))
     desktopInput.enabled = not raw:match('"enabled"%s*:%s*false')
+    for _, row in ipairs(inputBindingRows) do
+        local value = raw:match('"' .. row.key .. '"%s*:%s*"([^"]+)"')
+        if value then desktopInput.bindings[row.key] = value end
+    end
 end
 
 local function writeDesktopInputConfig()
@@ -1087,16 +1117,18 @@ local function writeDesktopInputConfig()
     local path = desktopInputPath()
     local stream = io.open(path .. ".tmp", "w")
     if not stream then setNotice("COULD NOT SAVE DESKTOP INPUT PROFILE"); return end
+    local b = desktopInput.bindings
     stream:write(string.format(
         '{\n  "schema_version": 1,\n  "enabled": %s,\n  "device": "auto",\n'
         .. '  "pointer_speed": %d,\n  "scroll_speed": %d,\n  "deadzone": %.2f,\n'
         .. '  "acceleration": 1.65,\n  "bindings": {\n'
-        .. '    "a": "enter", "b": "escape", "l1+a": "mouse_left",\n'
-        .. '    "l1+b": "mouse_right", "x": "backspace", "y": "tab",\n'
-        .. '    "r1+x": "alt_tab", "start": "super", "select": "comet_panel"\n'
+        .. '    "a": "%s", "b": "%s", "l1+a": "%s",\n'
+        .. '    "l1+b": "%s", "x": "%s", "y": "%s",\n'
+        .. '    "r1+x": "%s", "start": "%s", "select": "%s"\n'
         .. '  }\n}\n',
         desktopInput.enabled and "true" or "false",
-        desktopInput.pointerSpeed, desktopInput.scrollSpeed, desktopInput.deadzone
+        desktopInput.pointerSpeed, desktopInput.scrollSpeed, desktopInput.deadzone,
+        b.a, b.b, b["l1+a"], b["l1+b"], b.x, b.y, b["r1+x"], b.start, b.select
     ))
     stream:close()
     if not os.rename(path .. ".tmp", path) then
@@ -1120,6 +1152,17 @@ local function adjustDesktopInput(direction)
             math.floor((desktopInput.deadzone + direction * 0.02) * 100 + 0.5) / 100))
     elseif option == 4 then
         desktopInput.enabled = not desktopInput.enabled
+    else
+        local row = inputBindingRows[option - 4]
+        if row then
+            local current = desktopInput.bindings[row.key] or "disabled"
+            local index = 1
+            for i, action in ipairs(inputActionChoices) do
+                if action == current then index = i; break end
+            end
+            index = ((index - 1 + direction) % #inputActionChoices) + 1
+            desktopInput.bindings[row.key] = inputActionChoices[index]
+        end
     end
     writeDesktopInputConfig()
 end
@@ -1129,6 +1172,11 @@ local function resetDesktopInput()
     desktopInput.pointerSpeed = 900
     desktopInput.scrollSpeed = 9
     desktopInput.deadzone = 0.18
+    desktopInput.bindings = {
+        a = "enter", b = "escape", ["l1+a"] = "mouse_left",
+        ["l1+b"] = "mouse_right", x = "backspace", y = "tab",
+        ["r1+x"] = "alt_tab", start = "super", select = "comet_panel",
+    }
     desktopInput.selectedOption = 1
     writeDesktopInputConfig()
     setNotice("DESKTOP INPUT // DEFAULT MAP RESTORED")
@@ -1383,43 +1431,49 @@ local function drawDesktopInput()
     text("COMET INPUT BRIDGE  //  HOST uinput", 36, 196, fonts.small, tint)
     text("One virtual keyboard + mouse. No guest-side Python/Pygame dependency.",
         36, 218, fonts.tiny, colors.muted)
-    local left = {
-        {"LEFT STICK", "MOUSE POINTER"}, {"A", "ENTER"}, {"B", "ESCAPE"},
-        {"L1 + A", "LEFT CLICK"}, {"L1 + B", "RIGHT CLICK"},
+    local fixedRows = {
+        {"LEFT STICK", "MOUSE POINTER"}, {"RIGHT STICK", "SCROLL"},
+        {"D-PAD", "ARROW KEYS"},
     }
-    local right = {
-        {"RIGHT STICK", "SCROLL"}, {"D-PAD", "ARROW KEYS"}, {"X", "BACKSPACE"},
-        {"Y", "TAB"}, {"R1 + X", "ALT + TAB"}, {"SELECT", "COMET PANEL (M)"},
-    }
-    for i, item in ipairs(left) do
-        local y = 243 + (i - 1) * 18
-        text(item[1], 38, y, fonts.tiny, colors.muted)
-        text(item[2], 128, y, fonts.tiny, colors.white)
+    for i, item in ipairs(fixedRows) do
+        text(item[1], 38, 241 + (i - 1) * 18, fonts.tiny, colors.muted)
+        text(item[2], 130, 241 + (i - 1) * 18, fonts.tiny, colors.white)
     end
-    for i, item in ipairs(right) do
-        local y = 243 + (i - 1) * 18
-        text(item[1], 330, y, fonts.tiny, colors.muted)
-        text(item[2], 435, y, fonts.tiny, colors.white)
+    local function bindingText(value)
+        return inputActionLabels[value] or string.upper(value or "DISABLED")
+    end
+    for i, row in ipairs(inputBindingRows) do
+        local column = i <= 5 and 0 or 1
+        local slot = i <= 5 and i or i - 5
+        local x, y = 38 + column * 284, 298 + (slot - 1) * 18
+        local option = i + 4
+        if desktopInput.selectedOption == option then
+            rounded(x - 4, y - 2, 270, 18, colors.panel2,
+                {tint[1], tint[2], tint[3], 0.9})
+        end
+        text(row.label, x + 4, y, fonts.tiny, colors.muted)
+        text(bindingText(desktopInput.bindings[row.key]), x + 90, y, fonts.tiny,
+            desktopInput.selectedOption == option and colors.white or tint)
     end
     love.graphics.setColor(tint[1], tint[2], tint[3], 0.55)
-    love.graphics.line(36, 354, 604, 354)
+    love.graphics.line(36, 390, 604, 390)
     local options = {
-        {"POINTER SPEED", tostring(desktopInput.pointerSpeed) .. " px/s"},
-        {"SCROLL SPEED", tostring(desktopInput.scrollSpeed) .. " steps/s"},
-        {"STICK DEADZONE", string.format("%.2f", desktopInput.deadzone)},
-        {"INPUT BRIDGE", desktopInput.enabled and "ENABLED" or "DISABLED"},
+        {"POINTER", tostring(desktopInput.pointerSpeed) .. " px/s"},
+        {"SCROLL", tostring(desktopInput.scrollSpeed) .. " steps/s"},
+        {"DEADZONE", string.format("%.2f", desktopInput.deadzone)},
+        {"BRIDGE", desktopInput.enabled and "ON" or "OFF"},
     }
     for i, item in ipairs(options) do
         local column = (i - 1) % 2
         local row = math.floor((i - 1) / 2)
-        local x, y = 38 + column * 282, 365 + row * 20
-        if i == desktopInput.selectedOption then
-            rounded(x - 4, y - 3, 268, 19, colors.panel2,
+        local x, y = 38 + column * 282, 397 + row * 17
+        if desktopInput.selectedOption == i then
+            rounded(x - 4, y - 2, 268, 17, colors.panel2,
                 {tint[1], tint[2], tint[3], 0.9})
         end
         text(item[1], x + 4, y, fonts.tiny, colors.muted)
-        text(item[2], x + 150, y, fonts.tiny,
-            i == desktopInput.selectedOption and colors.white or tint)
+        text(item[2], x + 100, y, fonts.tiny,
+            desktopInput.selectedOption == i and colors.white or tint)
     end
     text("STATUS  //  " .. short(desktopInput.state .. " " .. desktopInput.detail, 72),
         38, 407, fonts.tiny,
@@ -2341,7 +2395,7 @@ function love.keypressed(key)
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
-        elseif activePage == 8 then desktopInput.selectedOption = math.min(4, desktopInput.selectedOption + 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
         elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif key == "/" and sectionOverlayOpen and activePage == 5 then
@@ -2513,7 +2567,7 @@ function love.gamepadpressed(joystick, button)
         if activePage == 2 then cycleDesktopProfile(1)
         elseif activePage == 3 then appSelectedIndex = math.min(#filteredApps(), appSelectedIndex + 1)
         elseif activePage == 5 then forgeSelectedIndex = math.min(#forgeFilteredPackages(), forgeSelectedIndex + 1)
-        elseif activePage == 8 then desktopInput.selectedOption = math.min(4, desktopInput.selectedOption + 1)
+        elseif activePage == 8 then desktopInput.selectedOption = math.min(13, desktopInput.selectedOption + 1)
         elseif activePage == 9 then mediaSelectedIndex = math.min(#selectedMediaRows(), mediaSelectedIndex + 1)
         else scrollSectionOverlay(1) end
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 2 then
