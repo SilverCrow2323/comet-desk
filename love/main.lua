@@ -1510,12 +1510,14 @@ local function drawMediaVault()
     local page, tint = pages[activePage], pages[activePage].accent
     drawSectionStructure(20, 183, 600, 232, page, 1)
     text("MEDIA VAULT  //  IPTV + BROADCAST AUDIO", 36, 196, fonts.small, tint)
-    local modeX = mediaMode == "RADIO" and 38 or 130
-    rounded(modeX, 218, 82, 23, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
+    local modeX = mediaMode == "TV" and 38 or (mediaMode == "RADIO" and 130 or 224)
+    rounded(modeX, 218, 88, 23, colors.panel2, {tint[1], tint[2], tint[3], 0.9})
     text("TV", 59, 222, fonts.tiny, mediaMode == "TV" and colors.white or colors.muted)
     text("RADIO", 144, 222, fonts.tiny, mediaMode == "RADIO" and colors.white or colors.muted)
+    text("LISTS", 241, 222, fonts.tiny, mediaMode == "PLAYLISTS" and colors.white or colors.muted)
     text(mediaMode == "RADIO" and "WEB RADIO PRESETS / FAVOURITES"
-        or short(mediaCatalog.name, 34), 234, 222, fonts.tiny, colors.muted)
+        or (mediaMode == "PLAYLISTS" and "M3U / M3U8 SOURCE MANAGER"
+            or short(mediaCatalog.name, 34)), 326, 222, fonts.tiny, colors.muted)
 
     local rows = selectedMediaRows()
     local count = #rows
@@ -1530,7 +1532,9 @@ local function drawMediaVault()
             if index == mediaSelectedIndex then
                 rounded(40, y - 2, 246, 20, colors.bg, {tint[1], tint[2], tint[3], 0.8})
             end
-            text(short(item.name, 28) .. (item.favorite and " ★" or ""), 48, y,
+            local suffix = mediaMode == "PLAYLISTS" and (item.active and "  • ACTIVE" or "")
+                or (item.favorite and " ★" or "")
+            text(short(item.name, mediaMode == "PLAYLISTS" and 22 or 28) .. suffix, 48, y,
                 fonts.tiny, index == mediaSelectedIndex and colors.white or colors.muted)
         end
     end
@@ -1538,7 +1542,14 @@ local function drawMediaVault()
     local chosen = rows[mediaSelectedIndex]
     if chosen then
         text(short(chosen.name, 31), 320, 259, fonts.medium, colors.white)
-        if mediaMode == "RADIO" then
+        if mediaMode == "PLAYLISTS" then
+            text(chosen.active and "ACTIVE SOURCE" or "AVAILABLE SOURCE",
+                320, 284, fonts.tiny, chosen.active and colors.green or tint)
+            text("M3U / M3U8 PLAYLIST", 320, 306, fonts.tiny, colors.muted)
+            text("A  ACTIVATE SOURCE", 320, 331, fonts.small, tint)
+            text("Copy files to data/media/playlists/imports",
+                320, 354, fonts.tiny, colors.muted)
+        elseif mediaMode == "RADIO" then
             text(short(chosen.genre, 36), 320, 284, fonts.tiny, tint)
             text("WEB RADIO STREAM", 320, 306, fonts.tiny, colors.muted)
             text("A  PLAY SELECTED", 320, 331, fonts.small, tint)
@@ -2391,9 +2402,7 @@ function love.keypressed(key)
         elseif activePage == 3 then cycleAppCategory(-1)
         elseif activePage == 5 then cycleForgeCategory(-1)
         elseif activePage == 8 then adjustDesktopInput(-1)
-        elseif activePage == 9 then
-            mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
-            mediaSelectedIndex = 1
+        elseif activePage == 9 then cycleMediaMode(-1)
         end
     elseif key == "right" or key == "d" then
         if not sectionOverlayOpen then return end
@@ -2401,9 +2410,7 @@ function love.keypressed(key)
         elseif activePage == 3 then cycleAppCategory(1)
         elseif activePage == 5 then cycleForgeCategory(1)
         elseif activePage == 8 then adjustDesktopInput(1)
-        elseif activePage == 9 then
-            mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
-            mediaSelectedIndex = 1
+        elseif activePage == 9 then cycleMediaMode(1)
         end
     elseif key == "up" or key == "w" then
         if not sectionOverlayOpen then return end
@@ -2439,7 +2446,9 @@ function love.keypressed(key)
         elseif activePage == 9 then
             local item = selectedMediaRows()[mediaSelectedIndex]
             if item then
-                if mediaMode == "RADIO" then queueMediaRadio(item) else queueMediaTV(item) end
+                if mediaMode == "RADIO" then queueMediaRadio(item)
+                elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
+                else queueMediaTV(item) end
             end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
@@ -2612,11 +2621,9 @@ function love.gamepadpressed(joystick, button)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 8 then
         adjustDesktopInput(1)
     elseif button == "dpleft" and sectionOverlayOpen and activePage == 9 then
-        mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
-        mediaSelectedIndex = 1
+        cycleMediaMode(-1)
     elseif button == "dpright" and sectionOverlayOpen and activePage == 9 then
-        mediaMode = mediaMode == "RADIO" and "TV" or "RADIO"
-        mediaSelectedIndex = 1
+        cycleMediaMode(1)
     elseif button == "a" then
         if not sectionOverlayOpen then
             activate()
@@ -2629,7 +2636,9 @@ function love.gamepadpressed(joystick, button)
         elseif activePage == 9 then
             local item = selectedMediaRows()[mediaSelectedIndex]
             if item then
-                if mediaMode == "RADIO" then queueMediaRadio(item) else queueMediaTV(item) end
+                if mediaMode == "RADIO" then queueMediaRadio(item)
+                elseif mediaMode == "PLAYLISTS" then queueMediaActivatePlaylist(item)
+                else queueMediaTV(item) end
             end
         elseif activePage == 3 then
             local item = filteredApps()[appSelectedIndex]
