@@ -78,9 +78,9 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - Device-side read-only probe: `love/device_probe.lua` (bundled in the MUX App).
 - Python reference probe: `python3 service/device_probe.py` (host-side development checks).
 
-## Latest verified package record
+## Previously verified package record
 
-The last independently verified installable package in this development line was produced by [workflow run #679](https://github.com/SilverCrow2323/comet-desk/actions/runs/44580132003) at source HEAD `654deb66dfe4923707a4382482d89568491b0a8d`.
+An independently verified installable package in this development line was produced by [workflow run #679](https://github.com/SilverCrow2323/comet-desk/actions/runs/44580132003) at source HEAD `654deb66dfe4923707a4382482d89568491b0a8d`.
 
 - Artifact: `CometDesk-muOS-Andromeda-RG35XX-H` (artifact ID `14557274120`).
 - Archive members: `CometDesk-dev.muxapp` and `CometDesk-dev.muxapp.sha256`.
