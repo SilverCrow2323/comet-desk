@@ -116,3 +116,12 @@ This proves that CI produced a structurally validated installable `.muxapp`. It 
 - The sidecar in the downloaded archive was read and matched the independently calculated `.muxapp` digest exactly.
 
 This proves that CI produced a structurally validated installable `.muxapp`. It does not prove installation or operation on a real RG35XX H. Keep the 1.0.0 release blocked on the six release-gate groups, especially TF1/TF2 install and upgrade preservation, desktop display/input/audio, APT/APP DECK operations, supervised return/cleanup, Uplink/Media Vault and extended stability.
+## Latest exact candidate — 21 November 2026
+
+- Source: `0d51c6173adca6b289d7eacaa40128678946b43d` on `feat/diagnostic-report-export`.
+- CI: [run #44951531216](https://github.com/SilverCrow2323/comet-desk/actions/runs/44951531216), with Lua, Python and package jobs all successful.
+- Actions artifact: [#14725976382](https://github.com/SilverCrow2323/comet-desk/actions/runs/44951531216/artifacts/14725976382), 2,107,181 bytes; archive SHA-256 `10bf9582dd1ead07b29508491a6c4f26b46cfe1727230f3460a8811f1992600a`.
+- Extracted `CometDesk-dev.muxapp`: 2,115,459 bytes; SHA-256 `d433657598d579488562a6cf942c0d1a4ed4fe6e4d677fea054743c01967806b`.
+- The sidecar in the downloaded archive was read and matched the independently calculated `.muxapp` digest exactly.
+
+This proves that CI produced a structurally validated installable `.muxapp`. It does not prove installation or operation on a real RG35XX H. Keep the 1.0.0 release blocked on the six release-gate groups, especially TF1/TF2 install and upgrade preservation, desktop display/input/audio, APT/APP DECK operations, supervised return/cleanup, Uplink/Media Vault and extended stability.
