@@ -80,15 +80,15 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 
 ## Latest verified package record · 21 November 2026
 
-The current 0.9.0-dev candidate was rebuilt from PR head `ee34134ebb7a3587d06c5bfbf714562ab03f2f5b` by [Project checks and device package run #44951421199](https://github.com/SilverCrow2323/comet-desk/actions/runs/44951421199). Lua parsing, Python/tooling validation and installable package build/upload all passed.
+The current 0.9.0-dev candidate was rebuilt from PR head `0d51c6173adca6b289d7eacaa40128678946b43d` by [Project checks and device package run #44951531216](https://github.com/SilverCrow2323/comet-desk/actions/runs/44951531216). Lua parsing, Python/tooling validation and installable package build/upload all passed.
 
-- Artifact: `CometDesk-muOS-Andromeda-RG35XX-H` (artifact ID `14724674427`).
-- Downloaded Actions archive: 2,107,181 bytes; SHA-256 `44ae6f47200d03da2c8dedb031b4867b008c5799ab06ac0f84a3912ee60183af`.
+- Artifact: `CometDesk-muOS-Andromeda-RG35XX-H` (artifact ID `14725976382`).
+- Downloaded Actions archive: 2,107,181 bytes; SHA-256 `10bf9582dd1ead07b29508491a6c4f26b46cfe1727230f3460a8811f1992600a`.
 - Archive members: `CometDesk-dev.muxapp` (2,115,459 bytes) and `CometDesk-dev.muxapp.sha256` (87 bytes).
 - Independently calculated package SHA-256: `d433657598d579488562a6cf942c0d1a4ed4fe6e4d677fea054743c01967806b`.
 - The embedded sidecar filename/digest exactly matched the independently calculated `.muxapp` digest.
 
-The package digest matches the previously verified archive payload; the current PR head still has its own successful workflow and new artifact provenance. This proves byte identity and a reproducible CI package, not physical-device validation. It remains a development package; RG35XX H installation, launch, display, controls, audio, session return and extended stability are still hardware gates.
+The package digest matches the prior verified payload byte-for-byte; the current source head has its own successful workflow and new artifact provenance. This proves reproducible CI packaging, not physical-device validation. It remains a development package; RG35XX H installation, launch, display, controls, audio, session return and extended stability remain hardware gates.
 
 ## Documentation
 
