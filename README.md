@@ -78,16 +78,17 @@ The first target is the **Anbernic RG35XX H running muOS Andromeda 2606.0**: All
 - Device-side read-only probe: `love/device_probe.lua` (bundled in the MUX App).
 - Python reference probe: `python3 service/device_probe.py` (host-side development checks).
 
-## Previously verified package record
+## Latest verified package record · 21 November 2026
 
-An independently verified installable package in this development line was produced by [workflow run #679](https://github.com/SilverCrow2323/comet-desk/actions/runs/44580132003) at source HEAD `654deb66dfe4923707a4382482d89568491b0a8d`.
+The current 0.9.0-dev candidate was built from PR head `1d5ff645c74e7b801ec446252fae4d69dc49536c` by [Project checks and device package run #44895778133](https://github.com/SilverCrow2323/comet-desk/actions/runs/44895778133). Lua parsing, Python/tooling validation and installable package build/upload all passed.
 
-- Artifact: `CometDesk-muOS-Andromeda-RG35XX-H` (artifact ID `14557274120`).
-- Archive members: `CometDesk-dev.muxapp` and `CometDesk-dev.muxapp.sha256`.
+- Artifact: `CometDesk-muOS-Andromeda-RG35XX-H` (artifact ID `14703732736`).
+- Downloaded Actions archive: 2,107,181 bytes; SHA-256 `c53c4b751fb88408d01268b0c8a59cf27ce56241b566b5cf78cce8b3dd4f9cd1`.
+- Archive members: `CometDesk-dev.muxapp` (2,115,459 bytes) and `CometDesk-dev.muxapp.sha256` (87 bytes).
 - Independently calculated package SHA-256: `d433657598d579488562a6cf942c0d1a4ed4fe6e4d677fea054743c01967806b`.
-- The sidecar filename and digest matched the independently calculated package digest.
+- The embedded sidecar filename/digest exactly matched the independently calculated `.muxapp` digest.
 
-This record applies only to the stated source HEAD. A later commit needs its own matching successful workflow and archive verification. It is not evidence of installation or testing on physical RG35XX H hardware.
+The package digest happens to match the earlier verified 0.8.x package record; this candidate still has its own run/artifact provenance and was downloaded and checked independently. The digest confirms byte identity, not physical-device validation. It remains a development package; RG35XX H installation, launch, display, controls, audio, session return and extended stability are still hardware gates.
 
 ## Documentation
 
