@@ -18,7 +18,12 @@ jobs:
         run: |
           luac5.1 -p love/main.lua
           luac5.1 -p love/conf.lua
+          luac5.1 -p love/theme.lua
           luac5.1 -p love/device_probe.lua
+          luac5.1 -p love/diagnostics_report.lua
+          luac5.1 -p love/storage_selection.lua
+          lua5.1 tests/test_diagnostics_report.lua
+          lua5.1 tests/test_storage_selection.lua
           sh -n mux_launch.sh
 
   python:
@@ -33,8 +38,8 @@ jobs:
         run: python -m pip install pytest
       - name: Validate source and package tooling
         run: |
-          python -m py_compile service/device_probe.py tools/build_muxapp.py
-          pytest -q
+          python -m py_compile service/device_probe.py service/desktop_environment.py service/desktop_input.py service/media_vault.py service/uplink_status.py service/forge_apt.py service/app_registry.py tools/build_muxapp.py
+          python -m pytest -q
 
   muxapp:
     runs-on: ubuntu-latest

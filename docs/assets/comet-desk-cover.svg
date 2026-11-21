@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs>
+ <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#090C13"/><stop offset=".58" stop-color="#111620"/><stop offset="1" stop-color="#15172a"/></linearGradient>
+ <linearGradient id="beam"><stop stop-color="#38E0F0" stop-opacity=".8"/><stop offset="1" stop-color="#9E6EFA" stop-opacity=".05"/></linearGradient>
+ <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#38E0F0" stroke-opacity=".10" stroke-width="1"/></pattern>
+</defs>
+<rect width="1280" height="720" fill="url(#bg)"/><rect width="1280" height="720" fill="url(#grid)"/>
+<g fill="#0b121d" stroke="#293F57" stroke-width="3">
+ <path d="M590 720V370l70-82 58 42v-88l88-110 65 63v-90l96 68v-88l95 75v560z"/>
+ <path d="M820 720V420l-72-62v-94l-70 58v-83l-75 64v-70l-88 65v422z"/>
+ <path d="M1010 720V330l70-50 44 30v-88l70 44v-64l70 62v456z"/>
+</g>
+<g fill="none" stroke="url(#beam)" stroke-width="3"><path d="M590 500H1280"/><path d="M660 370H1280"/><path d="M820 270H1280"/><path d="M940 170H1280"/></g>
+<g fill="none" stroke="#FFB852" stroke-width="3" opacity=".85"><path d="M900 720V430h50v-80h48"/><path d="M1130 720V390h55v-60h95"/></g>
+<rect x="42" y="42" width="1196" height="636" fill="none" stroke="#38E0F0" stroke-opacity=".55" stroke-width="2"/>
+<path d="M42 120H510M42 610H280" stroke="#38E0F0" stroke-width="4"/>
+<text x="78" y="91" fill="#7A97B0" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="22" letter-spacing="4">QWASAR / FIELD SYSTEMS</text>
+<text x="78" y="320" fill="#E8F2FA" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="112" font-weight="700" letter-spacing="5">COMET</text>
+<text x="82" y="425" fill="#38E0F0" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="82" font-weight="700" letter-spacing="8">DESK</text>
+<text x="86" y="505" fill="#E8F2FA" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="28" letter-spacing="2">MUOS MUX COMPANION</text>
+<text x="86" y="548" fill="#7A97B0" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">DEVICE INTELLIGENCE / DESKTOP WORKFLOWS</text>
+<text x="86" y="638" fill="#FFB852" font-family="Bitstream Vera Sans,DejaVu Sans,Arial,sans-serif" font-size="18">INDUSTRIAL CYBERPUNK // BUILD 0.1</text>
+</svg>

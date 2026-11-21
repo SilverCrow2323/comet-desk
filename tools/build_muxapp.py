@@ -22,11 +22,27 @@ RUNTIME_FILES = {
     "lib/libluajit-5.1.so.2": "lib/libluajit-5.1.so.2",
 }
 REQUIRED = (
-    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/device_probe.lua",
+    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/theme.lua", "love/version.txt", "love/device_probe.lua", "love/diagnostics_report.lua", "love/storage_selection.lua",
+    "assets/backgrounds/comet-dashboard-640x480.png",
+    "assets/icons/comet-desk-atlas.png",
+    "assets/branding/comet-desk-logo.png",
+    "service/desktop_environment.py", "service/desktop_input.py",
+    "service/media_vault.py", "service/uplink_status.py", "service/forge_apt.py",
+    "service/app_registry.py",
 )
 AARCH64_MACHINE = 183
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_DIMENSIONS = {
+    "assets/backgrounds/comet-dashboard-640x480.png": (320, 240),
+    "assets/icons/comet-desk-atlas.png": (288, 48),
+    "assets/branding/comet-desk-logo.png": (160, 54),
+}
+LOVE_RUNTIME_ASSETS = (
+    "assets/backgrounds/comet-dashboard-640x480.png",
+    "assets/icons/comet-desk-atlas.png",
+)
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
-LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/79bdfc7707fd0785828e7a3f1146e775a6f312/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
+LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/cb11b977364dc88c82259fa259434bad682c6f81/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
 
 
 def sha256_file(path: Path) -> str:
@@ -101,6 +117,26 @@ def validate_archive(path: Path) -> list[str]:
             for required in REQUIRED:
                 if "CometDesk/" + required not in seen:
                     errors.append(f"required file missing: {required}")
+            for relative, expected_size in PNG_DIMENSIONS.items():
+                name = "CometDesk/" + relative
+                if name not in seen:
+                    errors.append(f"required artwork missing: {relative}")
+                    continue
+                data = archive.read(name)
+                if len(data) < 24 or data[:8] != PNG_SIGNATURE:
+                    errors.append(f"invalid PNG artwork: {relative}")
+                    continue
+                width = int.from_bytes(data[16:20], "big")
+                height = int.from_bytes(data[20:24], "big")
+                if (width, height) != expected_size:
+                    errors.append(f"unexpected PNG dimensions for {relative}: {width}x{height}")
+            for relative in LOVE_RUNTIME_ASSETS:
+                source_name = "CometDesk/" + relative
+                game_name = "CometDesk/love/" + relative
+                if game_name not in seen:
+                    errors.append(f"LÖVE game asset missing: {relative}")
+                elif source_name in seen and archive.read(game_name) != archive.read(source_name):
+                    errors.append(f"LÖVE game asset differs from source artwork: {relative}")
             for required in RUNTIME_FILES:
                 name = "CometDesk/" + required
                 if name not in seen:
@@ -132,6 +168,10 @@ def build(output: Path) -> Path:
             target = package / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
+            if relative in LOVE_RUNTIME_ASSETS:
+                game_asset = package / "love" / relative
+                game_asset.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / relative, game_asset)
             if relative == "mux_launch.sh":
                 target.chmod(0o755)
         fetch_runtime(package)
