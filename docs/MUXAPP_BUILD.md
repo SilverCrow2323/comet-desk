@@ -97,3 +97,13 @@ Uplink reads live muOS state without blocking the LÖVE frame loop. The Python h
 Rt:Tailscale-M is optional. Comet can download the pinned official `RtTailscale-M-0.2.0.muxapp` release directly, verify its 40,324,056-byte size and SHA-256, safely extract the single `RtTailscale/` tree into the muOS application directory, run its `rt install` / `rt ensure` service manager and read status through `rt summary` + `ts status --json`. The RT service manager remains the sole owner of `tailscaled`; Comet never starts a second daemon or copies node identity data. First login and account approval remain an explicit user action in Rt:Tailscale-M.
 
 The RT release is pinned to v0.2.0, SHA-256 `55580f97902e45c7924b901138fa2cb8f6f125d7ba2b49def8f93f735558cad7`. Installation requires network access and sufficient free space on TF1 or TF2. Existing RT installs are never overwritten.
+
+## Latest exact candidate — 21 November 2026
+
+- Source: `1d5ff645c74e7b801ec446252fae4d69dc49536c` on `feat/diagnostic-report-export`.
+- CI: [run #44895778133](https://github.com/SilverCrow2323/comet-desk/actions/runs/44895778133), with Lua, Python and package jobs all successful.
+- Actions artifact: [#14703732736](https://github.com/SilverCrow2323/comet-desk/actions/runs/44895778133/artifacts/14703732736), 2,107,181 bytes; archive SHA-256 `c53c4b751fb88408d01268b0c8a59cf27ce56241b566b5cf78cce8b3dd4f9cd1`.
+- Extracted `CometDesk-dev.muxapp`: 2,115,459 bytes; SHA-256 `d433657598d579488562a6cf942c0d1a4ed4fe6e4d677fea054743c01967806b`.
+- The sidecar `CometDesk-dev.muxapp.sha256` was read from the downloaded artifact and matched the independently calculated package digest.
+
+This proves that CI produced a structurally validated installable `.muxapp`. It does not prove installation or operation on a real RG35XX H. Keep the 1.0.0 release blocked on the six release-gate groups, especially TF1/TF2 install and upgrade preservation, desktop display/input/audio, APT/APP DECK operations, supervised return/cleanup, Uplink/Media Vault and extended stability.
