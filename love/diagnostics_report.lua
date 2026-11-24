@@ -78,12 +78,13 @@ function M.write(device, destination, timestamp)
     if type(destination) ~= "string" or destination == "" then
         return nil, "report destination is unavailable"
     end
-    local stamp = timestamp or os.date("!%Y%m%dT%H%M%SZ")
+    local generated = timestamp or os.date("!%Y-%m-%dT%H:%M:%SZ")
+    local stamp = generated:gsub("[^0-9A-Za-z]", "")
     local path = nextReportPath(destination, stamp)
     local temporary = path .. ".tmp"
     local file, err = io.open(temporary, "wb")
     if not file then return nil, err or "cannot open report" end
-    local ok, writeErr = file:write(M.build(device))
+    local ok, writeErr = file:write(M.build(device, generated))
     local closeOk, closeErr = file:close()
     if not ok then
         os.remove(temporary)
