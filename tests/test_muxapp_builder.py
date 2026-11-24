@@ -60,6 +60,12 @@ def test_accepts_complete_muxapp(tmp_path):
     assert validate_archive(path) == []
 
 
+def test_header_uses_the_bundled_application_version():
+    source = (Path(__file__).parents[1] / "love" / "main.lua").read_text(encoding="utf-8")
+    assert 'text("DEBIAN APT CONTROL DECK  //  v" .. appVersion' in source
+    assert "v0.7.0-dev" not in source
+
+
 def test_rejects_path_traversal(tmp_path):
     path = tmp_path / "unsafe.muxapp"
     entries = _valid_entries()
