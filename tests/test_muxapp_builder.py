@@ -24,9 +24,9 @@ def _png_chunk(kind: bytes, payload: bytes) -> bytes:
 def _png(width, height):
     # Valid 8-bit RGBA PNG with one filter byte per scanline.
     header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
-    pixels = b"".join(b"\\x00" + bytes(width * 4) for _ in range(height))
+    pixels = b"".join(b"\x00" + bytes(width * 4) for _ in range(height))
     return (
-        b"\\x89PNG\\r\\n\\x1a\\n"
+        b"\x89PNG\r\n\x1a\n"
         + _png_chunk(b"IHDR", header)
         + _png_chunk(b"IDAT", zlib.compress(pixels))
         + _png_chunk(b"IEND", b"")
@@ -35,28 +35,28 @@ def _png(width, height):
 
 def _elf():
     data = bytearray(64)
-    data[:4] = b"\\x7fELF"
-    data[4:6] = b"\\x02\\x01"
+    data[:4] = b"\x7fELF"
+    data[4:6] = b"\x02\x01"
     data[18:20] = (183).to_bytes(2, "little")
     return bytes(data)
 
 
 def _valid_entries():
     entries = {
-        "CometDesk/mux_launch.sh": b"#!/bin/sh\\n",
-        "CometDesk/love/main.lua": b"function love.draw() end\\n",
-        "CometDesk/love/conf.lua": b"function love.conf(t) end\\n",
-        "CometDesk/love/device_probe.lua": b"return {}\\n",
-        "CometDesk/love/diagnostics_report.lua": b"return {}\\n",
-        "CometDesk/love/theme.lua": b"return {}\\n",
-        "CometDesk/love/version.txt": b"0.7.2-dev\\n",
-        "CometDesk/love/storage_selection.lua": b"return {}\\n",
-        "CometDesk/service/desktop_environment.py": b"print('Debian desktop manager')\\n",
-        "CometDesk/service/desktop_input.py": b"print('controller bridge')\\n",
-        "CometDesk/service/media_vault.py": b"print('IPTV and web radio')\\n",
-        "CometDesk/service/uplink_status.py": b"print('uplink manager')\\n",
-        "CometDesk/service/forge_apt.py": b"print('APT software centre')\\n",
-        "CometDesk/service/app_registry.py": b"print('Comet application registry')\\n",
+        "CometDesk/mux_launch.sh": b"#!/bin/sh\n",
+        "CometDesk/love/main.lua": b"function love.draw() end\n",
+        "CometDesk/love/conf.lua": b"function love.conf(t) end\n",
+        "CometDesk/love/device_probe.lua": b"return {}\n",
+        "CometDesk/love/diagnostics_report.lua": b"return {}\n",
+        "CometDesk/love/theme.lua": b"return {}\n",
+        "CometDesk/love/version.txt": b"0.7.2-dev\n",
+        "CometDesk/love/storage_selection.lua": b"return {}\n",
+        "CometDesk/service/desktop_environment.py": b"print('Debian desktop manager')\n",
+        "CometDesk/service/desktop_input.py": b"print('controller bridge')\n",
+        "CometDesk/service/media_vault.py": b"print('IPTV and web radio')\n",
+        "CometDesk/service/uplink_status.py": b"print('uplink manager')\n",
+        "CometDesk/service/forge_apt.py": b"print('APT software centre')\n",
+        "CometDesk/service/app_registry.py": b"print('Comet application registry')\n",
         "CometDesk/assets/backgrounds/comet-dashboard-640x480.png": _png(320, 240),
         "CometDesk/assets/icons/comet-desk-atlas.png": _png(288, 48),
         "CometDesk/assets/branding/comet-desk-logo.png": _png(160, 54),
