@@ -32,6 +32,8 @@ CometDesk/
 
 The AArch64 launcher and LuaJIT runtime are fetched from a pinned Void Desk commit; the LÖVE 11.5 shared library comes from the Dolphin RT Core runtime source pinned to commit `cb11b977364dc88c82259fa259434bad682c6f81`. All three are checked as 64-bit little-endian AArch64 ELF, and the LÖVE shared library also has a pinned Git blob checksum. The package includes the read-only Lua device probe, opt-in diagnostic report exporter, canonical theme tokens, a palette-limited 640×480 background and a compact transparent icon atlas; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
 
+The archive validator parses every required PNG rather than trusting the signature and dimensions alone. It checks chunk boundaries and ordering, each chunk CRC, a complete IDAT zlib stream, and the decoded scanline byte count implied by the IHDR dimensions and pixel format. Corrupt, truncated, overlong or dimension-inconsistent artwork fails the package gate before an artifact is accepted.
+
 The launcher follows the muOS Andromeda application runner contract: it sources `/opt/muos/script/var/func.sh`, calls `SETUP_APP`, and uses the runtime application path `/run/muos/storage/application/CometDesk`. It does not hard-code SD1/SD2 mount roots.
 
 ## Get the CI package
