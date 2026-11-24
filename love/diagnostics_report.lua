@@ -37,6 +37,24 @@ local function storageLines(label, item)
     return out
 end
 
+local function exists(path)
+    local file = io.open(path, "rb")
+    if not file then return false end
+    file:close()
+    return true
+end
+
+local function nextReportPath(destination, stamp)
+    local stem = destination .. "/comet-desk-diagnostic-" .. stamp
+    local path = stem .. ".txt"
+    local suffix = 1
+    while exists(path) do
+        path = stem .. "-" .. string.format("%02d", suffix) .. ".txt"
+        suffix = suffix + 1
+    end
+    return path
+end
+
 function M.build(device, timestamp)
     device = device or {}
     local storage = device.storage or {}
@@ -56,18 +74,30 @@ function M.build(device, timestamp)
     return out
 end
 
-function M.write(device, destination)
+function M.write(device, destination, timestamp)
     if type(destination) ~= "string" or destination == "" then
         return nil, "report destination is unavailable"
     end
-    local stamp = os.date("!%Y%m%dT%H%M%SZ")
-    local path = destination .. "/comet-desk-diagnostic-" .. stamp .. ".txt"
-    local file, err = io.open(path, "wb")
-    if not file then return nil, err or "cannot open report file" end
+    local stamp = timestamp or os.date("!%Y%m%dT%H%M%SZ")
+    local path = nextReportPath(destination, stamp)
+    local temporary = path .. ".tmp"
+    local file, err = io.open(temporary, "wb")
+    if not file then return nil, err or "cannot open report" end
     local ok, writeErr = file:write(M.build(device))
     local closeOk, closeErr = file:close()
-    if not ok then return nil, writeErr or "cannot write report" end
-    if closeOk == nil then return nil, closeErr or "cannot close report" end
+    if not ok then
+        os.remove(temporary)
+        return nil, writeErr or "cannot write report"
+    end
+    if closeOk == nil then
+        os.remove(temporary)
+        return nil, closeErr or "cannot close report"
+    end
+    local renamed, renameErr = os.rename(temporary, path)
+    if not renamed then
+        os.remove(temporary)
+        return nil, renameErr or "cannot publish report"
+    end
     return path
 end
 
