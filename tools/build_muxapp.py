@@ -132,6 +132,8 @@ def validate_png(data: bytes, expected_size: tuple[int, int], label: str) -> Non
     try:
         inflater = zlib.decompressobj()
         decoded = inflater.decompress(bytes(compressed), expected_decoded + 1)
+        if inflater.unconsumed_tail or len(decoded) > expected_decoded:
+            fail("decoded image exceeds the declared dimensions")
         decoded += inflater.flush()
     except zlib.error as exc:
         fail(f"invalid IDAT zlib stream ({exc})")
