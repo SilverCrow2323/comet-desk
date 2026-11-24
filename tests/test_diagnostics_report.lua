@@ -43,7 +43,7 @@ assert(output:find("privacy=No personal files"))
 local directory = os.tmpname() .. ".comet-report-test"
 os.remove(directory)
 assert(os.execute("mkdir -p " .. directory) == 0, "temporary report directory could not be created")
-local stamp = "20261124T104800Z"
+local stamp = "2026-11-24T10:48:00Z"
 local first, firstErr = report.write(snapshot, directory, stamp)
 assert(first, firstErr)
 local firstFile = assert(io.open(first, "rb"))
