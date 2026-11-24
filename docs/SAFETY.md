@@ -37,6 +37,12 @@ APT actions are serialized with environment setup and session launch. Package se
 - The guest runs on the existing H700 muOS kernel and selected devices.
 - If labwc cannot acquire a DRM/KMS device, an X11 profile must be used until the H700 display path is validated.
 
+## Diagnostic report export
+
+Diagnostic export is explicit and opt-in. It writes only the bounded device/storage summary; it does not crawl user files or include Wi-Fi details, account identifiers, device serials or raw block-device source paths.
+
+Reports are written through a temporary file and renamed into place only after a successful write. If a report with the same timestamp already exists, the exporter selects a numbered filename instead of replacing the earlier report. A failed write or rename removes the temporary file and returns an error.
+
 ## Hardware validation still required
 
 CI cannot prove framebuffer ownership or controller/audio behaviour on the RG35XX H. Physical tests must validate labwc DRM/KMS, Xorg fbdev fallback, controller mapping, audio/network access, APT operations, package launch, session exit, loop detach and automatic return to Comet.
