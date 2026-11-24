@@ -9,6 +9,7 @@ This checklist is the authority for release readiness. A green GitHub Actions ru
 - [ ] Shell launchers pass sh -n.
 - [ ] MUX package builds from a clean checkout.
 - [ ] Archive paths, permissions, required assets and AArch64 ELF payloads validate.
+- [ ] Every bundled PNG passes chunk-order, CRC, bounded zlib and decoded-dimension validation; corrupt/truncated artwork fixtures are rejected.
 - [ ] SHA-256 sidecar matches the final package.
 - [ ] Package version shown in the UI matches the version shipped in the archive.
 - [ ] No generated test files, credentials, personal logs or device-specific private data are included.
