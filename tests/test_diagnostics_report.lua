@@ -39,4 +39,29 @@ assert(not output:find("/dev/mmcblk0p1"))
 assert(not output:find("source="))
 assert(output:find("privacy=No personal files"))
 
+-- Repeated exports in the same second must not overwrite an earlier report.
+local directory = os.tmpname() .. ".comet-report-test"
+os.remove(directory)
+assert(os.execute("mkdir -p " .. directory) == 0, "temporary report directory could not be created")
+local stamp = "20261124T104800Z"
+local first, firstErr = report.write(snapshot, directory, stamp)
+assert(first, firstErr)
+local firstFile = assert(io.open(first, "rb"))
+local firstContents = firstFile:read("*a")
+firstFile:close()
+
+local second, secondErr = report.write(snapshot, directory, stamp)
+assert(second, secondErr)
+assert(first ~= second, "same-second exports must receive distinct filenames")
+local preserved = assert(io.open(first, "rb"))
+assert(preserved:read("*a") == firstContents, "second export overwrote the first report")
+preserved:close()
+local secondFile = assert(io.open(second, "rb"))
+assert(secondFile:read("*a"):find("COMET DESK // DIAGNOSTIC REPORT", 1, true))
+secondFile:close()
+
+os.remove(first)
+os.remove(second)
+assert(os.execute("rmdir " .. directory) == 0, "temporary report directory could not be removed")
+
 print("diagnostic report tests: OK")
