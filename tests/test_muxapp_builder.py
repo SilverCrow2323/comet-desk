@@ -145,7 +145,9 @@ def test_rejects_truncated_artwork_chunk(tmp_path):
     name = "CometDesk/assets/backgrounds/comet-dashboard-640x480.png"
     entries[name] = entries[name][:-7]
     _archive(path, entries, executable={"CometDesk/mux_launch.sh"})
-    assert any("chunk extends beyond the file" in error or "missing IHDR, IDAT or IEND" in error
+    assert any("chunk extends beyond the file" in error
+               or "truncated chunk header or CRC" in error
+               or "missing IHDR, IDAT or IEND" in error
                for error in validate_archive(path))
 
 
