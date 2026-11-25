@@ -51,6 +51,13 @@ local function readMemory()
     return math.floor(kb / 1024 + 0.5)
 end
 
+local function readOnlyFlag(flags)
+    local value = tonumber(flags)
+    if value == nil then return nil end
+    -- Linux/POSIX ST_RDONLY is bit 0; do not depend on an optional global bit table.
+    return math.floor(value) % 2 == 1
+end
+
 local function filesystemStats(path)
     if not ffiOK then return nil end
     local ok, result = pcall(function()
@@ -67,7 +74,7 @@ local function filesystemStats(path)
             total_bytes = total,
             used_bytes = used,
             free_bytes = free,
-            read_only = bit and bit.band(tonumber(item.f_flag), 1) ~= 0 or false,
+            read_only = readOnlyFlag(item.f_flag),
         }
     end)
     if ok then return result end
@@ -143,5 +150,7 @@ function M.read()
         storage_stats_available = ffiOK,
     }
 end
+
+M._isReadOnlyFlag = readOnlyFlag
 
 return M

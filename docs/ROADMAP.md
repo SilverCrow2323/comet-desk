@@ -3,9 +3,14 @@
 ## Phase 0 — Foundation
 - [x] Create the standalone QWASAR project repository.
 - [x] Establish the LÖVE/Lua UI shell.
+- [x] Define a shared QWASAR visual identity for app and documentation.
+- [x] Add optimized PNG wordmark, icon atlas and 640×480-target background artwork.
+- [x] Add documentation cover, visual system graphic and screenshot evidence rules.
 - [x] Add controller and keyboard navigation.
-- [x] Define safety and architecture boundaries.
-- [ ] Validate the prototype on the RG35XX H.
+- [x] Add L1/R1 section cycling in the main navigation.
+- [x] Add animated Comet boot splash, ambient motion and page-focus transitions.
+- [x] Add M-key quick overlay and START + SELECT exit chord.
+- [ ] Validate the updated controls and animations on the RG35XX H.
 
 ## Phase 1 — Device intelligence
 - [x] Add a read-only device probe (Lua on-device; Python reference probe for host tests).
@@ -13,27 +18,122 @@
 - [x] Show unknown values honestly; refine confidence scoring after physical-device evidence.
 - [x] Read TF1/TF2 total and available space with read-only statvfs when supported.
 - [x] Report filesystem read-only state when available.
-- [ ] Add a diagnostics report export.
+- [x] Add an opt-in, privacy-scoped diagnostics report export with Lua formatting tests.
 
-## Phase 2 — Desktop setup
-- [ ] Select and validate a target storage location.
-- [ ] Calculate required and available space.
-- [ ] Stage payloads without changing the active system.
-- [ ] Verify checksums and required files.
-- [ ] Add rollback and interrupted-install recovery.
-- [ ] Enable installation only after device-side tests.
+## Phase 2 — Debian Trixie ARM64 desktop
+- [x] Pin Debian GNU/Linux 13 (Trixie) ARM64 rootfs by immutable source commit, exact size and SHA-256.
+- [x] Build one persistent ext4 rootfs with APT and a minimal H700-oriented base.
+- [x] Install labwc as the default lightweight Wayland profile.
+- [x] Add optional XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox profiles to the same rootfs.
+- [x] Serialize setup, package operations and session launches with a shared Debian lock.
+- [x] Keep muOS as host: no boot-chain, raw-device or host APT changes.
+- [ ] Validate labwc DRM/KMS and X11 framebuffer sessions on the RG35XX H.
 
-## Phase 3 — Session manager
-- [ ] Discover installed desktop sessions.
-- [ ] Validate launch commands before displaying them.
-- [ ] Start/stop sessions with clear status and logs.
+## Phase 2.1 — THE FORGE
+- [x] Add a curated Debian ARM64 catalogue grouped by handheld input, desktop, development, media, network and utilities.
+- [x] Add package search, live dpkg/APT availability, install, remove and index refresh operations.
+- [x] Enforce an allowlist and filter host/init/bootloader/kernel/firmware and heavyweight app-store packages.
+- [x] Add disabled Input Leap entry pending a trustworthy Debian Trixie ARM64 package source.
+- [x] Keep the first-boot Debian desktop baseline lean; automatically bootstrap labwc when no ready guest exists.
+- [x] Show bootstrap, profile and APT package tasks in a dedicated console with apt/dpkg-reported progress.
+- [x] Cache package/application catalogue filtering instead of rebuilding long selectable lists every frame.
+- [ ] Validate package dependencies and actual installation/removal on the RG35XX H.
+- [x] Discover installed Debian .desktop applications and create an atomic Comet app catalogue.
+- [x] Validate executable paths and launch arguments within the Debian rootfs; reject shell/privilege wrappers.
+- [x] Launch one selected application under a Comet-supervised desktop session and return to Comet when it exits.
+- [ ] Validate GUI application startup, input/audio, application exit and mount cleanup on the RG35XX H.
+
+## Phase 3 — Session and application manager
+- [x] Replace the placeholder Session Manager tab with APP DECK.
+- [x] Scan freedesktop application entries from the selected Debian rootfs.
+- [x] Filter unsafe, hidden, terminal-only and externally resolved executables.
+- [x] Search and filter applications by category.
+- [x] Route launches through the Comet supervisor; restore Comet after the application exits.
+- [x] Add the global M Quick Panel to labwc and X11 sessions, including a supervised return-to-Comet request.
+- [ ] Add explicit desktop-profile discovery and per-app launch preferences.
+- [ ] Add DBus activation and terminal application support after session-bus supervision is validated.
+- [ ] Validate display/session lifecycle and process cleanup on the RG35XX H.
 
 ## Phase 4 — Release engineering
 - [x] Implement a minimal, reproducible .muxapp builder.
 - [x] Validate archive layout, executable permissions and AArch64 runtime dependencies.
 - [x] Add CI checks and per-run installable package artifacts.
-- [ ] Test on real hardware before publishing a stable release.
+- [x] Produce and verify the first CI `.muxapp` candidate, including archive integrity, AArch64 ELF payloads, executable launcher, PNG dimensions and SHA-256 sidecar.
+- [ ] Install and test on real hardware before publishing a stable release.
 
 ## Release rule
 
 A feature is not complete because its screen exists. It is complete when the underlying operation is implemented, validated, safely fails, and has been tested on the target device.
+
+
+## Phase 4.1 — Product definition and reliability line (0.7.x)
+
+- [x] Define the Comet Desk 1.0 product boundary and six core responsibilities.
+- [x] Define hardware release gates and explicit stable-release blockers.
+- [x] Recover stale Debian status from the live shared flock owner rather than trusting an old status string.
+- [x] Display the shipped development version from one bundled version file.
+- [x] Remove stale XFCE/Xorg and unverified-ready claims from Overview and System Tools.
+- [ ] Add one read-only health snapshot covering guest manifest/image, storage preflight, live operation lock and last operation outcome.
+- [ ] Give operations stable IDs and one consistent terminal-state/reporting contract.
+- [ ] Add safe APT transaction preview, including dependency impact, before destructive package changes.
+- [ ] Validate all supported display/session paths on the RG35XX H.
+
+## Phase 4.2 — muOS compatibility fixes (0.7.2-dev)
+
+- [x] Stream the verified Debian gzip rootfs into BusyBox tar without unsupported -z/-p switches or a second full-size archive.
+- [x] Package dashboard artwork and icon atlas inside the LÖVE game directory used by the runtime loader.
+- [x] Replace the Forge navigation glyph with a vector icon fallback when font glyph coverage is unavailable.
+- [x] Detect Wi-Fi using sysfs wireless interfaces and independent iw, wpa_supplicant and iwgetid signals.
+- [x] Prefer TF1 automatically when TF2 is absent or unusable; use TF2 when TF1 is unavailable.
+- [x] Add CI coverage for extraction streaming, runtime artwork placement, wireless fallbacks and storage selection.
+
+## 0.8.0-rc — Feature freeze
+
+- [ ] Freeze the six core workflows and remove any control without a verified backend.
+- [ ] Validate every profile and advertise only those that pass the device matrix.
+- [ ] Complete the Uplink host-action audit for Wi-Fi, hotspot, Bluetooth and Rt:Tailscale-M.
+- [ ] Complete first-run, retry, package, app-launch, return-to-Comet and cleanup tests.
+- [ ] Complete native 640×480 visual and controller usability review.
+
+## 1.0.0 — Stable release
+
+- [ ] Close every blocker in [Release Gates](RELEASE_GATES.md) with real-device evidence.
+- [ ] Publish the installable MUX package, SHA-256 checksum, release notes and tested compatibility statement.
+- [ ] Keep unsupported hardware and unverified features explicitly out of the compatibility claim.
+
+The product boundary and test authority are documented in [Product Blueprint](PRODUCT_BLUEPRINT.md) and [Release Gates](RELEASE_GATES.md).
+
+
+## Phase 4.3 — Controller-first information architecture (0.8.0-dev)
+
+- [x] Replace always-open module pages with compact section snapshots.
+- [x] Expand a selected section into a full-screen, scrollable overlay with animated open/close motion.
+- [x] Give each section its own accent and structural frame treatment.
+- [x] Show section icon, title and controller legend in the overlay.
+- [x] Make L1/R1 the only controller tab-navigation inputs.
+- [x] Increase navigation tab size and separate icon/text zones to prevent collisions.
+- [x] Draw the curved fascia, two guide rails and cross-ties behind the carousel.
+- [x] Bind SELECT to show/hide the live Debian/ APT task console without cancelling its worker.
+- [x] Strip inherited muOS LD_PRELOAD/LD_AUDIT injection from guest and helper child processes.
+- [ ] Validate the 0.8.0-dev layout, focus, scrolling and SELECT console toggle on the RG35XX H.
+
+
+## Phase 4.4 — Desktop Input and Media Vault (0.9.0-dev)
+
+- [x] Add a host-side evdev-to-uinput keyboard/mouse bridge with no third-party Python dependency.
+- [x] Map left stick to pointer, A/B to Enter/Escape, L1+A/B to mouse clicks, right stick to scroll and D-pad to arrows.
+- [x] Add configurable pointer speed, scroll speed, deadzone and button-action bindings.
+- [x] Add a separate controller profile for full-screen IPTV playback (pause, quit, fullscreen, mute).
+- [x] Supervise the input bridge alongside the Debian desktop session and release its controls on exit.
+- [x] Add a native Media Vault service with remote M3U/M3U8 playlists, local playlist drop-folder discovery and playlist switching.
+- [x] Add XMLTV EPG sync with bounded parsing, cached Now/Next data and status reporting.
+- [x] Add a dedicated controller-navigable EPG Now/Next view for the selected channel.
+- [x] Retain validated per-channel User-Agent, Referrer, Origin and HTTP-header metadata through the IPTV player handoff.
+- [x] Serialize catalogue, playlist activation, favourites and EPG writes with a dedicated Media Vault lock.
+- [x] Add persistent TV/radio favourites and four initial Italian web-radio presets.
+- [x] Enforce one playback owner; stop the previous stream on media switch, before desktop launch and on Comet exit.
+- [x] Add heartbeat-based cleanup if the Comet frontend disappears unexpectedly.
+- [ ] Validate evdev/uinput discovery, analogue calibration, click modifiers and desktop focus on the RG35XX H.
+- [ ] Validate MPV/FFPlay controls, IPTV stream compatibility, radio endpoints, audio output and EPG matching on the device.
+- [x] Add a controller-operated remote playlist URL editor and searchable channel catalogue.
+- [ ] Add a richer multi-channel EPG grid/timeline.

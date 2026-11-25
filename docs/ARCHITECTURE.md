@@ -2,60 +2,54 @@
 
 ## Design goal
 
-A small, quick-launching MUX application that coordinates desktop-related tasks on muOS. Comet Desk is deliberately not a second Void Desk: it reuses proven ideas, not the larger project's whole service surface.
+Comet Desk is the controller-first Linux workspace layer for muOS. muOS remains the host firmware; Comet owns a persistent Debian Trixie ARM64 userspace, APT package lifecycle, desktop sessions and the APP DECK application registry.
 
 ## Runtime layers
 
-1. **MUX entry point** — muOS launches the application through its MUX app mechanism.
-2. **LÖVE shell** — Lua UI, controller navigation, screen scaling and page state.
-3. **Capability layer** — small, explicit adapters for device facts and supported operations.
-4. **Task layer** — staged setup/session/diagnostic workflows.
-5. **Target storage** — user-selected destination for desktop payloads; never assumed.
+1. **MUX entry point** — muOS launches the application through its native MUX runner.
+2. **LÖVE control deck** — curved carousel, page state, controller/keyboard navigation and Uplink telemetry.
+3. **Capability layer** — read-only device probe and explicit storage/network checks.
+4. **Debian environment manager** — pinned Debian Trixie ARM64 rootfs, APT sources, labwc default profile and optional X11/Wayland sessions.
+5. **THE FORGE** — curated APT catalogue, installed/available state, search, install/remove/update and a strict package allowlist.
+6. **APP DECK** — scans installed freedesktop application entries, validates the executable inside Debian and presents a controller-driven app catalogue.
+7. **Session supervisor** — Comet launches the requested desktop profile and app, then returns to the Comet frontend after the app exits.
+8. **Target storage** — user-selected TF1/TF2 destination; guest ext4 image is a file, never written to a raw block device.
 
-## muOS package and runtime
+## Debian guest
 
-The repository produces a self-contained `.muxapp` for every device-test build. The package includes the muOS `mux_launch.sh` lifecycle entry point, the LÖVE game, a read-only Lua device probe, and a pinned AArch64 LÖVE 11.5 runtime.
+One persistent ext4 image contains Debian GNU/Linux 13 (Trixie) ARM64 and the APT database. labwc is the default lightweight Wayland profile; XFCE, LXDE, LXQt, IceWM, Fluxbox and Openbox are optional profiles installed into the same rootfs.
 
-The launcher follows the muOS Andromeda application runner contract: it sources the shared helper, calls `SETUP_APP`, and uses `/run/muos/storage/application/CometDesk` so SD1/SD2 placement remains muOS-managed.
+The guest shares the currently running muOS H700 kernel and only the host devices/services explicitly bound by Comet. It is not a second bootable firmware image.
 
-The builder rejects unsafe archive paths, symlinks, missing application/runtime files, wrong ELF architecture and a non-executable launcher. A successful package build is not proof of physical-device compatibility.
+## Software model
 
-## Current prototype
+THE FORGE operates only inside the mounted Debian rootfs. APT commands are serialized with setup and session launches through one shared lock. The curated H700 catalogue focuses on graphics (DRM/GBM/EGL), Wayland, input (evdev/libinput), audio (ALSA/PulseAudio), SDL2 and useful development/network tools.
 
-- `love/main.lua`: navigation shell, Overview and Diagnostics rendering.
-- `love/conf.lua`: LÖVE application metadata and 640×480 baseline.
-- `love/device_probe.lua`: read-only model, SoC, architecture, RAM, firmware-marker and TF1/TF2 mount probe, including read-only statvfs capacity/free-space data when available.
-- The Overview and Diagnostics screens display the live probe snapshot.
-- Storage capacity/free-space and read-only state use LuaJIT FFI statvfs calls against already detected mounts; unavailable stats remain explicitly unavailable.
-- No privileged installer or filesystem mutation is wired into the UI.
+APP DECK parses installed .desktop entries, excludes hidden, NoDisplay and Terminal entries, strips supported Desktop Entry field codes, rejects shell/privilege wrappers, and resolves the first executable strictly within the Debian rootfs. It stores a compact atomic catalogue. A launch request contains only a validated registry ID; the supervisor re-reads the entry from the mounted guest, starts the selected desktop profile, waits for the compositor/display endpoint, and launches the validated argv directly through chroot (never through a shell). When the app process exits, Comet terminates the desktop session, cleans up bind/loop mounts and reopens the frontend. DBus-only activation, terminal applications, unsupported field-code patterns and binaries outside the guest are not exposed.
 
-## Device profiles
+## Operation and status model
 
-A profile must be evidence-based and contain at least:
+Setup, APT operations and desktop sessions share one kernel flock lock. The live lock owner is authoritative; a leftover lock file or stale status snapshot does not mean a worker is still running.
 
-- device identifier / detected model (when available);
-- architecture and SoC family;
-- display dimensions and orientation;
-- available input devices and button mapping;
-- storage mount points and free space;
-- supported graphics/runtime capabilities.
+Long-running operations must preflight their target, acquire the shared lock, execute, verify the requested result, clean up owned mounts/processes and only then publish a terminal state. Status snapshots are written atomically. READY means the guest/profile or requested package state was verified; BUSY means a live lock owner exists; FAILED retains a useful reason and log; CLEANUP_REQUIRED means resource cleanup is not verified. Unknown and not-checked states must remain visibly distinct from success.
 
-The H700 profile is the first validation target. A shared SoC does not automatically prove that every handheld has identical controls, display geometry or storage layout.
+APT progress is driven by APT/dpkg Status-Fd events. Download progress is based on transferred bytes. UI animation must never be substituted for worker progress.
 
-## Task execution contract
+## Uplink host integration
 
-Every future operation should expose:
+Uplink reads radio/network state from the muOS host; it does not create a second guest network manager. Wi-Fi interfaces are discovered from sysfs as well as common `wlan*`, `wl*` and `mlan*` names. Association state is cross-checked through `iw`, `wpa_cli` and `iwgetid`, with the interface address and operational state as supporting signals. A missing or unavailable `iw` command alone must not force a false OFFLINE result.
 
-- preflight checks;
-- exact source and destination;
-- required free space;
-- files and settings it will create or modify;
-- backup/recovery strategy;
-- progress and cancellation boundaries;
-- post-install validation.
+## muOS host boundary
 
-Operations should be idempotent where possible. A failed stage must leave a clear recovery state and must not report success.
+- No host muOS APT or dpkg operations.
+- No writes to boot files, U-Boot, DTB, firmware or partition tables.
+- No raw-device flashing or formatting.
+- No systemd/init replacement or host daemon takeover.
+- Explicit TF1/TF2 selection and live mount/read-only checks.
+- Size/checksum validation for downloaded rootfs payloads.
+- Verified loop and bind-mount cleanup.
+- Physical RG35XX H validation remains required for DRM/KMS, framebuffer, controller, audio and session hand-off behaviour.
 
-## Void Desk learning boundary
+## Build evidence
 
-Void Desk is the reference for lessons around LÖVE packaging, H700 runtime validation, controller-first UX and safe muOS integration. Comet Desk should keep its own compact code, dependency list and release pipeline.
+The installable muxapp builder pins and validates the AArch64 LÖVE runtime, checks required helpers/assets, rejects unsafe ZIP paths and validates ELF architecture. Green CI proves source checks and package construction, not physical-device compatibility.
