@@ -29,7 +29,8 @@ local function storageLines(label, item)
             out = out .. line(label .. ".total_bytes", stats.total_bytes)
             out = out .. line(label .. ".used_bytes", stats.used_bytes)
             out = out .. line(label .. ".free_bytes", stats.free_bytes)
-            out = out .. line(label .. ".read_only", stats.read_only and "yes" or "no")
+            local readOnly = stats.read_only
+            out = out .. line(label .. ".read_only", readOnly == nil and "unknown" or (readOnly and "yes" or "no"))
         else
             out = out .. line(label .. ".space_stats", "unavailable")
         end
