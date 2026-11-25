@@ -22,8 +22,10 @@ jobs:
           luac5.1 -p love/device_probe.lua
           luac5.1 -p love/diagnostics_report.lua
           luac5.1 -p love/storage_selection.lua
+          luac5.1 -p tests/test_device_probe.lua
           lua5.1 tests/test_diagnostics_report.lua
           lua5.1 tests/test_storage_selection.lua
+          lua5.1 tests/test_device_probe.lua
           sh -n mux_launch.sh
 
   python:
