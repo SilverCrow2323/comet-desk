@@ -32,6 +32,11 @@ assert(output:find("handheld=Anbernic RG35XX H"))
 assert(output:find("tf1.filesystem=exfat"))
 assert(output:find("tf1.total_bytes=64000000000"))
 assert(output:find("tf1.read_only=no"))
+
+local unknownSnapshot = {
+    storage = { tf1 = { status = "MOUNTED", stats = { read_only = nil } } },
+}
+assert(report.build(unknownSnapshot, "2026-11-18T20:00:00Z"):find("tf1.read_only=unknown", 1, true))
 assert(output:find("tf2.status=NOT DETECTED"))
 assert(output:find("device_tree_model=Anbernic RG35XX H INJECTED"))
 assert(not output:find("device_tree_model=Anbernic RG35XX H\nINJECTED"))
