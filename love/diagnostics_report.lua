@@ -87,7 +87,15 @@ function M.write(device, filesystem, timestamp)
     local directory = "reports"
     local ok, message = filesystem.createDirectory(directory)
     if ok == false then return nil, message or "Could not create reports directory." end
-    local path = directory .. "/comet-diagnostics-" .. safe_stamp .. ".json"
+    local base_path = directory .. "/comet-diagnostics-" .. safe_stamp
+    local path = base_path .. ".json"
+    if type(filesystem.getInfo) == "function" then
+        local suffix = 1
+        while filesystem.getInfo(path) do
+            path = base_path .. "-" .. string.format("%02d", suffix) .. ".json"
+            suffix = suffix + 1
+        end
+    end
     local written, write_error = filesystem.write(path, M.encode(M.build(device, timestamp)))
     if not written then return nil, write_error or "Could not write diagnostic report." end
     return path

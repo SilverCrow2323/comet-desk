@@ -21,10 +21,11 @@ assert(not encoded:find("\nAnbernic", 1, true), "control characters are sanitize
 local writes = {}
 local fs = {
     createDirectory = function(path) assert(path == "reports"); return true end,
-    write = function(path, data) writes[path] = data; return true end
+    write = function(path, data) writes[path] = data; return true end,
+    getInfo = function(path) return path == "reports/comet-diagnostics-20261126T120000Z.json" end
 }
 local saved, err = report.write(device, fs, "20261126T120000Z")
-assert(saved and not err and saved == "reports/comet-diagnostics-20261126T120000Z.json")
+assert(saved and not err and saved == "reports/comet-diagnostics-20261126T120000Z-01.json")
 assert(writes[saved] and writes[saved]:find('"schema_version":1', 1, true))
 local failed, failure = report.write(device, {
     createDirectory = function() return true end,
