@@ -49,3 +49,55 @@ def test_probe_is_read_only_and_includes_live_storage(monkeypatch):
     assert result["read_only"] is True
     assert result["storage"] == []
     assert result["memory"]["total_bytes"] == 1024
+
+
+def test_mount_parser_unescapes_spaces_without_merging_fields(monkeypatch):
+    monkeypatch.setattr(
+        probe, "read_text",
+        lambda _path: "/dev/mmcblk0p1 /mnt/my\\\\040card ext4 rw,noatime 0 0",
+    )
+    mounts = probe._mounts()
+    assert mounts == [{
+        "source": "/dev/mmcblk0p1",
+        "mount_point": "/mnt/my card",
+        "filesystem": "ext4",
+        "options": "rw,noatime",
+    }]
+
+
+def test_storage_inventory_reports_live_read_only_state_and_capacity(monkeypatch):
+    monkeypatch.setattr(probe, "_mounts", lambda: [{
+        "source": "/dev/mmcblk0p1",
+        "mount_point": "/mnt/mmc",
+        "filesystem": "ext4",
+        "options": "ro,noatime",
+    }])
+    monkeypatch.setattr(probe, "_filesystem_stats", lambda _path: {
+        "total_bytes": 64_000_000_000,
+        "used_bytes": 20_000_000_000,
+        "available_bytes": 40_000_000_000,
+    })
+    monkeypatch.setattr(probe, "_block_size_bytes", lambda _source: 128_000_000_000)
+    inventory = probe.storage_inventory()
+    assert len(inventory) == 1
+    assert inventory[0]["read_only"] is True
+    assert inventory[0]["filesystem_capacity_bytes"] == 64_000_000_000
+    assert inventory[0]["block_device_capacity_bytes"] == 128_000_000_000
+
+
+def test_storage_inventory_does_not_invent_block_device_capacity(monkeypatch):
+    monkeypatch.setattr(probe, "_mounts", lambda: [{
+        "source": "/dev/mapper/storage",
+        "mount_point": "/mnt/mmc",
+        "filesystem": "ext4",
+        "options": "rw",
+    }])
+    monkeypatch.setattr(probe, "_filesystem_stats", lambda _path: {
+        "total_bytes": 32_000_000_000,
+        "used_bytes": 1_000_000_000,
+        "available_bytes": 30_000_000_000,
+    })
+    monkeypatch.setattr(probe, "_block_size_bytes", lambda _source: None)
+    item = probe.storage_inventory()[0]
+    assert item["block_device_capacity_bytes"] is None
+    assert item["capacity_note"] == "Block-device size is unavailable; filesystem capacity shown."
