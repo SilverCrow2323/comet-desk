@@ -73,7 +73,8 @@ local outside = directory .. "/outside.txt"
 local outsideFile = assert(io.open(outside, "wb"))
 outsideFile:write("KEEP THIS FILE")
 outsideFile:close()
-local symlinkPath = first .. ".tmp-candidate-one"
+local thirdPath = first:gsub("%.txt$", "-01.txt")
+local symlinkPath = thirdPath .. ".tmp-candidate-one"
 assert(os.execute("ln -s " .. outside .. " " .. symlinkPath) == 0)
 local oldTmpname = os.tmpname
 local candidates = { directory .. "/candidate-one", directory .. "/candidate-two" }
