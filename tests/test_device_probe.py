@@ -54,7 +54,7 @@ def test_probe_is_read_only_and_includes_live_storage(monkeypatch):
 def test_mount_parser_unescapes_spaces_without_merging_fields(monkeypatch):
     monkeypatch.setattr(
         probe, "read_text",
-        lambda _path: "/dev/mmcblk0p1 /mnt/my\\\\040card ext4 rw,noatime 0 0",
+        lambda _path: "/dev/mmcblk0p1 /mnt/my\\040card ext4 rw,noatime 0 0",
     )
     mounts = probe._mounts()
     assert mounts == [{
