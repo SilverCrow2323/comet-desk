@@ -17,6 +17,7 @@ local notice = "SYSTEM READY // PROTOTYPE MODE"
 local noticeTimer = 0
 local fonts = {}
 local probe = nil
+local diagnosticsReport = nil
 local device = { handheld = "Unknown", soc = "Unknown", architecture = "Unknown", firmware = "Unknown", storage = {} }
 local probeTimer = 0
 local colors = {
@@ -164,6 +165,7 @@ local function drawDiagnostics()
     local tf2 = device.storage and device.storage.tf2 or {}
     text(storageLine("TF1", tf1) .. "  [" .. short(tf1.filesystem, 8) .. "]", 248, 375, fonts.tiny, colors.white)
     text(storageLine("TF2", tf2) .. "  [" .. short(tf2.filesystem, 8) .. "]", 248, 392, fonts.tiny, colors.white)
+    text("Y / E  EXPORT READ-ONLY REPORT", 248, 409, fonts.tiny, colors.cyan)
 end
 
 local function drawModule()
@@ -197,6 +199,8 @@ function love.load()
     love.graphics.setBackgroundColor(colors.bg[1], colors.bg[2], colors.bg[3], 1)
     local ok, module = pcall(require, "device_probe")
     if ok then probe = module end
+    local reportOK, reportModule = pcall(require, "diagnostics_report")
+    if reportOK then diagnosticsReport = reportModule end
     if probe then
         local success, snapshot = pcall(probe.read)
         if success and snapshot then device = snapshot end
@@ -238,8 +242,16 @@ local function activate()
     end
 end
 
+local function exportDiagnostics()
+    if not diagnosticsReport then setNotice("REPORT EXPORT UNAVAILABLE"); return end
+    local path, err = diagnosticsReport.write(device, love.filesystem, os.date("!%Y%m%dT%H%M%SZ"))
+    if path then setNotice("REPORT SAVED // " .. path) else setNotice("REPORT FAILED // " .. tostring(err)) end
+end
+
 function love.keypressed(key)
-    if key == "up" or key == "w" then
+    if key == "e" and activePage == 5 then
+        exportDiagnostics()
+    elseif key == "up" or key == "w" then
         selected = ((selected - 2) % #pages) + 1
     elseif key == "down" or key == "s" then
         selected = (selected % #pages) + 1
@@ -253,7 +265,9 @@ function love.keypressed(key)
 end
 
 function love.gamepadpressed(_, button)
-    if button == "dpup" or button == "leftshoulder" then
+    if button == "y" and activePage == 5 then
+        exportDiagnostics()
+    elseif button == "dpup" or button == "leftshoulder" then
         love.keypressed("up")
     elseif button == "dpdown" or button == "rightshoulder" then
         love.keypressed("down")

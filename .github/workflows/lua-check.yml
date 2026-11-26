@@ -19,6 +19,9 @@ jobs:
           luac5.1 -p love/main.lua
           luac5.1 -p love/conf.lua
           luac5.1 -p love/device_probe.lua
+          luac5.1 -p love/diagnostics_report.lua
+          luac5.1 -p love/main.lua
+          lua5.1 tests/test_diagnostics_report.lua
           sh -n mux_launch.sh
 
   python:
