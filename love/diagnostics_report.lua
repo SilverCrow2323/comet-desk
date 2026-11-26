@@ -75,6 +75,28 @@ function M.build(device, timestamp)
     return out
 end
 
+local function createTemporary(path)
+    for _ = 1, 16 do
+        local token = os.tmpname()
+        if type(token) ~= "string" or token == "" then
+            return nil, nil, "cannot generate a unique report temporary name"
+        end
+        local basename = token:gsub("\\\\", "/"):match("([^/]+)$")
+        os.remove(token)
+        if basename and basename ~= "" then
+            local temporary = path .. ".tmp-" .. basename
+            -- The x mode maps to exclusive creation: an existing file or
+            -- symlink is never opened for writing or followed.
+            local file, err = io.open(temporary, "wbx")
+            if file then return temporary, file end
+            if not exists(temporary) then
+                return nil, nil, err or "cannot create report temporary file"
+            end
+        end
+    end
+    return nil, nil, "cannot reserve a unique report temporary file"
+end
+
 function M.write(device, destination, timestamp)
     if type(destination) ~= "string" or destination == "" then
         return nil, "report destination is unavailable"
@@ -82,8 +104,7 @@ function M.write(device, destination, timestamp)
     local generated = timestamp or os.date("!%Y-%m-%dT%H:%M:%SZ")
     local stamp = generated:gsub("[^0-9A-Za-z]", "")
     local path = nextReportPath(destination, stamp)
-    local temporary = path .. ".tmp"
-    local file, err = io.open(temporary, "wb")
+    local temporary, file, err = createTemporary(path)
     if not file then return nil, err or "cannot open report" end
     local ok, writeErr = file:write(M.build(device, generated))
     local closeOk, closeErr = file:close()

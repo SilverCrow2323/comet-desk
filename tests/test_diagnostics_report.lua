@@ -67,6 +67,28 @@ secondFile:close()
 
 os.remove(first)
 os.remove(second)
+
+-- A predictable legacy .tmp symlink must never be followed or truncated.
+local outside = directory .. "/outside.txt"
+local outsideFile = assert(io.open(outside, "wb"))
+outsideFile:write("KEEP THIS FILE")
+outsideFile:close()
+local symlinkPath = first .. ".tmp-candidate-one"
+assert(os.execute("ln -s " .. outside .. " " .. symlinkPath) == 0)
+local oldTmpname = os.tmpname
+local candidates = { directory .. "/candidate-one", directory .. "/candidate-two" }
+os.tmpname = function() return table.remove(candidates, 1) end
+local safePath, safeErr = report.write(snapshot, directory, stamp)
+os.tmpname = oldTmpname
+assert(safePath, safeErr)
+local outsideRead = assert(io.open(outside, "rb"))
+assert(outsideRead:read("*a") == "KEEP THIS FILE")
+outsideRead:close()
+assert(os.execute("test -L " .. symlinkPath) == 0, "pre-existing symlink must remain untouched")
+os.remove(safePath)
+os.remove(symlinkPath)
+os.remove(outside)
+
 assert(os.execute("rmdir " .. directory) == 0, "temporary report directory could not be removed")
 
 print("diagnostic report tests: OK")

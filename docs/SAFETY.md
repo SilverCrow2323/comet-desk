@@ -46,3 +46,8 @@ Reports are written through a temporary file and renamed into place only after a
 ## Hardware validation still required
 
 CI cannot prove framebuffer ownership or controller/audio behaviour on the RG35XX H. Physical tests must validate labwc DRM/KMS, Xorg fbdev fallback, controller mapping, audio/network access, APT operations, package launch, session exit, loop detach and automatic return to Comet.
+
+
+### Diagnostic report publication
+
+Diagnostic exports reserve their temporary file with exclusive-create mode before writing. A pre-existing file or symlink at the temporary path is never opened for writing, and the final report is published by rename only after the content is flushed and closed. This protects the export path from predictable temporary-file symlink redirection.
