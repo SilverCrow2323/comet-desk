@@ -68,26 +68,30 @@ secondFile:close()
 os.remove(first)
 os.remove(second)
 
--- A predictable legacy .tmp symlink must never be followed or truncated.
+-- Existing final-name symlinks and files must not be followed or overwritten.
 local outside = directory .. "/outside.txt"
 local outsideFile = assert(io.open(outside, "wb"))
 outsideFile:write("KEEP THIS FILE")
 outsideFile:close()
-local thirdPath = first:gsub("%.txt$", "-01.txt")
-local symlinkPath = thirdPath .. ".tmp-candidate-one"
-assert(os.execute("ln -s " .. outside .. " " .. symlinkPath) == 0)
-local oldTmpname = os.tmpname
-local candidates = { directory .. "/candidate-one", directory .. "/candidate-two" }
-os.tmpname = function() return table.remove(candidates, 1) end
+local basePath = directory .. "/comet-desk-diagnostic-" .. stamp:gsub("[^0-9A-Za-z]", "") .. ".txt"
+assert(os.execute("ln -s " .. outside .. " " .. basePath) == 0)
+local secondCandidate = basePath:gsub("%.txt$", "-01.txt")
+local reservedFile = assert(io.open(secondCandidate, "wb"))
+reservedFile:write("KEEP SECOND FILE")
+reservedFile:close()
 local safePath, safeErr = report.write(snapshot, directory, stamp)
-os.tmpname = oldTmpname
 assert(safePath, safeErr)
+assert(safePath ~= basePath and safePath ~= secondCandidate, "colliding names must be skipped")
 local outsideRead = assert(io.open(outside, "rb"))
 assert(outsideRead:read("*a") == "KEEP THIS FILE")
 outsideRead:close()
-assert(os.execute("test -L " .. symlinkPath) == 0, "pre-existing symlink must remain untouched")
+assert(os.execute("test -L " .. basePath) == 0, "pre-existing symlink must remain untouched")
+local reservedRead = assert(io.open(secondCandidate, "rb"))
+assert(reservedRead:read("*a") == "KEEP SECOND FILE")
+reservedRead:close()
 os.remove(safePath)
-os.remove(symlinkPath)
+os.remove(secondCandidate)
+os.remove(basePath)
 os.remove(outside)
 
 assert(os.execute("rmdir " .. directory) == 0, "temporary report directory could not be removed")
