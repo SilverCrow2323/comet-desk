@@ -45,17 +45,6 @@ local function exists(path)
     return true
 end
 
-local function nextReportPath(destination, stamp)
-    local stem = destination .. "/comet-desk-diagnostic-" .. stamp
-    local path = stem .. ".txt"
-    local suffix = 1
-    while exists(path) do
-        path = stem .. "-" .. string.format("%02d", suffix) .. ".txt"
-        suffix = suffix + 1
-    end
-    return path
-end
-
 function M.build(device, timestamp)
     device = device or {}
     local storage = device.storage or {}
@@ -75,26 +64,20 @@ function M.build(device, timestamp)
     return out
 end
 
-local function createTemporary(path)
-    for _ = 1, 16 do
-        local token = os.tmpname()
-        if type(token) ~= "string" or token == "" then
-            return nil, nil, "cannot generate a unique report temporary name"
-        end
-        local basename = token:gsub("\\\\", "/"):match("([^/]+)$")
-        os.remove(token)
-        if basename and basename ~= "" then
-            local temporary = path .. ".tmp-" .. basename
-            -- The x mode maps to exclusive creation: an existing file or
-            -- symlink is never opened for writing or followed.
-            local file, err = io.open(temporary, "wbx")
-            if file then return temporary, file end
-            if not exists(temporary) then
-                return nil, nil, err or "cannot create report temporary file"
-            end
+local function reserveReportPath(destination, stamp)
+    local stem = destination .. "/comet-desk-diagnostic-" .. stamp
+    for suffix = 0, 9999 do
+        local path = suffix == 0 and (stem .. ".txt")
+            or (stem .. "-" .. string.format("%02d", suffix) .. ".txt")
+        -- Reserve the final name exclusively. This avoids the check-then-rename
+        -- race in which os.rename could replace a report created by another process.
+        local file, err = io.open(path, "wbx")
+        if file then return path, file end
+        if not exists(path) then
+            return nil, nil, err or "cannot reserve report destination"
         end
     end
-    return nil, nil, "cannot reserve a unique report temporary file"
+    return nil, nil, "report filename space is exhausted"
 end
 
 function M.write(device, destination, timestamp)
@@ -103,23 +86,17 @@ function M.write(device, destination, timestamp)
     end
     local generated = timestamp or os.date("!%Y-%m-%dT%H:%M:%SZ")
     local stamp = generated:gsub("[^0-9A-Za-z]", "")
-    local path = nextReportPath(destination, stamp)
-    local temporary, file, err = createTemporary(path)
-    if not file then return nil, err or "cannot open report" end
+    local path, file, err = reserveReportPath(destination, stamp)
+    if not file then return nil, err or "cannot reserve report" end
     local ok, writeErr = file:write(M.build(device, generated))
     local closeOk, closeErr = file:close()
     if not ok then
-        os.remove(temporary)
+        os.remove(path)
         return nil, writeErr or "cannot write report"
     end
     if closeOk == nil then
-        os.remove(temporary)
+        os.remove(path)
         return nil, closeErr or "cannot close report"
-    end
-    local renamed, renameErr = os.rename(temporary, path)
-    if not renamed then
-        os.remove(temporary)
-        return nil, renameErr or "cannot publish report"
     end
     return path
 end
