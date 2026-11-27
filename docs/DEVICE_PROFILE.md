@@ -14,6 +14,7 @@ Comet Desk's first-class reference target is the **Anbernic RG35XX H** running *
 | Host firmware | muOS Andromeda 2606.0 | Detect release metadata; never infer from device model |
 | TF1 | 64 GB nominal baseline | Report mounted filesystem and block-device capacity |
 | TF2 | Optional expansion card | Detect only when a mounted/visible device is found |
+| Read-only state | Live mount flag | Read Linux ST_RDONLY; report Unknown when the flag is unavailable rather than implying the card is writable |
 
 The values above define the reference target, not hard-coded runtime facts. The live probe must show the detected value, source and confidence separately. If the kernel does not expose a field, show **Unknown** rather than copying the baseline into a live status panel.
 
@@ -54,3 +55,6 @@ Use bytes internally. Human-readable GB/TB values are presentation only; disting
 Void Desk's compatibility guidance requires firmware release + handheld model + controller identity; **H700 alone is not a sufficiently precise profile**. Comet Desk follows the same principle. The RG35XX H / Andromeda profile is the first target, while other H700 devices remain unverified until their display, input, storage and power behaviour are tested.
 
 Reference implementation: [Void Desk device/firmware compatibility](https://github.com/SilverCrow2323/Void-Desk-Project/blob/main/docs/MUOS_FIRMWARE_COMPATIBILITY.md) and [QWASAR product ecosystem map](https://github.com/SilverCrow2323/Void-Desk-Project/blob/main/docs/PRODUCT_ECOSYSTEM_MAP.md).
+
+ 
+The LÖVE probe reads the Linux `statvfs` `ST_RDONLY` flag directly using arithmetic on the numeric flag value. It does not depend on an optional global LuaJIT bit library. If the flag cannot be read, diagnostics preserve an **Unknown** state; they must not silently display a read-only filesystem as writable.

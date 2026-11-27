@@ -7,10 +7,12 @@ import hashlib
 import os
 import shutil
 import stat
+import struct
 import tempfile
 import urllib.error
 import urllib.request
 import zipfile
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
@@ -22,11 +24,27 @@ RUNTIME_FILES = {
     "lib/libluajit-5.1.so.2": "lib/libluajit-5.1.so.2",
 }
 REQUIRED = (
-    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/device_probe.lua",
+    "mux_launch.sh", "love/main.lua", "love/conf.lua", "love/theme.lua", "love/version.txt", "love/device_probe.lua", "love/diagnostics_report.lua", "love/storage_selection.lua",
+    "assets/backgrounds/comet-dashboard-640x480.png",
+    "assets/icons/comet-desk-atlas.png",
+    "assets/branding/comet-desk-logo.png",
+    "service/desktop_environment.py", "service/desktop_input.py",
+    "service/media_vault.py", "service/uplink_status.py", "service/forge_apt.py",
+    "service/app_registry.py",
 )
 AARCH64_MACHINE = 183
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+PNG_DIMENSIONS = {
+    "assets/backgrounds/comet-dashboard-640x480.png": (320, 240),
+    "assets/icons/comet-desk-atlas.png": (288, 48),
+    "assets/branding/comet-desk-logo.png": (160, 54),
+}
+LOVE_RUNTIME_ASSETS = (
+    "assets/backgrounds/comet-dashboard-640x480.png",
+    "assets/icons/comet-desk-atlas.png",
+)
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
-LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/79bdfc7707fd0785828e7a3f1146e775a6f312/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
+LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/cb11b977364dc88c82259fa259434bad682c6f81/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
 
 
 def sha256_file(path: Path) -> str:
@@ -39,6 +57,88 @@ def sha256_file(path: Path) -> str:
 
 def git_blob_sha(data: bytes) -> str:
     return hashlib.sha1(f"blob {len(data)}\0".encode("ascii") + data).hexdigest()
+
+
+def validate_png(data: bytes, expected_size: tuple[int, int], label: str) -> None:
+    """Validate PNG chunk framing, CRCs, zlib stream and decoded scanline size."""
+    def fail(reason: str) -> None:
+        raise ValueError(f"invalid PNG artwork {label}: {reason}")
+
+    if len(data) < 8 or data[:8] != PNG_SIGNATURE:
+        fail("missing PNG signature")
+
+    offset = 8
+    width = height = bit_depth = color_type = None
+    saw_ihdr = saw_idat = saw_iend = False
+    idat_closed = False
+    compressed = bytearray()
+
+    while offset < len(data):
+        if len(data) - offset < 12:
+            fail("truncated chunk header or CRC")
+        length = struct.unpack_from(">I", data, offset)[0]
+        chunk_type = data[offset + 4:offset + 8]
+        end = offset + 12 + length
+        if end > len(data):
+            fail("chunk extends beyond the file")
+        chunk_data = data[offset + 8:offset + 8 + length]
+        stored_crc = struct.unpack_from(">I", data, offset + 8 + length)[0]
+        actual_crc = zlib.crc32(chunk_type + chunk_data) & 0xFFFFFFFF
+        if stored_crc != actual_crc:
+            fail(f"{chunk_type.decode('ascii', 'replace')} CRC mismatch")
+
+        if not saw_ihdr:
+            if chunk_type != b"IHDR" or length != 13:
+                fail("IHDR must be the first 13-byte chunk")
+            width, height, bit_depth, color_type, compression, filtering, interlace = struct.unpack(
+                ">IIBBBBB", chunk_data
+            )
+            if width == 0 or height == 0:
+                fail("zero-sized image")
+            if compression != 0 or filtering != 0 or interlace not in (0, 1):
+                fail("unsupported IHDR method")
+            if bit_depth not in (1, 2, 4, 8, 16) or color_type not in (0, 2, 3, 4, 6):
+                fail("invalid PNG bit-depth or color-type")
+            saw_ihdr = True
+        elif chunk_type == b"IHDR":
+            fail("multiple IHDR chunks")
+
+        if chunk_type == b"IDAT":
+            if idat_closed:
+                fail("IDAT chunks are not consecutive")
+            saw_idat = True
+            compressed.extend(chunk_data)
+        elif saw_idat and chunk_type != b"IEND":
+            idat_closed = True
+
+        if chunk_type == b"IEND":
+            if length != 0:
+                fail("IEND must be empty")
+            saw_iend = True
+            offset = end
+            if offset != len(data):
+                fail("trailing bytes after IEND")
+            break
+        offset = end
+
+    if not saw_ihdr or not saw_idat or not saw_iend:
+        fail("missing IHDR, IDAT or IEND")
+    if (width, height) != expected_size:
+        fail(f"expected {expected_size[0]}x{expected_size[1]}, got {width}x{height}")
+
+    channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}[color_type]
+    row_bytes = (width * channels * bit_depth + 7) // 8
+    expected_decoded = height * (row_bytes + 1)
+    try:
+        inflater = zlib.decompressobj()
+        decoded = inflater.decompress(bytes(compressed), expected_decoded + 1)
+        if inflater.unconsumed_tail or len(decoded) > expected_decoded:
+            fail("decoded image exceeds the declared dimensions")
+        decoded += inflater.flush()
+    except zlib.error as exc:
+        fail(f"invalid IDAT zlib stream ({exc})")
+    if not inflater.eof or inflater.unused_data or len(decoded) != expected_decoded:
+        fail("IDAT data does not match the declared image dimensions")
 
 
 def fetch_runtime(destination: Path) -> None:
@@ -101,6 +201,22 @@ def validate_archive(path: Path) -> list[str]:
             for required in REQUIRED:
                 if "CometDesk/" + required not in seen:
                     errors.append(f"required file missing: {required}")
+            for relative, expected_size in PNG_DIMENSIONS.items():
+                name = "CometDesk/" + relative
+                if name not in seen:
+                    errors.append(f"required artwork missing: {relative}")
+                    continue
+                try:
+                    validate_png(archive.read(name), expected_size, relative)
+                except (ValueError, zipfile.BadZipFile) as exc:
+                    errors.append(str(exc))
+            for relative in LOVE_RUNTIME_ASSETS:
+                source_name = "CometDesk/" + relative
+                game_name = "CometDesk/love/" + relative
+                if game_name not in seen:
+                    errors.append(f"LÖVE game asset missing: {relative}")
+                elif source_name in seen and archive.read(game_name) != archive.read(source_name):
+                    errors.append(f"LÖVE game asset differs from source artwork: {relative}")
             for required in RUNTIME_FILES:
                 name = "CometDesk/" + required
                 if name not in seen:
@@ -132,6 +248,10 @@ def build(output: Path) -> Path:
             target = package / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(ROOT / relative, target)
+            if relative in LOVE_RUNTIME_ASSETS:
+                game_asset = package / "love" / relative
+                game_asset.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / relative, game_asset)
             if relative == "mux_launch.sh":
                 target.chmod(0o755)
         fetch_runtime(package)
