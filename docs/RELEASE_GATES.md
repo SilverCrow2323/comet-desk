@@ -2,6 +2,20 @@
 
 This checklist is the authority for release readiness. A green GitHub Actions run is necessary, not sufficient.
 
+## CI evidence — 27 November 2026
+
+[Project checks and device package run #45972472561](https://github.com/SilverCrow2323/comet-desk/actions/runs/45972472561) completed successfully on `feat/diagnostic-exclusive-temp`.
+
+Verified in that run:
+- Lua 5.1 parsing for the application and regression-test sources.
+- Lua regression tests for device probing, diagnostic report export and storage selection.
+- Shell syntax validation for `mux_launch.sh`.
+- Python compilation for the device, desktop, media, Uplink, FORGE, registry and package-builder modules.
+- The complete pytest suite invoked by the workflow.
+- Creation of the installable RG35XX H muOS `.muxapp` and upload of the package plus SHA-256 sidecar.
+
+The run's separate `python`, `lua` and `muxapp` jobs all passed. This is host CI/package evidence only. It does not complete the hardware gates below, prove an installation on an RG35XX H, or validate Debian desktop/session operations on-device. Keep the hardware checkboxes open until evidence is captured from the target device.
+
 ## Gate 1 — Repository and package integrity
 
 - [ ] Lua sources parse with the pinned Lua/LuaJIT-compatible checks.
