@@ -26,7 +26,7 @@ REQUIRED = (
 )
 AARCH64_MACHINE = 183
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
-LOVE_RUNTIME_SOURCE_URL = "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/79bdfc7707fd0785828e7a3f1146e775a6f312/Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/Flavour%20III%20%7C%20'Frontendone'%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/DolphinUI/lib/liblove-11.5.so"
+RUNTIME_SOURCE_BASE = (\n    "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/"\n    f"{DOLPHIN_RT_RUNTIME_COMMIT}/"\n    "Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/"\n    "Flavour%20III%20%7C%20%27Frontendone%27%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/"\n    "DolphinUI/"\n)
 
 
 def sha256_file(path: Path) -> str:
@@ -42,15 +42,11 @@ def git_blob_sha(data: bytes) -> str:
 
 
 def fetch_runtime(destination: Path) -> None:
-    base = (
-        "https://raw.githubusercontent.com/SilverCrow2323/"
-        f"Void-Desk-Project/{VOID_DESK_RUNTIME_COMMIT}/"
-    )
     destination.mkdir(parents=True, exist_ok=True)
     for relative, source in RUNTIME_FILES.items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        url = base + source
+        url = RUNTIME_SOURCE_BASE + source
         request = urllib.request.Request(url, headers={"User-Agent": "CometDesk-builder"})
         with urllib.request.urlopen(request, timeout=90) as response:
             payload = response.read(64 * 1024 * 1024)
@@ -58,14 +54,13 @@ def fetch_runtime(destination: Path) -> None:
             raise RuntimeError(f"runtime file is unexpectedly small: {relative}")
         if relative == "lib/liblove-11.5.so" and git_blob_sha(payload) != LOVE_BLOB_SHA1:
             raise RuntimeError("pinned LÖVE shared library failed its Git blob checksum")
-        if payload[:4] != b"\x7fELF" or payload[4] != 2 or payload[5] != 1:
+        if payload[:4] != b"\\x7fELF" or payload[4] != 2 or payload[5] != 1:
             raise RuntimeError(f"{relative} is not a 64-bit little-endian ELF")
         machine = int.from_bytes(payload[18:20], "little")
         if machine != AARCH64_MACHINE:
             raise RuntimeError(f"{relative} is not an AArch64 binary (ELF machine {machine})")
         target.write_bytes(payload)
         target.chmod(0o755 if relative == "lib/love" else 0o644)
-
 
 def zip_timestamp():
     epoch = max(int(os.environ.get("SOURCE_DATE_EPOCH", "315532800")), 315532800)
