@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[1]
-VOID_DESK_RUNTIME_COMMIT = "0fd1447bcf9f31a5e812f78b9e2afed4db01cce7"
+DOLPHIN_RT_RUNTIME_COMMIT = "e71832495b2bb4b4eac3172af12905a898408be7"
 RUNTIME_FILES = {
     "lib/love": "lib/love",
     "lib/liblove-11.5.so": "lib/liblove-11.5.so",
@@ -50,7 +50,7 @@ def fetch_runtime(destination: Path) -> None:
     for relative, source in RUNTIME_FILES.items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        url = LOVE_RUNTIME_SOURCE_URL if relative == "lib/liblove-11.5.so" else base + source
+        url = base + source
         request = urllib.request.Request(url, headers={"User-Agent": "CometDesk-builder"})
         with urllib.request.urlopen(request, timeout=90) as response:
             payload = response.read(64 * 1024 * 1024)
