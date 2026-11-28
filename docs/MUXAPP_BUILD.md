@@ -20,7 +20,7 @@ CometDesk/
 └── data/
 ```
 
-The AArch64 launcher and LuaJIT runtime are fetched from a pinned Void Desk commit; the LÖVE 11.5 shared library comes from the pinned Dolphin RT Core runtime source. All three are checked as 64-bit little-endian AArch64 ELF, and the LÖVE shared library also has a pinned Git blob checksum. The package includes the read-only Lua device probe; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
+All three AArch64 runtime files are fetched from one immutable commit in `SilverCrow2323/dolphin-rt-core`, under the preserved muOS v11.5.00 Triptych `DolphinUI/lib` snapshot. The builder pins that commit and checks the LÖVE 11.5 shared library against its Git blob SHA-1 in addition to validating all three files as 64-bit little-endian AArch64 ELF. The package includes the read-only Lua device probe; the validator rejects missing application/runtime files, unsafe paths, symlinks, wrong ELF architecture and a non-executable launcher.
 
 The launcher follows the muOS Andromeda application runner contract: it sources `/opt/muos/script/var/func.sh`, calls `SETUP_APP`, and uses the runtime application path `/run/muos/storage/application/CometDesk`. It does not hard-code SD1/SD2 mount roots.
 
