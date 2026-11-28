@@ -25,7 +25,7 @@ Out of scope: bootloader changes, partitioning/formatting, automatic system repl
 - Future desktop/session services, kept unavailable until their operations and recovery paths are implemented.
 
 ## Dependencies and integration
-The muOS MUX launcher contract and LÖVE 11.5 runtime are packaged with the app. The runtime source is pinned to a specific Void Desk/Dolphin Rt snapshot and checked by content hash. No dependency on Void Desk being installed is intended.
+The muOS MUX launcher contract and LÖVE 11.5 runtime are packaged with the app. The three AArch64 runtime files are sourced from one immutable Dolphin Rt:Core muOS v11.5.00 snapshot; the LÖVE shared library is additionally checked against its Git blob SHA-1. Void Desk is a product reference only and is not a runtime source or installed dependency.
 
 ## Safety, accessibility and localization
 Device probing remains read-only. Installation must require an explicit target, space preview, checksum verification, staging and rollback. Reject path traversal and archive symlinks. Controls must be reachable by D-pad/buttons and readable at 640×480. Do not claim hardware validation without a physical RG35XX H test.
