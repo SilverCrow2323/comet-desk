@@ -61,3 +61,20 @@ def test_rejects_non_executable_launcher(tmp_path):
     path = tmp_path / "not-executable.muxapp"
     _archive(path, _valid_entries())
     assert any("not executable" in error for error in validate_archive(path))
+
+def test_rejects_symlink_entry(tmp_path):
+    path = tmp_path / "symlink.muxapp"
+    with zipfile.ZipFile(path, "w") as archive:
+        for name, payload in _valid_entries().items():
+            info = zipfile.ZipInfo(name)
+            info.create_system = 3
+            info.external_attr = (stat.S_IFREG | 0o644) << 16
+            if name == "CometDesk/mux_launch.sh":
+                info.external_attr = (stat.S_IFREG | 0o755) << 16
+            archive.writestr(info, payload)
+        link = zipfile.ZipInfo("CometDesk/love/external-runtime")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        archive.writestr(link, "../../outside-runtime")
+    errors = validate_archive(path)
+    assert any("symlink is not allowed" in error for error in errors)
