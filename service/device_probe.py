@@ -47,6 +47,15 @@ def parse_meminfo() -> dict[str, int | None]:
     return {"total_bytes": total}
 
 
+def _unescape_mount_field(value: str) -> str:
+    """Decode Linux /proc/mounts octal escapes without accepting invalid bytes."""
+    def decode(match: re.Match[str]) -> str:
+        codepoint = int(match.group(1), 8)
+        return chr(codepoint) if codepoint <= 0xFF else match.group(0)
+
+    return re.sub(r"\\([0-7]{3})", decode, value)
+
+
 def _mounts() -> list[dict[str, str]]:
     result = []
     raw = read_text("/proc/mounts") or ""
@@ -54,15 +63,9 @@ def _mounts() -> list[dict[str, str]]:
         fields = line.split()
         if len(fields) < 4:
             continue
-        # proc mount fields escape spaces as octal sequences.
-        unescape = lambda s: re.sub(
-            r"\\([0-7]{3})",
-            lambda m: chr(int(m.group(1), 8)),
-            s,
-        )
         result.append({
-            "source": unescape(fields[0]),
-            "mount_point": unescape(fields[1]),
+            "source": _unescape_mount_field(fields[0]),
+            "mount_point": _unescape_mount_field(fields[1]),
             "filesystem": fields[2],
             "options": fields[3],
         })
@@ -115,6 +118,7 @@ def storage_inventory() -> list[dict[str, Any]]:
         if not stats:
             continue
         source = mount["source"]
+        block_capacity = _block_size_bytes(source)
         found.append({
             "slot_hint": slot_hint,
             "mount_point": mount_point,
@@ -124,10 +128,10 @@ def storage_inventory() -> list[dict[str, Any]]:
             "filesystem_capacity_bytes": stats["total_bytes"],
             "used_bytes": stats["used_bytes"],
             "available_bytes": stats["available_bytes"],
-            "block_device_capacity_bytes": _block_size_bytes(source),
+            "block_device_capacity_bytes": block_capacity,
             "capacity_note": (
                 "Block-device size is unavailable; filesystem capacity shown."
-                if _block_size_bytes(source) is None
+                if block_capacity is None
                 else "Block-device and filesystem capacity are reported separately."
             ),
         })
