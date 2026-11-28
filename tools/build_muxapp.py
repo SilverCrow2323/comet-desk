@@ -26,7 +26,13 @@ REQUIRED = (
 )
 AARCH64_MACHINE = 183
 LOVE_BLOB_SHA1 = "f28fbe1f41b32708a4d80ed58a92f12cdfd8f0da"
-RUNTIME_SOURCE_BASE = (\n    "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/"\n    f"{DOLPHIN_RT_RUNTIME_COMMIT}/"\n    "Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/"\n    "Flavour%20III%20%7C%20%27Frontendone%27%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/"\n    "DolphinUI/"\n)
+RUNTIME_SOURCE_BASE = (
+    "https://raw.githubusercontent.com/SilverCrow2323/dolphin-rt-core/"
+    f"{DOLPHIN_RT_RUNTIME_COMMIT}/"
+    "Core_History/Dolphin%20RtCore%20for%20MuOS%20v11.5.00%20Triptych/"
+    "Flavour%20III%20%7C%20%27Frontendone%27%20%5B%20Full%20L%C3%96VE%20Frontend%20GUI%20%5D/"
+    "DolphinUI/"
+)
 
 
 def sha256_file(path: Path) -> str:
