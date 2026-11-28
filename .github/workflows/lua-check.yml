@@ -34,7 +34,7 @@ jobs:
       - name: Validate source and package tooling
         run: |
           python -m py_compile service/device_probe.py tools/build_muxapp.py
-          pytest -q
+          PYTHONPATH=. pytest -q
 
   muxapp:
     runs-on: ubuntu-latest
